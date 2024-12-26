@@ -10,6 +10,9 @@ spring:
 ---
 spring:
   ai:
-    openai:
+    openai: #感谢： https://github.com/chatanywhere/GPT_API_free?tab=readme-ov-file
       api-key: sk-cT6YTFBsX8qrmIYGrIB9tO5PtA0ea3onnfS38NMTNIuJ9mWm # 获取免费apiKey https://mp.weixin.qq.com/s?__biz=MzU0MzI3MzU1Ng==&mid=2247484719&idx=1&sn=33b4f623d421216fae26ddcae446e4da&chksm=fb0ca214cc7b2b0215d12a29ff091c5840798b8b15657212d248f73ae6b7c63b2fc28e72bf4a&scene=21#wechat_redirect
       base-url:  https://api.chatanywhere.tech #  https://api.openai.com（分为代理地址和直连地址）
+      chat:
+        options:   # 默认model是gpt-4o：org.springframework.ai.autoconfigure.openai.OpenAiChatProperties.DEFAULT_CHAT_MODEL
+          model: gpt-4o-mini #免费版支持gpt-4，一天3次；支持gpt-4o-mini，和gpt-3.5-turbo共享一天200次。
