@@ -4,7 +4,7 @@ spring:
       base-url: http://localhost:11434
       chat:
         options:
-          model: qwen2.5:3b
+          model: qwen2.5:3b # 经过测试： qwen2.5:0.5b 因为体积小不够智能
           temperature: 0.7
 
 ---
@@ -15,4 +15,4 @@ spring:
       base-url:  https://api.chatanywhere.tech #  https://api.openai.com（分为代理地址和直连地址）
       chat:
         options:   # 默认model是gpt-4o：org.springframework.ai.autoconfigure.openai.OpenAiChatProperties.DEFAULT_CHAT_MODEL
-          model: gpt-4o-mini #免费版支持gpt-4，一天3次；支持gpt-4o-mini，和gpt-3.5-turbo共享一天200次。
+          model: gpt-3.5-turbo #免费版支持gpt-4，一天3次；支持gpt-4o-mini，和gpt-3.5-turbo共享一天200次。
