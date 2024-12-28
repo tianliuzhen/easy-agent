@@ -6,7 +6,8 @@ spring:
         options:
           model: qwen2.5:3b # 经过测试： qwen2.5:0.5b 因为体积小不够智能
           temperature: 0.7
-
+      embedding:
+        model: qwen2.5:3b # 默认模型是：org.springframework.ai.ollama.api.OllamaModel#MXBAI_EMBED_LARGE
 ---
 spring:
   ai:

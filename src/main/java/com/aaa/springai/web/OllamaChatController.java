@@ -1,10 +1,13 @@
 package com.aaa.springai.web;
 
+import com.aaa.springai.web.docs.LocalDocumentService;
 import com.aaa.springai.web.util.ChatResponseUtil;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.model.function.FunctionCallbackWrapper;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -82,5 +85,28 @@ public class OllamaChatController {
                 .build();
         ChatResponse response = this.chatModel.call(new Prompt(userMessage, chatOptions));
         return ChatResponseUtil.getResStr(response);
+    }
+
+    @Autowired
+    private LocalDocumentService localDocumentService;
+
+    @GetMapping("/ai/chatWithRag")
+    public String chat(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
+
+        // 向量搜索
+        List<Document> documentList = localDocumentService.search(msg);
+
+        // 提示词模板
+        PromptTemplate promptTemplate = new PromptTemplate("""
+                {userMessage}
+                请参考以下信息回答问题:
+                {contents}
+                 """);
+
+        // 组装提示词
+        Prompt prompt = promptTemplate.create(Map.of("userMessage", msg, "contents", documentList));
+
+        // 调用大模型
+        return chatModel.call(prompt).getResult().getOutput().getContent();
     }
 }
