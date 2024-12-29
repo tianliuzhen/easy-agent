@@ -24,7 +24,7 @@ public class RedisSearchExample {
         jedisPoolConfig.setMaxIdle(10);
         jedisPoolConfig.setMaxWaitMillis(3000);
         jedisPoolConfig.setJmxEnabled(false);
-        client = new JedisPooled(jedisPoolConfig, "124.221.225.161", 6389, 1000, null, 9);
+        client = new JedisPooled(jedisPoolConfig, "124.221.225.161", 6389, 1000, null, 0);
     }
 
     /**
@@ -81,11 +81,11 @@ public class RedisSearchExample {
 
     public static void main(String[] args) {
         RedisSearchExample example = new RedisSearchExample();
+        example.createIndex("idx:goods", "goods", new Schema());
 
 
-        String id = "1";
         Map<String, String> hash = new HashMap<>();
-        hash.put("id", id);
+        hash.put("id", "1");
         hash.put("goodsName", "你好hello");
         example.hset("idx:goods", hash);
         SearchResult searchResult = example.query("idx:goods", "*", null);

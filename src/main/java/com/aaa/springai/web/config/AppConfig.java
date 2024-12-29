@@ -4,6 +4,8 @@ import com.aaa.springai.web.function.tool.MockWeatherService;
 import io.micrometer.observation.ObservationRegistry;
 import org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreAutoConfiguration;
 import org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreProperties;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.embedding.BatchingStrategy;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.ollama.OllamaEmbeddingModel;
@@ -95,5 +97,15 @@ public class AppConfig {
                 jedisPooled,
                 properties.isInitializeSchema(), observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP),
                 customObservationConvention.getIfAvailable(() -> null), batchingStrategy);
+    }
+
+    /**
+     * 内存型缓存
+     *
+     * @return
+     */
+    @Bean
+    public ChatMemory InMemoryChatMemory() {
+        return new InMemoryChatMemory();
     }
 }

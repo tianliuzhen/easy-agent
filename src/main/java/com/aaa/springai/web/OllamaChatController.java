@@ -4,6 +4,10 @@ import com.aaa.springai.web.docs.LocalDocumentService;
 import com.aaa.springai.web.docs.RedisDocumentService;
 import com.aaa.springai.web.util.ChatResponseUtil;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -21,6 +25,10 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+
+import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY;
+import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY;
 
 /**
  * @author liuzhen.tian
@@ -30,11 +38,19 @@ import java.util.Map;
 @RequestMapping("ollama")
 public class OllamaChatController {
     private final OllamaChatModel chatModel;
+    // 文档检索
+    private final LocalDocumentService localDocumentService;
+    private final RedisDocumentService redisDocumentService;
+    // 初始化基于内存的对话记忆
+    private final ChatMemory inMemoryChatMemory;
 
-    @Autowired
-    public OllamaChatController(OllamaChatModel chatModel) {
+    public OllamaChatController(OllamaChatModel chatModel, LocalDocumentService localDocumentService, RedisDocumentService redisDocumentService, ChatMemory inMemoryChatMemory) {
         this.chatModel = chatModel;
+        this.localDocumentService = localDocumentService;
+        this.redisDocumentService = redisDocumentService;
+        this.inMemoryChatMemory = inMemoryChatMemory;
     }
+
 
     @GetMapping("/ai/generate")
     public Map generate(@RequestParam(value = "message", defaultValue = "给我讲个笑话") String message) {
@@ -88,10 +104,6 @@ public class OllamaChatController {
         return ChatResponseUtil.getResStr(response);
     }
 
-    @Autowired
-    private LocalDocumentService localDocumentService;
-    @Autowired
-    private RedisDocumentService redisDocumentService;
 
     @GetMapping("/ai/chatWithRag")
     public String chat(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
@@ -113,5 +125,32 @@ public class OllamaChatController {
 
         // 调用大模型
         return chatModel.call(prompt).getResult().getOutput().getContent();
+    }
+
+    @GetMapping("/ai/chatWithMemory")
+    public String chatWithMemory(
+            @RequestParam(value = "conversationId", defaultValue = "102") String conversationId,
+            @RequestParam(value = "msg", defaultValue = "你好") String msg) {
+
+        // 创建AI模型客户端
+        ChatClient chatClient = ChatClient.builder(chatModel)
+                .defaultAdvisors(new MessageChatMemoryAdvisor(inMemoryChatMemory))
+                .build();
+
+        // 对话记忆的唯一标识
+        String conversationIdStr = conversationId;
+
+        // 发送第一个请求
+        ChatResponse response = chatClient
+                .prompt()
+                .user(msg)
+                .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, conversationIdStr)
+                        .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
+                .call()
+                .chatResponse();
+        String content = response.getResult().getOutput().getContent();
+        System.out.println("AI回应: " + content);
+
+        return content;
     }
 }
