@@ -17,13 +17,13 @@ import java.util.List;
  * @version 1.0 LocalDocumentService.java  2024/12/28 21:31
  */
 @Component
-public class LocalDocumentService {
+public class RedisDocumentService {
 
     @Value("classpath:docs/MetalPrice.txt") // This is the text document to load
     private Resource resource;
 
     @Autowired
-    private VectorStore simpleVectorStore;
+    private VectorStore redisVectorStore;
 
     @PostConstruct
     public void init(){
@@ -40,14 +40,16 @@ public class LocalDocumentService {
         TokenTextSplitter tokenTextSplitter = new TokenTextSplitter();
         List<Document> list = tokenTextSplitter.apply(documents);
 
+        // todo 重写documentId 否则上传会重复
+
         // 存入向量数据库
-        simpleVectorStore.add(list);
+        redisVectorStore.add(list);
 
         return list;
     }
 
     public List<Document> search(String message){
-        List<Document> documents = simpleVectorStore.similaritySearch(message);
+        List<Document> documents = redisVectorStore.similaritySearch(message);
         return documents;
     }
 

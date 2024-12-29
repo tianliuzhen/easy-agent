@@ -1,6 +1,7 @@
 package com.aaa.springai.web;
 
 import com.aaa.springai.web.docs.LocalDocumentService;
+import com.aaa.springai.web.docs.RedisDocumentService;
 import com.aaa.springai.web.util.ChatResponseUtil;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -89,22 +90,26 @@ public class OllamaChatController {
 
     @Autowired
     private LocalDocumentService localDocumentService;
+    @Autowired
+    private RedisDocumentService redisDocumentService;
 
     @GetMapping("/ai/chatWithRag")
     public String chat(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
 
         // 向量搜索
-        List<Document> documentList = localDocumentService.search(msg);
+        // List<Document> documentList = localDocumentService.search(msg);
+        List<Document> documentList = redisDocumentService.search(msg);
 
         // 提示词模板
         PromptTemplate promptTemplate = new PromptTemplate("""
                 {userMessage}
+                                
                 请参考以下信息回答问题:
-                {contents}
+                {documentList}
                  """);
 
         // 组装提示词
-        Prompt prompt = promptTemplate.create(Map.of("userMessage", msg, "contents", documentList));
+        Prompt prompt = promptTemplate.create(Map.of("userMessage", msg, "documentList", documentList));
 
         // 调用大模型
         return chatModel.call(prompt).getResult().getOutput().getContent();
