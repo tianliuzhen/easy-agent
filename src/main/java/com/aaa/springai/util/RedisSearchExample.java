@@ -1,4 +1,4 @@
-package com.aaa.springai.web.util;
+package com.aaa.springai.util;
 
 /**
  * @author liuzhen.tian

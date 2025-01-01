@@ -1,4 +1,4 @@
-package com.aaa.springai.web.util;
+package com.aaa.springai.util;
 
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatResponse;

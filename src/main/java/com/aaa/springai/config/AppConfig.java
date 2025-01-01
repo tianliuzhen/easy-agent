@@ -1,8 +1,7 @@
-package com.aaa.springai.web.config;
+package com.aaa.springai.config;
 
-import com.aaa.springai.web.function.tool.MockWeatherService;
+import com.aaa.springai.function.tool.MockWeatherService;
 import io.micrometer.observation.ObservationRegistry;
-import org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreAutoConfiguration;
 import org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreProperties;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
@@ -20,7 +19,6 @@ import org.springframework.context.annotation.Description;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.JedisClientConfig;
 import redis.clients.jedis.JedisPooled;
 
 import java.util.function.Function;

@@ -26,7 +26,7 @@ public class LocalDocumentService {
     private VectorStore simpleVectorStore;
 
     @PostConstruct
-    public void init(){
+    public void init() {
         loadText();
     }
 
@@ -37,7 +37,8 @@ public class LocalDocumentService {
         List<Document> documents = textReader.get();
 
         // 把文章分为小段
-        TokenTextSplitter tokenTextSplitter = new TokenTextSplitter();
+        TokenTextSplitter tokenTextSplitter = new TokenTextSplitter(400, 175, 5, 1000, true);
+        // TokenTextSplitter tokenTextSplitter = new TokenTextSplitter();
         List<Document> list = tokenTextSplitter.apply(documents);
 
         // 存入向量数据库
@@ -46,7 +47,7 @@ public class LocalDocumentService {
         return list;
     }
 
-    public List<Document> search(String message){
+    public List<Document> search(String message) {
         List<Document> documents = simpleVectorStore.similaritySearch(message);
         return documents;
     }

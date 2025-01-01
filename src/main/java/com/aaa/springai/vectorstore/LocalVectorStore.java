@@ -1,4 +1,4 @@
-package com.aaa.springai.web.vectorstore;
+package com.aaa.springai.vectorstore;
 
 /**
  * @author liuzhen.tian

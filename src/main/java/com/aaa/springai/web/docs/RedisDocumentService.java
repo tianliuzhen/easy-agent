@@ -1,5 +1,7 @@
 package com.aaa.springai.web.docs;
 
+import com.aaa.springai.transformer.MyTextReader;
+import com.aaa.springai.transformer.MyTokenTextSplitterV2;
 import jakarta.annotation.PostConstruct;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.TextReader;
@@ -32,12 +34,12 @@ public class RedisDocumentService {
 
     public List<Document> loadText() {
         // 查询文档
-        TextReader textReader = new TextReader(resource);
+        MyTextReader textReader = new MyTextReader(resource);
         textReader.getCustomMetadata().put("金属价格", "MetalPrice.txt");
         List<Document> documents = textReader.get();
 
         // 把文章分为小段
-        TokenTextSplitter tokenTextSplitter = new TokenTextSplitter();
+        MyTokenTextSplitterV2 tokenTextSplitter = new MyTokenTextSplitterV2();
         List<Document> list = tokenTextSplitter.apply(documents);
 
         // todo 重写documentId 否则上传会重复
