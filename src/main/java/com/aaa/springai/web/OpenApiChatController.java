@@ -6,10 +6,14 @@ import jakarta.annotation.Resource;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.image.ImagePrompt;
+import org.springframework.ai.image.ImageResponse;
 import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.ai.model.function.FunctionCallbackContext;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.OpenAiImageModel;
+import org.springframework.ai.openai.OpenAiImageOptions;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,6 +33,8 @@ import java.util.List;
 public class OpenApiChatController {
     @Resource
     private OpenAiChatModel chatModel;
+    @Resource
+    private OpenAiImageModel imageModel;
 
     /**
      * 聊天的方法。底层调用的openAi的方法
@@ -98,4 +104,24 @@ public class OpenApiChatController {
     }
 
 
+    /**
+     * 聊天的方法。底层调用的openAi的方法
+     * RequestParam 接受参数
+     * msg 就是我们提的问题
+     *
+     * @return
+     */
+    @GetMapping("/ai/image/chat")
+    public Object chat() {
+        ImageResponse response = imageModel.call(
+                new ImagePrompt("A light cream colored mini golden doodle",
+                        OpenAiImageOptions.builder()
+                                .withQuality("hd")
+                                .withN(4)
+                                .withHeight(1024)
+                                .withWidth(1024).build())
+
+        );
+        return response;
+    }
 }
