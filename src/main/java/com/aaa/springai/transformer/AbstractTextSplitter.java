@@ -72,7 +72,7 @@ public abstract class AbstractTextSplitter implements DocumentTransformer {
                                            List<ContentFormatter> formatters,
                                            List<Map<String, Object>> metadataList) {
 
-        // Process the data in a column oriented way and recreate the Document
+        // Process the docDetailInfo in a column oriented way and recreate the Document
         List<Document> documents = new ArrayList<>();
 
         for (int i = 0; i < texts.size(); i++) {

@@ -121,7 +121,8 @@ public class OllamaChatController {
         Prompt prompt = promptTemplate.create(Map.of("userMessage", msg, "documentList", documentList));
 
         // 调用大模型
-        return chatModel.call(prompt).getResult().getOutput().getContent();
+        String content = chatModel.call(prompt).getResult().getOutput().getContent();
+        return content;
     }
 
     @GetMapping("/ai/chatWithMemory")

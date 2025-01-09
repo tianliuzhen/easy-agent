@@ -28,8 +28,10 @@ public class RedisDocumentService {
     private VectorStore redisVectorStore;
 
     @PostConstruct
-    public void init(){
-        loadText();
+    public void init() {
+        new Thread(() -> {
+            loadText();
+        }).start();
     }
 
     public List<Document> loadText() {
@@ -50,7 +52,7 @@ public class RedisDocumentService {
         return list;
     }
 
-    public List<Document> search(String message){
+    public List<Document> search(String message) {
         List<Document> documents = redisVectorStore.similaritySearch(message);
         return documents;
     }

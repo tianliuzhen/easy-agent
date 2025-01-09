@@ -27,7 +27,9 @@ public class LocalDocumentService {
 
     @PostConstruct
     public void init() {
-        loadText();
+        new Thread(()->{
+            loadText();
+        }).start();
     }
 
     public List<Document> loadText() {

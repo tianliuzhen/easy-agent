@@ -38,7 +38,7 @@ public class MyTextReader implements DocumentReader {
     private final Map<String, Object> customMetadata = new HashMap<>();
 
     /**
-     * Character set to be used when loading data from the
+     * Character set to be used when loading docDetailInfo from the
      */
     private Charset charset = StandardCharsets.UTF_8;
 
