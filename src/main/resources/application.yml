@@ -22,3 +22,13 @@ spring:
         base-url:   https://api.chatanywhere.tech #可选地覆盖 spring.ai.openai.base-url 以提供特定于聊天的 url
         api-key: sk-cT6YTFBsX8qrmIYGrIB9tO5PtA0ea3onnfS38NMTNIuJ9mWm #可选地覆盖 spring.ai.openai.api-key 以提供特定于聊天的 api-key
 ---
+spring:
+  ai:
+    deepseek: #感谢：硅基流动 https://cloud.siliconflow.cn/models
+      api-key: sk-ewykgprysbswuqagkpbuglgodbxshtucznttazynawykgsds
+      base-url: https://api.siliconflow.cn/
+      chat:
+        options:
+          model: deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+        completions-path: /v1/chat/completions
+

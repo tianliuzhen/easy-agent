@@ -1,5 +1,7 @@
 package com.aaa.springai.web.docs;
 
+import com.aaa.springai.transformer.MyTokenTextSplitter;
+import com.aaa.springai.transformer.MyTokenTextSplitterV2;
 import jakarta.annotation.PostConstruct;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.TextReader;
@@ -39,7 +41,7 @@ public class LocalDocumentService {
         List<Document> documents = textReader.get();
 
         // 把文章分为小段
-        TokenTextSplitter tokenTextSplitter = new TokenTextSplitter(400, 175, 5, 1000, true);
+        MyTokenTextSplitterV2 tokenTextSplitter = new MyTokenTextSplitterV2(400, 175, 5, 1000, true);
         // TokenTextSplitter tokenTextSplitter = new TokenTextSplitter();
         List<Document> list = tokenTextSplitter.apply(documents);
 
