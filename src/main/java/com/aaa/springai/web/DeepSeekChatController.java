@@ -1,6 +1,7 @@
 package com.aaa.springai.web;
 
 import com.aaa.springai.util.ChatResponseUtil;
+import com.aaa.springai.web.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Resource;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -18,7 +19,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -48,6 +52,37 @@ public class DeepSeekChatController {
         String called = deepSeekChatModel.call(msg);
         return called;
     }
+
+    @GetMapping("/ai/sseEmitter")
+    public SseEmitter sseEmitter(@RequestParam(value = "message", defaultValue = "给我讲个笑话") String message) {
+        SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
+        Prompt prompt = new Prompt(new UserMessage(message));
+        new Thread(() -> {
+            Flux<ChatResponse> stream = deepSeekChatModel.stream(prompt);
+            stream.subscribe(e -> {
+                try {
+                    Thread.sleep(300);
+                    sseEmitter.send(e.getResult());
+                    System.out.println("e.getResult().getOutput() = " + e.getResult().getOutput());
+                } catch (IOException ex) {
+                    sseEmitter.complete();
+                } catch (InterruptedException ex) {
+                    sseEmitter.complete();
+                }
+
+            }, err -> {
+                // 处理流中的错误
+                // sseEmitter.completeWithError(err);
+                sseEmitter.complete();
+            }, () -> {
+                // 流完成时调用
+                sseEmitter.complete();
+            });
+
+        }).start();
+        return sseEmitter;
+    }
+
 
     /**
      * OpenAiChatOptions.builder() 传入的一个参数，可以控制大模型的设置
