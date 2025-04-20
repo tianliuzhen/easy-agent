@@ -1,0 +1,41 @@
+package com.aaa.springai.util;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+/**
+ * @author liuzhen.tian
+ * @version 1.0 JSONUtil.java  2025/4/19 22:14
+ */
+public class JSONUtil {
+    // 创建一个静态的 ObjectMapper 实例
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+    /**
+     * 将对象转换为 JSON 字符串
+     *
+     * @param object 要转换的对象
+     * @return JSON 字符串，如果转换失败则返回 null
+     */
+    public static String toStr(Object object) {
+        if (object == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            // 在实际应用中，可以考虑使用日志记录工具记录异常
+            return null;
+        }
+    }
+
+    public static <T> T strToBean(String json, Class<T> clazz) {
+        try {
+            return objectMapper.readValue(json, clazz);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+}

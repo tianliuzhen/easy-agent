@@ -4,7 +4,7 @@ import io.micrometer.observation.ObservationRegistry;
 import org.springframework.ai.autoconfigure.openai.*;
 import org.springframework.ai.chat.observation.ChatModelObservationConvention;
 import org.springframework.ai.model.function.FunctionCallback;
-import org.springframework.ai.model.function.FunctionCallbackContext;
+import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
@@ -53,7 +53,7 @@ public class DeepseekAiAutoConfiguration {
     public OpenAiChatModel deepSeekChatModel(OpenAiConnectionProperties commonProperties,
                                              OpenAiChatProperties chatProperties, ObjectProvider<RestClient.Builder> restClientBuilderProvider,
                                              ObjectProvider<WebClient.Builder> webClientBuilderProvider, List<FunctionCallback> toolFunctionCallbacks,
-                                             FunctionCallbackContext functionCallbackContext, RetryTemplate retryTemplate,
+                                             ToolCallingManager toolCallingManager, RetryTemplate retryTemplate,
                                              ResponseErrorHandler responseErrorHandler, ObjectProvider<ObservationRegistry> observationRegistry,
                                              ObjectProvider<ChatModelObservationConvention> observationConvention) {
 
@@ -61,8 +61,15 @@ public class DeepseekAiAutoConfiguration {
                 restClientBuilderProvider.getIfAvailable(RestClient::builder),
                 webClientBuilderProvider.getIfAvailable(WebClient::builder), responseErrorHandler, "chat");
 
-        var chatModel = new OpenAiChatModel(openAiApi, chatProperties.getOptions(), functionCallbackContext,
-                toolFunctionCallbacks, retryTemplate, observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP));
+
+        var chatModel = OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .defaultOptions(chatProperties.getOptions())
+                .toolCallingManager(toolCallingManager)
+                .retryTemplate(retryTemplate)
+                .observationRegistry(observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP))
+                .build();
+
 
         observationConvention.ifAvailable(chatModel::setObservationConvention);
 
@@ -146,8 +153,8 @@ public class DeepseekAiAutoConfiguration {
 
         @NestedConfigurationProperty
         private OpenAiChatOptions options = OpenAiChatOptions.builder()
-                .withModel(DEFAULT_CHAT_MODEL)
-                .withTemperature(DEFAULT_TEMPERATURE)
+                .model(DEFAULT_CHAT_MODEL)
+                .temperature(DEFAULT_TEMPERATURE)
                 .build();
 
         public OpenAiChatOptions getOptions() {

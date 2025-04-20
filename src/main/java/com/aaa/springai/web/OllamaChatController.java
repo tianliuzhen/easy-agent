@@ -13,9 +13,11 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.model.function.FunctionCallbackWrapper;
+import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.tool.function.FunctionToolCallback;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -42,14 +44,15 @@ public class OllamaChatController {
     private final OllamaChatModel chatModel;
     // 文档检索
     private final LocalDocumentService localDocumentService;
-    private final RedisDocumentService redisDocumentService;
+    @Autowired(required = false)
+    private  RedisDocumentService redisDocumentService;
+
     // 初始化基于内存的对话记忆
     private final ChatMemory inMemoryChatMemory;
 
-    public OllamaChatController(OllamaChatModel chatModel, LocalDocumentService localDocumentService, RedisDocumentService redisDocumentService, ChatMemory inMemoryChatMemory) {
+    public OllamaChatController(OllamaChatModel chatModel, LocalDocumentService localDocumentService, ChatMemory inMemoryChatMemory) {
         this.chatModel = chatModel;
         this.localDocumentService = localDocumentService;
-        this.redisDocumentService = redisDocumentService;
         this.inMemoryChatMemory = inMemoryChatMemory;
     }
 
@@ -102,7 +105,7 @@ public class OllamaChatController {
         ChatResponse response = this.chatModel.call(
                 new Prompt(userMessage,
                         OpenAiChatOptions.builder()
-                                .withFunction("currentWeather")
+                                .function("currentWeather")
                                 .build()
                 )
         ); // Enable the function
@@ -115,22 +118,20 @@ public class OllamaChatController {
         record QueryDateRequest(@JsonPropertyDescription("type类型只能是[黄金,白银]") String type) {
         }
 
-        //
-        FunctionCallbackWrapper<QueryDateRequest, String> weatherTool
-                = FunctionCallbackWrapper.<QueryDateRequest, String>builder(
-                        (request, toolContext) -> {
-                            if (request.type.equals("黄金")) {
-                                return "600人民币";
-                            }
-                            return "7人民币";
-                        })
-                .withName("queryMetalPrice")
-                .withDescription("查询黄金白金贵金属价格")
-                .withInputType(QueryDateRequest.class)
+
+        FunctionCallback weatherTool = FunctionToolCallback.builder("queryMetalPrice",(request, toolContext) -> {
+                    if (request.equals("黄金")) {
+                        return "600人民币";
+                    }
+                    return "7人民币";
+                })
+                .description("查询黄金白金贵金属价格")
+                .inputType(QueryDateRequest.class)
                 .build();
 
+
         OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
-                .withFunctionCallbacks(List.of(weatherTool))
+                .functionCallbacks(List.of(weatherTool))
                 .build();
         ChatResponse response = this.chatModel.call(new Prompt(userMessage, chatOptions));
         return ChatResponseUtil.getResStr(response);
@@ -141,8 +142,8 @@ public class OllamaChatController {
     public String chat(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
 
         // 向量搜索
-        // List<Document> documentList = localDocumentService.search(msg);
-        List<Document> documentList = redisDocumentService.search(msg);
+        List<Document> documentList = localDocumentService.search(msg);
+        // List<Document> documentList = redisDocumentService.search(msg);
 
         // 提示词模板
         PromptTemplate promptTemplate = new PromptTemplate("""
@@ -156,7 +157,7 @@ public class OllamaChatController {
         Prompt prompt = promptTemplate.create(Map.of("userMessage", msg, "documentList", documentList));
 
         // 调用大模型
-        String content = chatModel.call(prompt).getResult().getOutput().getContent();
+        String content = chatModel.call(prompt).getResult().getOutput().getText();
         return content;
     }
 
@@ -181,7 +182,7 @@ public class OllamaChatController {
                         .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
                 .call()
                 .chatResponse();
-        String content = response.getResult().getOutput().getContent();
+        String content = response.getResult().getOutput().getText();
         System.out.println("AI回应: " + content);
 
         return content;

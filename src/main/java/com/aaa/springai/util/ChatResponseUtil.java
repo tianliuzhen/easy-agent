@@ -15,7 +15,7 @@ public class ChatResponseUtil {
         return Optional.ofNullable(chatResponse)
                 .map(ChatResponse::getResult)
                 .map(Generation::getOutput)
-                .map(AssistantMessage::getContent)
+                .map(AssistantMessage::getText)
                 .orElse(null);
     }
 }

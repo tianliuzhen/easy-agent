@@ -12,7 +12,7 @@ public class MockWeatherService implements Function<MockWeatherService.Request, 
 
     public enum Unit {C, F}
 
-    public record Request(@JsonPropertyDescription("从问题中获取，不要编造，格式如：[杭州,上海,北京]") String location, Unit unit) {
+    public record Request(@JsonPropertyDescription("从问题中获取，不要编造，格式如：杭州") String location, Unit unit) {
     }
 
     public record Response(double temp, Unit unit) {
@@ -24,7 +24,7 @@ public class MockWeatherService implements Function<MockWeatherService.Request, 
             return new Response(15, Unit.C);
         }
         if (request.location.equals("上海")){
-            return new Response(12, Unit.C);
+            return null;
         }
 
         return new Response(-10.0, Unit.F);

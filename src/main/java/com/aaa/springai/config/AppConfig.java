@@ -8,9 +8,9 @@ import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.embedding.BatchingStrategy;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.ollama.OllamaEmbeddingModel;
-import org.springframework.ai.vectorstore.RedisVectorStore;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.observation.VectorStoreObservationConvention;
+import org.springframework.ai.vectorstore.redis.RedisVectorStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +21,7 @@ import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisPooled;
 
+import java.lang.reflect.Constructor;
 import java.util.function.Function;
 
 /**
@@ -45,7 +46,31 @@ public class AppConfig {
      */
     @Bean
     public SimpleVectorStore simpleVectorStore(OllamaEmbeddingModel ollamaEmbeddingModel) {
-        return new SimpleVectorStore(ollamaEmbeddingModel);
+        //  通过Java的反射机制，你可以访问并调用受保护的构造函数
+        try {
+            // 假设第三方包的类路径为 "com.thirdparty.SimpleVectorStore"
+            // 请根据实际情况替换为正确的类路径
+            Class<?> clazz = Class.forName("org.springframework.ai.vectorstore.SimpleVectorStore");
+
+            // 获取私有构造函数 SimpleVectorStore(SimpleVectorStoreBuilder builder)
+            Constructor<?> constructor = clazz.getDeclaredConstructor(
+                    clazz.getDeclaredClasses()[0] == SimpleVectorStore.SimpleVectorStoreBuilder.class
+                            ? SimpleVectorStore.SimpleVectorStoreBuilder.class
+                            : null);
+            constructor.setAccessible(true);
+
+            // 创建 SimpleVectorStoreBuilder 实例
+            // 假设 SimpleVectorStoreBuilder 有一个无参构造函数
+
+            // 调用私有构造函数创建 SimpleVectorStore 实例
+            Object simpleVectorStore = constructor.newInstance(SimpleVectorStore.builder(ollamaEmbeddingModel));
+
+            return (SimpleVectorStore) simpleVectorStore;
+
+        } catch (Exception e) {
+            System.err.println("simpleVectorStore.found: " + e.getMessage());
+            return null;
+        }
     }
 
 
@@ -73,10 +98,6 @@ public class AppConfig {
                                              ObjectProvider<VectorStoreObservationConvention> customObservationConvention,
                                              BatchingStrategy batchingStrategy) {
 
-        var config = RedisVectorStore.RedisVectorStoreConfig.builder()
-                .withIndexName(properties.getIndex())
-                .withPrefix(properties.getPrefix())
-                .build();
 
         // JedisPooled jedis = new JedisPooled(jedisConnectionFactory.getHostName(),
         //         jedisConnectionFactory.getPort(),
@@ -91,10 +112,17 @@ public class AppConfig {
                 (new HostAndPort(host, port)),
                 DefaultJedisClientConfig.builder().database(database).password(password).build()
         );
-        return new RedisVectorStore(config, ollamaEmbeddingModel,
-                jedisPooled,
-                properties.isInitializeSchema(), observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP),
-                customObservationConvention.getIfAvailable(() -> null), batchingStrategy);
+
+
+        return RedisVectorStore.builder(jedisPooled, ollamaEmbeddingModel)
+                .initializeSchema(properties.isInitializeSchema())
+                .observationRegistry(observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP))
+                .customObservationConvention(customObservationConvention.getIfAvailable(() -> null))
+                .batchingStrategy(batchingStrategy)
+                .indexName(properties.getIndex())
+                .prefix(properties.getPrefix())
+                .build();
+
     }
 
     /**

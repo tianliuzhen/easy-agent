@@ -9,11 +9,11 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
 import org.springframework.ai.model.function.FunctionCallback;
-import org.springframework.ai.model.function.FunctionCallbackContext;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiImageModel;
 import org.springframework.ai.openai.OpenAiImageOptions;
+import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -67,9 +67,9 @@ public class OpenApiChatController {
     public Object chat3(@RequestParam("msg") String msg) {
         ChatResponse chatResponse = chatModel.call(new Prompt(msg, OpenAiChatOptions.builder()
                 //.withModel("gpt-4-32k")  //gpt的版本 ，32K是参数，参数越高，回答问题越准确
-                .withTemperature(0.4)  // 温度值，温度越高，回答的准确率越低，温度越低，回答的准确率越高
+                .temperature(0.4)  // 温度值，温度越高，回答的准确率越低，温度越低，回答的准确率越高
                 .build()));
-        return chatResponse.getResult().getOutput().getContent();
+        return chatResponse.getResult().getOutput().getText();
     }
 
     @GetMapping("/ai/chatWithTool")
@@ -79,7 +79,7 @@ public class OpenApiChatController {
         ChatResponse response = this.chatModel.call(
                 new Prompt(userMessage,
                         OpenAiChatOptions.builder()
-                                .withFunction("currentWeather")
+                                .function("currentWeather")
                                 .build()
                 )
         ); // Enable the function
@@ -92,20 +92,18 @@ public class OpenApiChatController {
         record QueryDateRequest(@JsonPropertyDescription("type类型只能是[黄金,白银]") String type) {
         }
 
-        FunctionCallback weatherTool = FunctionCallback.builder()
-                .schemaType(FunctionCallbackContext.SchemaType.JSON_SCHEMA)
-                .description("查询黄金白金贵金属价格")
-                .<QueryDateRequest, String>function("queryMetalPrice", (request, toolContext) -> {
-                    if (request.type.equals("黄金")) {
+        FunctionCallback weatherTool = FunctionToolCallback.builder("queryMetalPrice",(request, toolContext) -> {
+                    if (request.equals("黄金")) {
                         return "600人民币";
                     }
                     return "7人民币";
                 })
+                .description("查询黄金白金贵金属价格")
                 .inputType(QueryDateRequest.class)
                 .build();
 
         OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
-                .withFunctionCallbacks(List.of(weatherTool))
+                .functionCallbacks(List.of(weatherTool))
                 .build();
         ChatResponse response = this.chatModel.call(new Prompt(userMessage, chatOptions));
         return ChatResponseUtil.getResStr(response);

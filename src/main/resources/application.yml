@@ -16,7 +16,7 @@ spring:
       base-url:  https://api.chatanywhere.tech #  https://api.openai.com（分为代理地址和直连地址）
       chat:
         options:   # 默认model是gpt-4o：org.springframework.ai.autoconfigure.openai.OpenAiChatProperties.DEFAULT_CHAT_MODEL
-          model: gpt-4o-mini #免费版支持gpt-4，一天3次；支持gpt-4o-mini，和gpt-3.5-turbo共享一天200次。
+          model: gpt-4o #免费版支持gpt-4，一天3次；支持gpt-4o-mini，和gpt-3.5-turbo共享一天200次。
       image:
         enabled: true # 默认是开启的
         base-url:   https://api.chatanywhere.tech #可选地覆盖 spring.ai.openai.base-url 以提供特定于聊天的 url
@@ -29,6 +29,6 @@ spring:
       base-url: https://api.siliconflow.cn/
       chat:
         options:
-          model: deepseek-ai/DeepSeek-V3
+          model: deepseek-ai/DeepSeek-V2.5
         completions-path: /v1/chat/completions
 
