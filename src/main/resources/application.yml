@@ -29,6 +29,6 @@ spring:
       base-url: https://api.siliconflow.cn/
       chat:
         options:
-          model: deepseek-ai/DeepSeek-V2.5
+          model: deepseek-ai/DeepSeek-V3
         completions-path: /v1/chat/completions
 

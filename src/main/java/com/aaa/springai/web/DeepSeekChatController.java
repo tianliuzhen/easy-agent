@@ -116,8 +116,8 @@ public class DeepSeekChatController {
         record QueryDateRequest(@JsonPropertyDescription("type类型只能是[黄金,白银]") String type) {
         }
 
-        FunctionCallback weatherTool = FunctionToolCallback.builder("queryMetalPrice",(request, toolContext) -> {
-                    if (request.equals("黄金")) {
+        FunctionToolCallback<QueryDateRequest, String> weatherTool = FunctionToolCallback.<QueryDateRequest, String>builder("queryMetalPrice", (request, toolContext) -> {
+                    if ("黄金".equals(request.type)) {
                         return "600人民币";
                     }
                     return "7人民币";

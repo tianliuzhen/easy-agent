@@ -24,7 +24,7 @@ public class MockWeatherService implements Function<MockWeatherService.Request, 
             return new Response(15, Unit.C);
         }
         if (request.location.equals("上海")){
-            return null;
+            return new Response(16, Unit.C);
         }
 
         return new Response(-10.0, Unit.F);
