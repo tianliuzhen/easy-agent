@@ -76,11 +76,8 @@ public class OllamaChatController {
             Flux<ChatResponse> stream = chatModel.stream(prompt);
             stream.subscribe(e -> {
                 try {
-                    Thread.sleep(300);
                     sseEmitter.send(e.getResult());
-                } catch (IOException ex) {
-                    sseEmitter.complete();
-                } catch (InterruptedException ex) {
+                } catch (Exception ex) {
                     sseEmitter.complete();
                 }
 

@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * @author liuzhen.tian
- * @version 1.0 JSONUtil.java  2025/4/19 22:14
+ * @version 1.0 JacksonUtil.java  2025/4/19 22:14
  */
-public class JSONUtil {
+public class JacksonUtil {
     // 创建一个静态的 ObjectMapper 实例
     private static final ObjectMapper objectMapper = new ObjectMapper();
     /**

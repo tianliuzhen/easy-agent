@@ -1,8 +1,6 @@
 package com.aaa.springai.agent;
 
-import com.aaa.springai.util.JSONUtil;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.ai.chat.prompt.Prompt;
+import com.aaa.springai.util.JacksonUtil;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.stereotype.Component;
@@ -11,7 +9,6 @@ import org.springframework.util.CollectionUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * @author liuzhen.tian
@@ -99,7 +96,7 @@ public class AgentExecutor {
             String toolValue = functionTemplate.render(Map.of(
                     "name", callbackRequest.getName(),
                     "description", callbackRequest.getDescription(),
-                    "schema", JSONUtil.toStr(callbackRequest.getInputTypeSchema())));
+                    "schema", JacksonUtil.toStr(callbackRequest.getInputTypeSchema())));
             tools.append(toolValue);
             tools.append("\n");
         }
