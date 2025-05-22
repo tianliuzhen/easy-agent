@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
 import java.util.Date;
@@ -45,7 +46,7 @@ public class OllamaChatController {
     // 文档检索
     private final LocalDocumentService localDocumentService;
     @Autowired(required = false)
-    private  RedisDocumentService redisDocumentService;
+    private RedisDocumentService redisDocumentService;
 
     // 初始化基于内存的对话记忆
     private final ChatMemory inMemoryChatMemory;
@@ -72,11 +73,15 @@ public class OllamaChatController {
     public SseEmitter sseEmitter(@RequestParam(value = "message", defaultValue = "给我讲个笑话") String message) {
         SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
         Prompt prompt = new Prompt(new UserMessage(message));
+        System.out.println(Thread.currentThread().getName() + "-out");
         new Thread(() -> {
+            System.out.println(Thread.currentThread().getName() + "-inner-1");
             Flux<ChatResponse> stream = chatModel.stream(prompt);
             stream.subscribe(e -> {
                 try {
-                    sseEmitter.send(e.getResult());
+                    String text = e.getResult().getOutput().getText();
+                    sseEmitter.send(text);
+                    System.out.println(Thread.currentThread().getName() + "-inner-2-" + text);
                 } catch (Exception ex) {
                     sseEmitter.complete();
                 }
@@ -91,6 +96,7 @@ public class OllamaChatController {
             });
 
         }).start();
+
         return sseEmitter;
     }
 
@@ -116,7 +122,7 @@ public class OllamaChatController {
         }
 
 
-        FunctionCallback weatherTool = FunctionToolCallback.builder("queryMetalPrice",(request, toolContext) -> {
+        FunctionCallback weatherTool = FunctionToolCallback.builder("queryMetalPrice", (request, toolContext) -> {
                     if (request.equals("黄金")) {
                         return "600人民币";
                     }

@@ -75,57 +75,6 @@ public class AppConfig {
 
 
     /**
-     * fix for：org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreAutoConfiguration#vectorStore(org.springframework.ai.embedding.EmbeddingModel, org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreProperties, org.springframework.docDetailInfo.redis.connection.jedis.JedisConnectionFactory, org.springframework.beans.factory.ObjectProvider, org.springframework.beans.factory.ObjectProvider, org.springframework.ai.embedding.BatchingStrategy)
-     * 因为同时集成了ollma和open-ai，默认注入会失败，因此手动注入
-     * Parameter 0 of method vectorStore in org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreAutoConfiguration required a single bean, but 2 were found:
-     * - ollamaEmbeddingModel: defined by method 'ollamaEmbeddingModel' in class path resource [org/springframework/ai/autoconfigure/ollama/OllamaAutoConfiguration.class]
-     * - openAiEmbeddingModel: defined by method 'openAiEmbeddingModel' in class path resource [org/springframework/ai/autoconfigure/openai/OpenAiAutoConfiguration.class]
-     *
-     * @param ollamaEmbeddingModel
-     * @param properties
-     * @param jedisConnectionFactory
-     * @param observationRegistry
-     * @param customObservationConvention
-     * @param batchingStrategy
-     * @return
-     * @see org.springframework.boot.autoconfigure.data.redis.JedisConnectionConfiguration.JedisConnectionConfiguration
-     * @see org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreAutoConfiguration
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public RedisVectorStore redisVectorStore(EmbeddingModel ollamaEmbeddingModel, RedisVectorStoreProperties properties,
-                                             JedisConnectionFactory jedisConnectionFactory, ObjectProvider<ObservationRegistry> observationRegistry,
-                                             ObjectProvider<VectorStoreObservationConvention> customObservationConvention,
-                                             BatchingStrategy batchingStrategy) {
-
-
-        // JedisPooled jedis = new JedisPooled(jedisConnectionFactory.getHostName(),
-        //         jedisConnectionFactory.getPort(),
-        //         jedisConnectionFactory.getClientName()
-        //         , jedisConnectionFactory.getPassword()
-        // );
-        int port = jedisConnectionFactory.getPort();
-        String host = jedisConnectionFactory.getHostName();
-        int database = jedisConnectionFactory.getDatabase();
-        String password = jedisConnectionFactory.getPassword();
-        JedisPooled jedisPooled = new JedisPooled(
-                (new HostAndPort(host, port)),
-                DefaultJedisClientConfig.builder().database(database).password(password).build()
-        );
-
-
-        return RedisVectorStore.builder(jedisPooled, ollamaEmbeddingModel)
-                .initializeSchema(properties.isInitializeSchema())
-                .observationRegistry(observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP))
-                .customObservationConvention(customObservationConvention.getIfAvailable(() -> null))
-                .batchingStrategy(batchingStrategy)
-                .indexName(properties.getIndex())
-                .prefix(properties.getPrefix())
-                .build();
-
-    }
-
-    /**
      * 内存型缓存
      *
      * @return
