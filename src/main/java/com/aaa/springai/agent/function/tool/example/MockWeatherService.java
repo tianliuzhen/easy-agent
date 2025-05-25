@@ -1,4 +1,4 @@
-package com.aaa.springai.function.tool;
+package com.aaa.springai.agent.function.tool.example;
 
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 

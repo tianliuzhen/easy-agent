@@ -17,7 +17,7 @@ import java.util.Set;
 public class RedisSearchExample {
     public static final String GOODS_IDX_PREFIX = "idx:goods:";
 
-    private UnifiedJedis client;
+    private final UnifiedJedis client;
 
     public RedisSearchExample() {
         GenericObjectPoolConfig jedisPoolConfig = new JedisPoolConfig();

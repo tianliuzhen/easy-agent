@@ -1,25 +1,13 @@
 package com.aaa.springai.config;
 
-import com.aaa.springai.function.tool.MockWeatherService;
-import io.micrometer.observation.ObservationRegistry;
-import org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreProperties;
+import com.aaa.springai.agent.function.tool.example.MockWeatherService;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
-import org.springframework.ai.embedding.BatchingStrategy;
-import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.ollama.OllamaEmbeddingModel;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
-import org.springframework.ai.vectorstore.observation.VectorStoreObservationConvention;
-import org.springframework.ai.vectorstore.redis.RedisVectorStore;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
-import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
-import redis.clients.jedis.DefaultJedisClientConfig;
-import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.JedisPooled;
 
 import java.lang.reflect.Constructor;
 import java.util.function.Function;

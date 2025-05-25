@@ -16,21 +16,21 @@ import org.springframework.web.client.RestClient;
 public class YuQueApi {
     public static final String X_AUTH_TOKEN = "X-Auth-Token";
     // 语雀文档基础域名
-    private static String baseUrl = "https://www.yuque.com";
+    private static final String baseUrl = "https://www.yuque.com";
 
     // 获取当前 Token 的用户详情
-    private static String apiV2User = baseUrl + "/api/v2/user";
+    private static final String apiV2User = baseUrl + "/api/v2/user";
 
     // 获取知识库列表
-    private static String getBookList = baseUrl + "/api/v2/users/:login/repos?offset=0&limit=100&type=Book";
+    private static final String getBookList = baseUrl + "/api/v2/users/:login/repos?offset=0&limit=100&type=Book";
 
     // 获取知识库目录
-    private static String getBookCatalog = baseUrl + "/api/v2/repos/:group_login/:book_slug/toc";
+    private static final String getBookCatalog = baseUrl + "/api/v2/repos/:group_login/:book_slug/toc";
 
     // 查询单个文档详情
-    private static String getDocDetail = baseUrl + "/api/v2/repos/:group_login/:book_slug/docs/:id?page_size=100&page=1";
+    private static final String getDocDetail = baseUrl + "/api/v2/repos/:group_login/:book_slug/docs/:id?page_size=100&page=1";
 
-    private static RestClient restClient;
+    private static final RestClient restClient;
 
     static {
         restClient = RestClient.builder()

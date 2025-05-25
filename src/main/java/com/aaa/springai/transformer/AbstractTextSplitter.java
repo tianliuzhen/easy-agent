@@ -31,7 +31,7 @@ public abstract class AbstractTextSplitter implements DocumentTransformer {
     /**
      * 文档id自定义生成器
      */
-    private BiFunction<String, Integer, String> generateDocId = this::generateDocSplitTextId;
+    private final BiFunction<String, Integer, String> generateDocId = this::generateDocSplitTextId;
 
     @Override
     public List<Document> apply(List<Document> documents) {

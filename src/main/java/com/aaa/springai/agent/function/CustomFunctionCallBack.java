@@ -1,4 +1,4 @@
-package com.aaa.springai.function;
+package com.aaa.springai.agent.function;
 
 /**
  * @author liuzhen.tian

@@ -1,4 +1,4 @@
-package com.aaa.springai.agent;
+package com.aaa.springai.agent.context;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.CollectionUtils;
@@ -14,7 +14,7 @@ import java.util.Map;
  */
 public class AgentContext {
 
-    private static ThreadLocal<List<String>> agentThink = new InheritableThreadLocal<>();
+    private static final ThreadLocal<List<String>> agentThink = new InheritableThreadLocal<>();
 
     public static List<String> getAgentThink() {
         List<String> res = agentThink.get();

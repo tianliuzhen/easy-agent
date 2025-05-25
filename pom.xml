@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.aaa</groupId>
-    <artifactId>spring-ai</artifactId>
+    <artifactId>easy-agent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>spring-ai</name>
-    <description>spring-ai</description>
+    <name>easy-agent</name>
+    <description>easy-agent</description>
     <url/>
     <licenses>
         <license/>
@@ -95,6 +95,18 @@
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>1.2.74</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
         </dependency>
 
     </dependencies>

@@ -122,8 +122,8 @@ public class OllamaChatController {
         }
 
 
-        FunctionCallback weatherTool = FunctionToolCallback.builder("queryMetalPrice", (request, toolContext) -> {
-                    if (request.equals("黄金")) {
+        FunctionToolCallback<QueryDateRequest, String> weatherTool = FunctionToolCallback.<QueryDateRequest, String>builder("queryMetalPrice", (request, toolContext) -> {
+                    if ("黄金".equals(request.type)) {
                         return "600人民币";
                     }
                     return "7人民币";

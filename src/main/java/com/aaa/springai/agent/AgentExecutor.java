@@ -1,23 +1,43 @@
 package com.aaa.springai.agent;
 
+import com.aaa.springai.agent.model.AgentFinish;
+import com.aaa.springai.agent.model.AgentOutput;
+import com.aaa.springai.agent.model.FunctionUseAction;
+import com.aaa.springai.agent.parser.AgentOutputParser;
+import com.aaa.springai.domain.model.AgentModel;
+import com.aaa.springai.exception.AgentException;
+import com.aaa.springai.exception.AgentToolException;
+import com.aaa.springai.util.ChatResponseUtil;
 import com.aaa.springai.util.JacksonUtil;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author liuzhen.tian
  * @version 1.0 AgentExecutor.java  2025/2/23 20:45
  */
 
+@RequiredArgsConstructor
 @Component
 public class AgentExecutor {
-    private static String DefaultTemplate = """
+    public static final int DECISION_CNT_LIMIT = 20;
+    private final ModelSelector modelSelector;
+    private final AgentOutputParser agentOutputParser;
+
+    private static final String DefaultTemplate = """
             Answer the following questions as best you can. You have access to the following tools:
                         {tools}
                         
@@ -72,18 +92,66 @@ public class AgentExecutor {
 
 
     /**
+     * 采用React方式实现agent
      * 为了支持轻量级大模型对tool调用，如deepseek-R1，qwen-max 不支持tool，但是成本低和推理逻辑性强
      *
      * @return
      */
-    public String execute() {
+    public String exec(AgentModel agentModel) {
+        // 根据agent选择模型
+        ChatModel chatModel = modelSelector.getModel(agentModel);
+        if (chatModel == null) {
+            throw new AgentException(agentModel.getModelType() + "无法匹配大模型");
+        }
+
+        // 根据agent构造工具 todo
+        List<FunctionCallback> callbacks = new ArrayList<>();
+
+        // 提示词构建
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(generateAssistantMessage(callbacks)));
+        messages.add(new UserMessage(agentModel.getQuestion()));
+        Prompt prompt = new Prompt(messages);
+        ChatResponse chatResponse = chatModel.call(prompt);
+
+        // 限制决策轮数，防止无限调用
+        int decisionCnt = 0;
+        while (decisionCnt < DECISION_CNT_LIMIT) {
+            String resStr = ChatResponseUtil.getResStr(chatResponse);
+            AgentOutput agentOutput = agentOutputParser.parse(resStr);
+
+            // 需要调用工具
+            if (agentOutput instanceof FunctionUseAction functionUseAction) {
+                FunctionCallback toolFunction = callbacks.stream()
+                        .filter(e -> StringUtils.equals(e.getName(), functionUseAction.getAction()))
+                        .findAny()
+                        .orElseThrow(() -> new AgentToolException("无法匹配toolFunction"));
+                String callToolResult = toolFunction.call(functionUseAction.getActionInput());
+
+                List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>();
+                responses.add(new ToolResponseMessage.ToolResponse(
+                        UUID.randomUUID().toString(),
+                        functionUseAction.getAction(),
+                        callToolResult));
+                ToolResponseMessage toolResponseMessage = new ToolResponseMessage(responses);
+                messages.add(toolResponseMessage);
+            }
+
+            // 思考完成
+            if (agentOutput instanceof AgentFinish) {
+                return ((AgentFinish) agentOutput).getLlmResponse();
+            }
+
+
+            decisionCnt++;
+        }
 
 
         return null;
     }
 
 
-    protected String generateAssistantMessage(List<FunctionCallback> toolCallbackRequests, String toolPrompt) {
+    protected String generateAssistantMessage(List<FunctionCallback> toolCallbackRequests) {
         if (CollectionUtils.isEmpty(toolCallbackRequests)) {
             return null;
         }

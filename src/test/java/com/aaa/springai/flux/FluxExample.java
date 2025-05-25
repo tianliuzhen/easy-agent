@@ -1,6 +1,6 @@
 package com.aaa.springai.flux;
 
-import com.aaa.springai.agent.AgentContext;
+import com.aaa.springai.agent.context.AgentContext;
 import reactor.core.publisher.Flux;
 
 import java.time.Duration;
