@@ -1,0 +1,71 @@
+package com.aaa.springai.web.example;
+
+import com.aaa.springai.agent.AgentExecutor;
+import com.aaa.springai.domain.enums.ModelTypeEnum;
+import com.aaa.springai.domain.enums.ToolTypeEnum;
+import com.aaa.springai.domain.model.AgentModel;
+import com.aaa.springai.domain.model.ToolModel;
+import com.aaa.springai.domain.schema.InputTypeSchema;
+import jakarta.annotation.Resource;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @author liuzhen.tian
+ * @version 1.0 ReactAgentController.java  2025/5/26 21:23
+ */
+@RestController
+@RequestMapping("/reactAgent")
+public class ReactAgentController {
+
+    @Resource
+    private AgentExecutor agentExecutor;
+
+    @GetMapping(value = "/test")
+    public void test() {
+        AgentModel agentModel = new AgentModel();
+        agentModel.setAgentId(1L);
+        agentModel.setAgentName("查询时间助手");
+        agentModel.setQuestion("查询北京当前时间");
+        agentModel.setModelType(ModelTypeEnum.ollama);
+
+        List<ToolModel> toolModels = new ArrayList<>();
+        ToolModel toolModel = new ToolModel();
+        toolModel.setToolId(1L);
+        toolModel.setToolName("查询当前时间");
+        toolModel.setToolDesc("输入地点查询当地时间");
+        toolModel.setToolType(ToolTypeEnum.http);
+        List<InputTypeSchema> inputTypeSchemas = new ArrayList<>();
+        inputTypeSchemas.add(new InputTypeSchema("type","北京时间：beijing，东京时间：dongjing","string"));
+        toolModel.setInputTypeSchemas(inputTypeSchemas);
+        toolModels.add(toolModel);
+        agentModel.setToolModels(toolModels);
+        agentExecutor.exec(agentModel);
+    }
+
+
+    @GetMapping(value = "/test2")
+    public void test2() {
+        AgentModel agentModel = new AgentModel();
+        agentModel.setAgentId(1L);
+        agentModel.setAgentName("查询时间助手");
+        agentModel.setQuestion("查询当前时间");
+        agentModel.setModelType(ModelTypeEnum.deepseek);
+
+        List<ToolModel> toolModels = new ArrayList<>();
+        ToolModel toolModel = new ToolModel();
+        toolModel.setToolId(1L);
+        toolModel.setToolName("查询当前时间");
+        toolModel.setToolDesc("无需入参可查询当前系统时间");
+        toolModel.setToolType(ToolTypeEnum.http);
+        toolModel.setInputTypeSchemas(new ArrayList<>());
+        toolModels.add(toolModel);
+        agentModel.setToolModels(toolModels);
+        agentExecutor.exec(agentModel);
+    }
+
+}

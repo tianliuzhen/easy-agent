@@ -1,15 +1,19 @@
 package com.aaa.springai.agent;
 
+import com.aaa.springai.agent.function.tool.HttpCallBack;
 import com.aaa.springai.agent.model.AgentFinish;
 import com.aaa.springai.agent.model.AgentOutput;
 import com.aaa.springai.agent.model.FunctionUseAction;
 import com.aaa.springai.agent.parser.AgentOutputParser;
+import com.aaa.springai.domain.enums.ToolTypeEnum;
 import com.aaa.springai.domain.model.AgentModel;
+import com.aaa.springai.domain.model.ToolModel;
 import com.aaa.springai.exception.AgentException;
 import com.aaa.springai.exception.AgentToolException;
 import com.aaa.springai.util.ChatResponseUtil;
 import com.aaa.springai.util.JacksonUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -20,6 +24,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.function.FunctionCallback;
+import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -29,7 +34,7 @@ import java.util.*;
  * @author liuzhen.tian
  * @version 1.0 AgentExecutor.java  2025/2/23 20:45
  */
-
+@Slf4j
 @RequiredArgsConstructor
 @Component
 public class AgentExecutor {
@@ -106,17 +111,28 @@ public class AgentExecutor {
 
         // 根据agent构造工具 todo
         List<FunctionCallback> callbacks = new ArrayList<>();
+        List<ToolModel> toolModels = agentModel.getToolModels();
+        for (ToolModel toolModel : toolModels) {
+            if (toolModel.getToolType() == ToolTypeEnum.http) {
+                ToolDefinition toolDefinition = ToolDefinition.builder()
+                        .inputSchema(JacksonUtil.toStr(toolModel.getInputTypeSchemas()))
+                        .description(toolModel.getToolDesc())
+                        .name(toolModel.getToolName()).build();
+                callbacks.add(new HttpCallBack(toolDefinition, toolModel));
+            }
+        }
 
         // 提示词构建
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(generateAssistantMessage(callbacks)));
         messages.add(new UserMessage(agentModel.getQuestion()));
         Prompt prompt = new Prompt(messages);
-        ChatResponse chatResponse = chatModel.call(prompt);
 
         // 限制决策轮数，防止无限调用
-        int decisionCnt = 0;
+        int decisionCnt = 1;
         while (decisionCnt < DECISION_CNT_LIMIT) {
+            log.info("第{}次大模型决策", decisionCnt);
+            ChatResponse chatResponse = chatModel.call(prompt);
             String resStr = ChatResponseUtil.getResStr(chatResponse);
             AgentOutput agentOutput = agentOutputParser.parse(resStr);
 
@@ -139,6 +155,7 @@ public class AgentExecutor {
 
             // 思考完成
             if (agentOutput instanceof AgentFinish) {
+                log.info("第{}次大模型决策结束", decisionCnt);
                 return ((AgentFinish) agentOutput).getLlmResponse();
             }
 

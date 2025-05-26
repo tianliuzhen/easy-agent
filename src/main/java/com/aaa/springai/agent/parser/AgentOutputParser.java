@@ -21,12 +21,10 @@ public class AgentOutputParser {
     public static final String FINAL_ANSWER_ACTION = "Final Answer:";
 
 
-    public static final Pattern ACTION_PATTERN = Pattern
-            .compile(
-                    "Action\\s*\\d*\\s*:[\\s]*(.*?)[\\s]*Action\\s*\\d*\\s*Input\\s*\\d*\\s*:[\\s```json]*(\\{[\\s\\S]*?\\})"
-                            + "(?=\\s*```|\\s*Action|\\s*Observation\\s*:|\\s*|$)",
-                    Pattern.DOTALL);
-
+    public static final Pattern ACTION_PATTERN = Pattern.compile(
+            "Action\\s*\\d*\\s*:[\\s]*(.*?)\\s*Action\\s*\\d*\\s*Input\\s*\\d*\\s*:[\\s]*(.*?)(?=\\s*```|\\s*Action\\s*\\d*\\s*:|\\s*Observation\\s*:|\\s*$)",
+            Pattern.DOTALL
+    );
 
     /**
      * FunctionUseAction 需要使用工具

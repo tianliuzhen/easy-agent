@@ -39,7 +39,10 @@ public class AgentModel {
     /**
      * agent 关联工具
      */
-    private List<String> toolModel;
+    private List<ToolModel> toolModels;
 
+    /**
+     * 大模型
+     */
     private ModelTypeEnum modelType;
 }
