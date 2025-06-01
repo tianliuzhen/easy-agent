@@ -1,11 +1,10 @@
 package com.aaa.springai.agent;
 
-import com.aaa.springai.agent.function.tool.HttpCallBack;
+import com.aaa.springai.agent.function.FunctionToolManager;
 import com.aaa.springai.agent.model.AgentFinish;
 import com.aaa.springai.agent.model.AgentOutput;
 import com.aaa.springai.agent.model.FunctionUseAction;
 import com.aaa.springai.agent.parser.AgentOutputParser;
-import com.aaa.springai.domain.enums.ToolTypeEnum;
 import com.aaa.springai.domain.model.AgentModel;
 import com.aaa.springai.domain.model.ToolModel;
 import com.aaa.springai.exception.AgentException;
@@ -23,8 +22,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.model.function.FunctionCallback;
-import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -41,6 +38,7 @@ public class AgentExecutor {
     public static final int DECISION_CNT_LIMIT = 20;
     private final ModelSelector modelSelector;
     private final AgentOutputParser agentOutputParser;
+    private final FunctionToolManager functionToolManager;
 
     private static final String DefaultTemplate = """
             Answer the following questions as best you can. You have access to the following tools:
@@ -64,6 +62,7 @@ public class AgentExecutor {
                         4. If you need more information, use the query_knowledge_base tool.
                         5. If the result is insufficient, consider using another tool or querying the knowledge base again.
                         6. Once you have all necessary information, provide a final answer.
+                        7. 关于查询当前时间的问题要调用工具拿到结果再回答
                         
                         Use the following format for your response:
                         <analysis>
@@ -109,22 +108,12 @@ public class AgentExecutor {
             throw new AgentException(agentModel.getModelType() + "无法匹配大模型");
         }
 
-        // 根据agent构造工具 todo
-        List<FunctionCallback> callbacks = new ArrayList<>();
+        // 根据agent构造工具
         List<ToolModel> toolModels = agentModel.getToolModels();
-        for (ToolModel toolModel : toolModels) {
-            if (toolModel.getToolType() == ToolTypeEnum.http) {
-                ToolDefinition toolDefinition = ToolDefinition.builder()
-                        .inputSchema(JacksonUtil.toStr(toolModel.getInputTypeSchemas()))
-                        .description(toolModel.getToolDesc())
-                        .name(toolModel.getToolName()).build();
-                callbacks.add(new HttpCallBack(toolDefinition, toolModel));
-            }
-        }
 
         // 提示词构建
         List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(generateAssistantMessage(callbacks)));
+        messages.add(new SystemMessage(generateAssistantMessage(toolModels)));
         messages.add(new UserMessage(agentModel.getQuestion()));
         Prompt prompt = new Prompt(messages);
 
@@ -138,11 +127,11 @@ public class AgentExecutor {
 
             // 需要调用工具
             if (agentOutput instanceof FunctionUseAction functionUseAction) {
-                FunctionCallback toolFunction = callbacks.stream()
-                        .filter(e -> StringUtils.equals(e.getName(), functionUseAction.getAction()))
+                ToolModel toolFunction = toolModels.stream()
+                        .filter(e -> StringUtils.equals(e.getToolName(), functionUseAction.getAction()))
                         .findAny()
                         .orElseThrow(() -> new AgentToolException("无法匹配toolFunction"));
-                String callToolResult = toolFunction.call(functionUseAction.getActionInput());
+                String callToolResult = functionToolManager.call(functionUseAction.getActionInput(), toolFunction);
 
                 List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>();
                 responses.add(new ToolResponseMessage.ToolResponse(
@@ -168,20 +157,20 @@ public class AgentExecutor {
     }
 
 
-    protected String generateAssistantMessage(List<FunctionCallback> toolCallbackRequests) {
+    protected String generateAssistantMessage(List<ToolModel> toolCallbackRequests) {
         if (CollectionUtils.isEmpty(toolCallbackRequests)) {
             return null;
         }
 
         Map<String, Object> renderModel = new HashMap<>();
-        renderModel.put("tool_names", toolCallbackRequests.stream().map(FunctionCallback::getName).toList().toString());
+        renderModel.put("tool_names", toolCallbackRequests.stream().map(ToolModel::getToolName).toList().toString());
         StringBuilder tools = new StringBuilder();
-        for (FunctionCallback callbackRequest : toolCallbackRequests) {
+        for (ToolModel callbackRequest : toolCallbackRequests) {
             // 生成 Agent 的工具的描述
             String toolValue = functionTemplate.render(Map.of(
-                    "name", callbackRequest.getName(),
-                    "description", callbackRequest.getDescription(),
-                    "schema", JacksonUtil.toStr(callbackRequest.getInputTypeSchema())));
+                    "name", callbackRequest.getToolName(),
+                    "description", callbackRequest.getToolDesc(),
+                    "schema", JacksonUtil.toStr(callbackRequest.getInputTypeSchemas())));
             tools.append(toolValue);
             tools.append("\n");
         }

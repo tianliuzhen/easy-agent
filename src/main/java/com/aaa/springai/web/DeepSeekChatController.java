@@ -9,7 +9,6 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
-import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiImageModel;
@@ -22,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -62,6 +60,7 @@ public class DeepSeekChatController {
             stream.subscribe(e -> {
                 try {
                     sseEmitter.send(e.getResult());
+                    System.out.println("e = " + e);
                     System.out.println("e.getResult().getOutput() = " + e.getResult().getOutput());
                 } catch (Exception ex) {
                     sseEmitter.complete();

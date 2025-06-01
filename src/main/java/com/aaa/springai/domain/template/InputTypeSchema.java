@@ -1,4 +1,4 @@
-package com.aaa.springai.domain.schema;
+package com.aaa.springai.domain.template;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

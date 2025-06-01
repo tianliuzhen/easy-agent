@@ -10,8 +10,8 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum ToolTypeEnum {
-    http("http", "htt调用"),
-    sql("sql", "sql查询");
+    common_http("common_http", "htt调用"),
+    mysql("mysql", "mysql查询");
 
     private String type;
     private String desc;

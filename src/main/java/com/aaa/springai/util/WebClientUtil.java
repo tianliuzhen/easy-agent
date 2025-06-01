@@ -34,7 +34,7 @@ public class WebClientUtil {
      * @param responseType 响应类型
      * @return 响应结果
      */
-    public static  <T> T get(String url, Class<T> responseType) {
+    public static <T> T get(String url, Class<T> responseType) {
         return webClient.get()
                 .uri(url)
                 .retrieve()
@@ -172,6 +172,15 @@ public class WebClientUtil {
      * @return 响应结果
      */
     public static <T, R> T exchange(HttpMethod method, String url, Map<String, String> headers, R body, Class<T> responseType) {
+        if (body == null) {
+            return webClient.method(method)
+                    .uri(url)
+                    .headers(buildHeaders(headers))
+                    .retrieve()
+                    .bodyToMono(responseType)
+                    .block();
+        }
+
         return webClient.method(method)
                 .uri(url)
                 .headers(buildHeaders(headers))

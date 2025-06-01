@@ -1,8 +1,8 @@
 package com.aaa.springai.domain.model;
 
 import com.aaa.springai.domain.enums.ToolTypeEnum;
-import com.aaa.springai.domain.schema.HttpReqParamsTemplate;
-import com.aaa.springai.domain.schema.InputTypeSchema;
+import com.aaa.springai.domain.template.InputTypeSchema;
+import com.aaa.springai.domain.template.ParamsTemplate;
 import lombok.Data;
 
 import java.util.List;
@@ -13,20 +13,23 @@ import java.util.List;
  */
 @Data
 public class ToolModel {
+    /**
+     * 工具Id
+     */
     private Long toolId;
+    /**
+     * 工具名称
+     */
     private String toolName;
+    /**
+     * 工具描述
+     */
     private String toolDesc;
 
     /**
      * 工具类型
      */
     private ToolTypeEnum toolType;
-
-    /**
-     * http 参数模板
-     */
-    private HttpReqParamsTemplate httpReqParamsTemplate;
-
 
     /**
      * 请求参数结构体
@@ -37,4 +40,11 @@ public class ToolModel {
      */
     private String outputTypeSchema;
 
+
+    /**
+     * 参数实例
+     * HttpReqParamsTemplate
+     * MysqlParamsTemplate
+     */
+    private ParamsTemplate paramsTemplate;
 }
