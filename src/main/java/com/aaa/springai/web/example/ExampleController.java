@@ -1,8 +1,7 @@
 package com.aaa.springai.web.example;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.aaa.springai.util.JacksonUtil;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
 
@@ -17,5 +16,11 @@ public class ExampleController {
     @GetMapping(value = "/getCurrentDate")
     public String getCurrentDate() {
         return new Date().toString();
+    }
+
+
+    @PostMapping(value = "/testRequestBody")
+    public String testRequestBody(@RequestBody Object map) {
+        return JacksonUtil.toStr(map);
     }
 }
