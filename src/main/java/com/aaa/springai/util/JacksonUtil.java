@@ -18,7 +18,7 @@ public class JacksonUtil {
      * com.fasterxml.jackson.databind.ser.BeanSerializerFactory#constructBeanOrAddOnSerializer(com.fasterxml.jackson.databind.SerializerProvider, com.fasterxml.jackson.databind.JavaType, com.fasterxml.jackson.databind.BeanDescription, boolean)
      * if (beanDesc.getBeanClass() == Object.class) {
      * return prov.getUnknownTypeSerializer(Object.class);
-     * //            throw new IllegalArgumentException("Cannot create bean serializer for Object.class");
+     * //            throw new IllegalArgumentException("Ca nnot create bean serializer for Object.class");
      * }
      * </h1>
      *

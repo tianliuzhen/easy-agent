@@ -1,8 +1,8 @@
 package com.aaa.springai.web;
 
+import com.aaa.springai.util.ChatResponseUtil;
 import com.aaa.springai.web.docs.LocalDocumentService;
 import com.aaa.springai.web.docs.RedisDocumentService;
-import com.aaa.springai.util.ChatResponseUtil;
 import com.aaa.springai.web.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.springframework.ai.chat.client.ChatClient;
@@ -13,22 +13,17 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
-import reactor.core.scheduler.Schedulers;
 
-import java.io.IOException;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -64,15 +59,15 @@ public class OllamaChatController {
     }
 
     @GetMapping("/ai/generateStream")
-    public Flux<ChatResponse> generateStream(@RequestParam(value = "message", defaultValue = "给我讲个笑话") String message) {
-        Prompt prompt = new Prompt(new UserMessage(message));
+    public Flux<ChatResponse> generateStream(@RequestParam(value = "message", defaultValue = "给我讲个笑话") String msg) {
+        Prompt prompt = new Prompt(new UserMessage(msg));
         return chatModel.stream(prompt);
     }
 
     @GetMapping("/ai/sseEmitter")
-    public SseEmitter sseEmitter(@RequestParam(value = "message", defaultValue = "给我讲个笑话") String message) {
+    public SseEmitter sseEmitter(String msg) {
         SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
-        Prompt prompt = new Prompt(new UserMessage(message));
+        Prompt prompt = new Prompt(new UserMessage(msg));
         System.out.println(Thread.currentThread().getName() + "-out");
         new Thread(() -> {
             System.out.println(Thread.currentThread().getName() + "-inner-1");
@@ -80,7 +75,7 @@ public class OllamaChatController {
             stream.subscribe(e -> {
                 try {
                     String text = e.getResult().getOutput().getText();
-                    sseEmitter.send(text);
+                    sseEmitter.send(e);
                     System.out.println(Thread.currentThread().getName() + "-inner-2-" + text);
                 } catch (Exception ex) {
                     sseEmitter.complete();

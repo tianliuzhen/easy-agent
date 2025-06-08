@@ -60,7 +60,7 @@ public class AgentContext {
         // 遍历输入列表
         String tempPrefix = "";
         for (int i = 0; i < buffer.size(); i++) {
-            String[] parts = buffer.get(i).split(":",1);
+            String[] parts = buffer.get(i).split(":", 1);
             if (parts.length == 2) {
                 String key = parts[0].trim();
                 String value = parts[1].trim();

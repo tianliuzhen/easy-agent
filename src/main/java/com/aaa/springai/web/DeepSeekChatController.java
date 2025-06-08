@@ -1,15 +1,18 @@
 package com.aaa.springai.web;
 
+import com.aaa.springai.llm.deekseep.OpenAiChatModel;
 import com.aaa.springai.util.ChatResponseUtil;
 import com.aaa.springai.web.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Resource;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.ai.chat.messages.AbstractMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
-import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiImageModel;
 import org.springframework.ai.openai.OpenAiImageOptions;
@@ -22,6 +25,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 13k star! 获取免费ChatGPT API Key的开源项目，亲测可用！:  https://mp.weixin.qq.com/s?__biz=MzU0MzI3MzU1Ng==&mid=2247484719&idx=1&sn=33b4f623d421216fae26ddcae446e4da&chksm=fb0ca214cc7b2b0215d12a29ff091c5840798b8b15657212d248f73ae6b7c63b2fc28e72bf4a&scene=21#wechat_redirect
@@ -51,17 +55,28 @@ public class DeepSeekChatController {
         return called;
     }
 
+
     @GetMapping("/ai/sseEmitter")
-    public SseEmitter sseEmitter(@RequestParam(value = "message", defaultValue = "给我讲个笑话") String message) {
+    public SseEmitter sseEmitter( String msg) {
         SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
-        Prompt prompt = new Prompt(new UserMessage(message));
+        Prompt prompt = new Prompt(new UserMessage(msg));
         new Thread(() -> {
             Flux<ChatResponse> stream = deepSeekChatModel.stream(prompt);
             stream.subscribe(e -> {
                 try {
-                    sseEmitter.send(e.getResult());
-                    System.out.println("e = " + e);
-                    System.out.println("e.getResult().getOutput() = " + e.getResult().getOutput());
+                    // 大模型思考内容
+                    Optional.ofNullable( e.getResult()).map(Generation::getOutput).map(AbstractMessage::getMetadata).ifPresent(metadata->{
+                        Object reasoningContent = metadata.get("reasoning_content");
+                        if (reasoningContent != null) {
+                            System.out.println("reasoningContent = " + reasoningContent);
+                        }
+                    });
+
+                    String resStr = ChatResponseUtil.getResStr(e);
+                    if (StringUtils.isNotBlank(resStr)) {
+                        System.out.println("resStr = " + resStr);
+                    }
+                    sseEmitter.send(e);
                 } catch (Exception ex) {
                     sseEmitter.complete();
                 }

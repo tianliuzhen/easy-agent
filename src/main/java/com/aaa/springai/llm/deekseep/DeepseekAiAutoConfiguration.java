@@ -1,13 +1,10 @@
-package com.aaa.springai.config;
+package com.aaa.springai.llm.deekseep;
 
 import io.micrometer.observation.ObservationRegistry;
-import org.springframework.ai.autoconfigure.openai.*;
+import org.springframework.ai.autoconfigure.openai.OpenAiEmbeddingProperties;
 import org.springframework.ai.chat.observation.ChatModelObservationConvention;
 import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.ai.model.tool.ToolCallingManager;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,7 +14,6 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.support.RetryTemplate;
-import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MultiValueMap;
@@ -36,7 +32,7 @@ import java.util.Map;
  *
  * @author liuzhen.tian
  * @version 1.0 DeepseekAiAutoConfiguration.java  2025/2/20 22:48
- * @see  org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
+ * @see org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
  */
 @Configuration
 @EnableConfigurationProperties({DeepseekAiAutoConfiguration.OpenAiConnectionProperties.class, DeepseekAiAutoConfiguration.OpenAiChatProperties.class})
@@ -48,8 +44,7 @@ public class DeepseekAiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = DEEPSEEK_CHAT, name = "enabled", havingValue = "true",
-            matchIfMissing = true)
+    @ConditionalOnProperty(prefix = DEEPSEEK_CHAT, name = "enabled", havingValue = "true", matchIfMissing = true)
     public OpenAiChatModel deepSeekChatModel(OpenAiConnectionProperties commonProperties,
                                              OpenAiChatProperties chatProperties, ObjectProvider<RestClient.Builder> restClientBuilderProvider,
                                              ObjectProvider<WebClient.Builder> webClientBuilderProvider, List<FunctionCallback> toolFunctionCallbacks,
