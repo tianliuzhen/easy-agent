@@ -1,4 +1,4 @@
-package com.aaa.springai.llm.deekseep;
+package com.aaa.springai.llm.deepseek;
 
 
 import com.fasterxml.jackson.annotation.*;
@@ -1749,9 +1749,9 @@ public class OpenAiApi {
             return this;
         }
 
-        public com.aaa.springai.llm.deekseep.OpenAiApi build() {
+        public com.aaa.springai.llm.deepseek.OpenAiApi build() {
             Assert.notNull(this.apiKey, "apiKey must be set");
-            return new com.aaa.springai.llm.deekseep.OpenAiApi(this.baseUrl, this.apiKey, this.headers, this.completionsPath, this.embeddingsPath,
+            return new com.aaa.springai.llm.deepseek.OpenAiApi(this.baseUrl, this.apiKey, this.headers, this.completionsPath, this.embeddingsPath,
                     this.restClientBuilder, this.webClientBuilder, this.responseErrorHandler);
         }
 

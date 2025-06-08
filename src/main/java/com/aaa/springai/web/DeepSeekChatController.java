@@ -1,6 +1,7 @@
 package com.aaa.springai.web;
 
 import com.aaa.springai.llm.deepseek.OpenAiChatModel;
+import com.aaa.springai.llm.dp.DeepseekChatModel;
 import com.aaa.springai.util.ChatResponseUtil;
 import com.aaa.springai.web.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -40,6 +41,9 @@ public class DeepSeekChatController {
     @Resource
     private OpenAiChatModel deepSeekChatModel;
     @Resource
+    private DeepseekChatModel dpChatModel;
+
+    @Resource
     private OpenAiImageModel imageModel;
 
     /**
@@ -51,21 +55,21 @@ public class DeepSeekChatController {
      */
     @GetMapping("/ai/chat")
     public String chat(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
-        String called = deepSeekChatModel.call(msg);
+        String called = dpChatModel.call(msg);
         return called;
     }
 
 
     @GetMapping("/ai/sseEmitter")
-    public SseEmitter sseEmitter( String msg) {
+    public SseEmitter sseEmitter(String msg) {
         SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
         Prompt prompt = new Prompt(new UserMessage(msg));
         new Thread(() -> {
-            Flux<ChatResponse> stream = deepSeekChatModel.stream(prompt);
+            Flux<ChatResponse> stream = dpChatModel.stream(prompt);
             stream.subscribe(e -> {
                 try {
                     // 大模型思考内容
-                    Optional.ofNullable( e.getResult()).map(Generation::getOutput).map(AbstractMessage::getMetadata).ifPresent(metadata->{
+                    Optional.ofNullable(e.getResult()).map(Generation::getOutput).map(AbstractMessage::getMetadata).ifPresent(metadata -> {
                         Object reasoningContent = metadata.get("reasoning_content");
                         if (reasoningContent != null) {
                             System.out.println("reasoningContent = " + reasoningContent);
@@ -83,6 +87,7 @@ public class DeepSeekChatController {
             }, err -> {
                 // 处理流中的错误
                 // sseEmitter.completeWithError(err);
+                err.printStackTrace();
                 sseEmitter.complete();
             }, () -> {
                 // 流完成时调用

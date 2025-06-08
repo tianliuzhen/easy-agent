@@ -32,3 +32,13 @@ spring:
           model: Qwen/QwQ-32B
         completions-path: /v1/chat/completions
 
+---
+spring:
+  ai:
+    dp: #感谢：硅基流动 https://cloud.siliconflow.cn/models
+      api-key: sk-ewykgprysbswuqagkpbuglgodbxshtucznttazynawykgsds
+      base-url: https://api.siliconflow.cn/
+      chat:
+        options:
+          model: Qwen/QwQ-32B
+        completions-path: /v1/chat/completions

@@ -1,4 +1,4 @@
-package com.aaa.springai.llm.deekseep;
+package com.aaa.springai.llm.deepseek;
 
 import io.micrometer.observation.ObservationRegistry;
 import org.springframework.ai.autoconfigure.openai.OpenAiEmbeddingProperties;

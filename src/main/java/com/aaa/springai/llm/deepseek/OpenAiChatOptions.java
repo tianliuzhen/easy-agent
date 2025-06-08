@@ -1,12 +1,12 @@
-package com.aaa.springai.llm.deekseep;
+package com.aaa.springai.llm.deepseek;
 
 /**
  * @author liuzhen.tian
  * @version 1.0 OpenAiChatOptions.java  2025/6/8 14:14
  */
 
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionRequest.AudioParameters;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionRequest.StreamOptions;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionRequest.AudioParameters;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionRequest.StreamOptions;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -202,12 +202,12 @@ public class OpenAiChatOptions implements ToolCallingChatOptions {
 
     // @formatter:on
 
-    public static  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder builder() {
-        return new  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder();
+    public static  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder builder() {
+        return new  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder();
     }
 
     public static OpenAiChatOptions fromOptions(OpenAiChatOptions fromOptions) {
-        return  com.aaa.springai.llm.deekseep.OpenAiChatOptions.builder()
+        return  com.aaa.springai.llm.deepseek.OpenAiChatOptions.builder()
                 .model(fromOptions.getModel())
                 .frequencyPenalty(fromOptions.getFrequencyPenalty())
                 .logitBias(fromOptions.getLogitBias())
@@ -631,173 +631,173 @@ public class OpenAiChatOptions implements ToolCallingChatOptions {
             this.options = options;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder model(String model) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder model(String model) {
             this.options.model = model;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder model(OpenAiApi.ChatModel openAiChatModel) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder model(OpenAiApi.ChatModel openAiChatModel) {
             this.options.model = openAiChatModel.getName();
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder frequencyPenalty(Double frequencyPenalty) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder frequencyPenalty(Double frequencyPenalty) {
             this.options.frequencyPenalty = frequencyPenalty;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder logitBias(Map<String, Integer> logitBias) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder logitBias(Map<String, Integer> logitBias) {
             this.options.logitBias = logitBias;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder logprobs(Boolean logprobs) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder logprobs(Boolean logprobs) {
             this.options.logprobs = logprobs;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder topLogprobs(Integer topLogprobs) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder topLogprobs(Integer topLogprobs) {
             this.options.topLogprobs = topLogprobs;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder maxTokens(Integer maxTokens) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder maxTokens(Integer maxTokens) {
             this.options.maxTokens = maxTokens;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder maxCompletionTokens(Integer maxCompletionTokens) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder maxCompletionTokens(Integer maxCompletionTokens) {
             this.options.maxCompletionTokens = maxCompletionTokens;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder N(Integer n) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder N(Integer n) {
             this.options.n = n;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder outputModalities(List<String> modalities) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder outputModalities(List<String> modalities) {
             this.options.outputModalities = modalities;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder outputAudio(AudioParameters audio) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder outputAudio(AudioParameters audio) {
             this.options.outputAudio = audio;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder presencePenalty(Double presencePenalty) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder presencePenalty(Double presencePenalty) {
             this.options.presencePenalty = presencePenalty;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder responseFormat(ResponseFormat responseFormat) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder responseFormat(ResponseFormat responseFormat) {
             this.options.responseFormat = responseFormat;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder streamUsage(boolean enableStreamUsage) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder streamUsage(boolean enableStreamUsage) {
             this.options.streamOptions = (enableStreamUsage) ? StreamOptions.INCLUDE_USAGE : null;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder seed(Integer seed) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder seed(Integer seed) {
             this.options.seed = seed;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder stop(List<String> stop) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder stop(List<String> stop) {
             this.options.stop = stop;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder temperature(Double temperature) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder temperature(Double temperature) {
             this.options.temperature = temperature;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder topP(Double topP) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder topP(Double topP) {
             this.options.topP = topP;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder tools(List<OpenAiApi.FunctionTool> tools) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder tools(List<OpenAiApi.FunctionTool> tools) {
             this.options.tools = tools;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder toolChoice(Object toolChoice) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder toolChoice(Object toolChoice) {
             this.options.toolChoice = toolChoice;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder user(String user) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder user(String user) {
             this.options.user = user;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder parallelToolCalls(Boolean parallelToolCalls) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder parallelToolCalls(Boolean parallelToolCalls) {
             this.options.parallelToolCalls = parallelToolCalls;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder toolCallbacks(List<FunctionCallback> toolCallbacks) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder toolCallbacks(List<FunctionCallback> toolCallbacks) {
             this.options.setToolCallbacks(toolCallbacks);
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder toolCallbacks(FunctionCallback... toolCallbacks) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder toolCallbacks(FunctionCallback... toolCallbacks) {
             Assert.notNull(toolCallbacks, "toolCallbacks cannot be null");
             this.options.toolCallbacks.addAll(Arrays.asList(toolCallbacks));
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder toolNames(Set<String> toolNames) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder toolNames(Set<String> toolNames) {
             Assert.notNull(toolNames, "toolNames cannot be null");
             this.options.setToolNames(toolNames);
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder toolNames(String... toolNames) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder toolNames(String... toolNames) {
             Assert.notNull(toolNames, "toolNames cannot be null");
             this.options.toolNames.addAll(Set.of(toolNames));
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder internalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder internalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
             this.options.setInternalToolExecutionEnabled(internalToolExecutionEnabled);
             return this;
         }
 
         @Deprecated
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder functionCallbacks(List<FunctionCallback> functionCallbacks) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder functionCallbacks(List<FunctionCallback> functionCallbacks) {
             return toolCallbacks(functionCallbacks);
         }
 
         @Deprecated
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder functions(Set<String> functionNames) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder functions(Set<String> functionNames) {
             return toolNames(functionNames);
         }
 
         @Deprecated
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder function(String functionName) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder function(String functionName) {
             return toolNames(functionName);
         }
 
         @Deprecated
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder proxyToolCalls(Boolean proxyToolCalls) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder proxyToolCalls(Boolean proxyToolCalls) {
             if (proxyToolCalls != null) {
                 this.options.setInternalToolExecutionEnabled(!proxyToolCalls);
             }
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder httpHeaders(Map<String, String> httpHeaders) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder httpHeaders(Map<String, String> httpHeaders) {
             this.options.httpHeaders = httpHeaders;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder toolContext(Map<String, Object> toolContext) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder toolContext(Map<String, Object> toolContext) {
             if (this.options.toolContext == null) {
                 this.options.toolContext = toolContext;
             }
@@ -807,17 +807,17 @@ public class OpenAiChatOptions implements ToolCallingChatOptions {
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder store(Boolean store) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder store(Boolean store) {
             this.options.store = store;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder metadata(Map<String, String> metadata) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder metadata(Map<String, String> metadata) {
             this.options.metadata = metadata;
             return this;
         }
 
-        public  com.aaa.springai.llm.deekseep.OpenAiChatOptions.Builder reasoningEffort(String reasoningEffort) {
+        public  com.aaa.springai.llm.deepseek.OpenAiChatOptions.Builder reasoningEffort(String reasoningEffort) {
             this.options.reasoningEffort = reasoningEffort;
             return this;
         }

@@ -1,4 +1,4 @@
-package com.aaa.springai.llm.deekseep;
+package com.aaa.springai.llm.deepseek;
 
 /*
  * Copyright 2023-2025 the original author or authors.
@@ -43,14 +43,14 @@ import org.springframework.ai.model.tool.LegacyToolCallingManager;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.model.tool.ToolExecutionResult;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletion;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletion.Choice;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionMessage;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionMessage.AudioOutput;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionMessage.ChatCompletionFunction;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionMessage.MediaContent;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionMessage.ToolCall;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionRequest;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletion;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletion.Choice;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionMessage;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionMessage.AudioOutput;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionMessage.ChatCompletionFunction;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionMessage.MediaContent;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionMessage.ToolCall;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionRequest;
 import org.springframework.ai.openai.api.common.OpenAiApiConstants;
 import org.springframework.ai.openai.metadata.support.OpenAiResponseHeaderExtractor;
 import org.springframework.ai.retry.RetryUtils;
@@ -91,7 +91,7 @@ import java.util.stream.Collectors;
  */
 public class OpenAiChatModel extends AbstractToolCallSupport implements ChatModel {
 
-    private static final Logger logger = LoggerFactory.getLogger(com.aaa.springai.llm.deekseep.OpenAiChatModel.class);
+    private static final Logger logger = LoggerFactory.getLogger(com.aaa.springai.llm.deepseek.OpenAiChatModel.class);
 
     private static final ChatModelObservationConvention DEFAULT_OBSERVATION_CONVENTION = new DefaultChatModelObservationConvention();
 
@@ -124,66 +124,6 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
      */
     private ChatModelObservationConvention observationConvention = DEFAULT_OBSERVATION_CONVENTION;
 
-    /**
-     * Creates an instance of the OpenAiChatModel.
-     *
-     * @param openAiApi The OpenAiApi instance to be used for interacting with the OpenAI
-     *                  Chat API.
-     * @throws IllegalArgumentException if openAiApi is null
-     * @deprecated Use OpenAiChatModel.Builder.
-     */
-    @Deprecated
-    public OpenAiChatModel(OpenAiApi openAiApi) {
-        this(openAiApi, OpenAiChatOptions.builder().model(OpenAiApi.DEFAULT_CHAT_MODEL).temperature(0.7).build());
-    }
-
-    /**
-     * Initializes an instance of the OpenAiChatModel.
-     *
-     * @param openAiApi The OpenAiApi instance to be used for interacting with the OpenAI
-     *                  Chat API.
-     * @param options   The OpenAiChatOptions to configure the chat model.
-     * @deprecated Use OpenAiChatModel.Builder.
-     */
-    @Deprecated
-    public OpenAiChatModel(OpenAiApi openAiApi, OpenAiChatOptions options) {
-        this(openAiApi, options, null, RetryUtils.DEFAULT_RETRY_TEMPLATE);
-    }
-
-    /**
-     * Initializes a new instance of the OpenAiChatModel.
-     *
-     * @param openAiApi                The OpenAiApi instance to be used for interacting with the OpenAI
-     *                                 Chat API.
-     * @param options                  The OpenAiChatOptions to configure the chat model.
-     * @param functionCallbackResolver The function callback resolver.
-     * @param retryTemplate            The retry template.
-     * @deprecated Use OpenAiChatModel.Builder.
-     */
-    @Deprecated
-    public OpenAiChatModel(OpenAiApi openAiApi, OpenAiChatOptions options,
-                           @Nullable FunctionCallbackResolver functionCallbackResolver, RetryTemplate retryTemplate) {
-        this(openAiApi, options, functionCallbackResolver, List.of(), retryTemplate);
-    }
-
-    /**
-     * Initializes a new instance of the OpenAiChatModel.
-     *
-     * @param openAiApi                The OpenAiApi instance to be used for interacting with the OpenAI
-     *                                 Chat API.
-     * @param options                  The OpenAiChatOptions to configure the chat model.
-     * @param functionCallbackResolver The function callback resolver.
-     * @param toolFunctionCallbacks    The tool function callbacks.
-     * @param retryTemplate            The retry template.
-     * @deprecated Use OpenAiChatModel.Builder.
-     */
-    @Deprecated
-    public OpenAiChatModel(OpenAiApi openAiApi, OpenAiChatOptions options,
-                           @Nullable FunctionCallbackResolver functionCallbackResolver,
-                           @Nullable List<FunctionCallback> toolFunctionCallbacks, RetryTemplate retryTemplate) {
-        this(openAiApi, options, functionCallbackResolver, toolFunctionCallbacks, retryTemplate,
-                ObservationRegistry.NOOP);
-    }
 
     /**
      * Initializes a new instance of the OpenAiChatModel.
@@ -377,7 +317,6 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
                                         "finishReason", choice.finishReason() != null ? choice.finishReason().name() : "",
                                         "refusal", StringUtils.hasText(choice.message().refusal()) ? choice.message().refusal() : "",
                                         "reasoning_content", StringUtils.hasText(choice.message().reasoning_content()) ? choice.message().reasoning_content() : ""
-
                                         );
 
 
@@ -634,7 +573,7 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
 
                 }
                 return List.of(new ChatCompletionMessage(assistantMessage.getText(),
-                        ChatCompletionMessage.Role.ASSISTANT,null, null, null, toolCalls, null, audioOutput));
+                        ChatCompletionMessage.Role.ASSISTANT, null, null, null, toolCalls, null, audioOutput));
             } else if (message.getMessageType() == MessageType.TOOL) {
                 ToolResponseMessage toolMessage = (ToolResponseMessage) message;
 
@@ -642,7 +581,7 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
                         .forEach(response -> Assert.isTrue(response.id() != null, "ToolResponseMessage must have an id"));
                 return toolMessage.getResponses()
                         .stream()
-                        .map(tr -> new ChatCompletionMessage(tr.responseData(), ChatCompletionMessage.Role.TOOL,null, tr.name(),
+                        .map(tr -> new ChatCompletionMessage(tr.responseData(), ChatCompletionMessage.Role.TOOL, null, tr.name(),
                                 tr.id(), null, null, null))
                         .toList();
             } else {
@@ -736,8 +675,8 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
         this.observationConvention = observationConvention;
     }
 
-    public static com.aaa.springai.llm.deekseep.OpenAiChatModel.Builder builder() {
-        return new com.aaa.springai.llm.deekseep.OpenAiChatModel.Builder();
+    public static com.aaa.springai.llm.deepseek.OpenAiChatModel.Builder builder() {
+        return new com.aaa.springai.llm.deepseek.OpenAiChatModel.Builder();
     }
 
     public static final class Builder {
@@ -762,51 +701,51 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
         private Builder() {
         }
 
-        public com.aaa.springai.llm.deekseep.OpenAiChatModel.Builder openAiApi(OpenAiApi openAiApi) {
+        public com.aaa.springai.llm.deepseek.OpenAiChatModel.Builder openAiApi(OpenAiApi openAiApi) {
             this.openAiApi = openAiApi;
             return this;
         }
 
-        public com.aaa.springai.llm.deekseep.OpenAiChatModel.Builder defaultOptions(OpenAiChatOptions defaultOptions) {
+        public com.aaa.springai.llm.deepseek.OpenAiChatModel.Builder defaultOptions(OpenAiChatOptions defaultOptions) {
             this.defaultOptions = defaultOptions;
             return this;
         }
 
-        public com.aaa.springai.llm.deekseep.OpenAiChatModel.Builder toolCallingManager(ToolCallingManager toolCallingManager) {
+        public com.aaa.springai.llm.deepseek.OpenAiChatModel.Builder toolCallingManager(ToolCallingManager toolCallingManager) {
             this.toolCallingManager = toolCallingManager;
             return this;
         }
 
         @Deprecated
-        public com.aaa.springai.llm.deekseep.OpenAiChatModel.Builder functionCallbackResolver(FunctionCallbackResolver functionCallbackResolver) {
+        public com.aaa.springai.llm.deepseek.OpenAiChatModel.Builder functionCallbackResolver(FunctionCallbackResolver functionCallbackResolver) {
             this.functionCallbackResolver = functionCallbackResolver;
             return this;
         }
 
         @Deprecated
-        public com.aaa.springai.llm.deekseep.OpenAiChatModel.Builder toolFunctionCallbacks(List<FunctionCallback> toolFunctionCallbacks) {
+        public com.aaa.springai.llm.deepseek.OpenAiChatModel.Builder toolFunctionCallbacks(List<FunctionCallback> toolFunctionCallbacks) {
             this.toolFunctionCallbacks = toolFunctionCallbacks;
             return this;
         }
 
-        public com.aaa.springai.llm.deekseep.OpenAiChatModel.Builder retryTemplate(RetryTemplate retryTemplate) {
+        public com.aaa.springai.llm.deepseek.OpenAiChatModel.Builder retryTemplate(RetryTemplate retryTemplate) {
             this.retryTemplate = retryTemplate;
             return this;
         }
 
-        public com.aaa.springai.llm.deekseep.OpenAiChatModel.Builder observationRegistry(ObservationRegistry observationRegistry) {
+        public com.aaa.springai.llm.deepseek.OpenAiChatModel.Builder observationRegistry(ObservationRegistry observationRegistry) {
             this.observationRegistry = observationRegistry;
             return this;
         }
 
-        public com.aaa.springai.llm.deekseep.OpenAiChatModel build() {
+        public com.aaa.springai.llm.deepseek.OpenAiChatModel build() {
             if (toolCallingManager != null) {
                 Assert.isNull(functionCallbackResolver,
                         "functionCallbackResolver cannot be set when toolCallingManager is set");
                 Assert.isNull(toolFunctionCallbacks,
                         "toolFunctionCallbacks cannot be set when toolCallingManager is set");
 
-                return new com.aaa.springai.llm.deekseep.OpenAiChatModel(openAiApi, defaultOptions, toolCallingManager, retryTemplate,
+                return new com.aaa.springai.llm.deepseek.OpenAiChatModel(openAiApi, defaultOptions, toolCallingManager, retryTemplate,
                         observationRegistry);
             }
 
@@ -816,11 +755,11 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
                 List<FunctionCallback> toolCallbacks = this.toolFunctionCallbacks != null ? this.toolFunctionCallbacks
                         : List.of();
 
-                return new com.aaa.springai.llm.deekseep.OpenAiChatModel(openAiApi, defaultOptions, functionCallbackResolver, toolCallbacks,
+                return new com.aaa.springai.llm.deepseek.OpenAiChatModel(openAiApi, defaultOptions, functionCallbackResolver, toolCallbacks,
                         retryTemplate, observationRegistry);
             }
 
-            return new com.aaa.springai.llm.deekseep.OpenAiChatModel(openAiApi, defaultOptions, DEFAULT_TOOL_CALLING_MANAGER, retryTemplate,
+            return new com.aaa.springai.llm.deepseek.OpenAiChatModel(openAiApi, defaultOptions, DEFAULT_TOOL_CALLING_MANAGER, retryTemplate,
                     observationRegistry);
         }
 

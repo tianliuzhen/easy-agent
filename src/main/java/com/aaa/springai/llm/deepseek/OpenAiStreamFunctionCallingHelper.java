@@ -1,4 +1,4 @@
-package com.aaa.springai.llm.deekseep;
+package com.aaa.springai.llm.deepseek;
 /*
  * Copyright 2023-2024 the original author or authors.
  *
@@ -16,12 +16,12 @@ package com.aaa.springai.llm.deekseep;
  */
 
 
-import com.aaa.springai.llm.deekseep.OpenAiApi.*;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletion.Choice;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionChunk.ChunkChoice;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionMessage.ChatCompletionFunction;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionMessage.Role;
-import com.aaa.springai.llm.deekseep.OpenAiApi.ChatCompletionMessage.ToolCall;
+import com.aaa.springai.llm.deepseek.OpenAiApi.*;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletion.Choice;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionChunk.ChunkChoice;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionMessage.ChatCompletionFunction;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionMessage.Role;
+import com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionMessage.ToolCall;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
