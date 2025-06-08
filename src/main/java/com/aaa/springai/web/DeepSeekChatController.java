@@ -1,6 +1,6 @@
 package com.aaa.springai.web;
 
-import com.aaa.springai.llm.deekseep.OpenAiChatModel;
+import com.aaa.springai.llm.deepseek.OpenAiChatModel;
 import com.aaa.springai.util.ChatResponseUtil;
 import com.aaa.springai.web.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
