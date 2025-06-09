@@ -5,7 +5,10 @@ package com.aaa.springai.llm.dp;
  * @version 1.0 DeepseekApiClient.java  2025/6/8 19:16
  */
 
+import com.aaa.springai.util.JacksonUtil;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -14,6 +17,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
+@Slf4j
 @Data
 public class DeepseekApiClient {
 
@@ -45,8 +49,22 @@ public class DeepseekApiClient {
                 .bodyValue(request)
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .retrieve()
-                .bodyToFlux(DeepseekChatCompletion.class);
+                .bodyToFlux(String.class)
+                .map(this::parseEvent); // 自定义解析
     }
+
+    private DeepseekChatCompletion parseEvent(String event) {
+        DeepseekChatCompletion deepseekChatCompletion = new DeepseekChatCompletion();
+        try {
+            // 假设每个事件是有效的JSON对象
+             deepseekChatCompletion = JacksonUtil.strToBean(event, DeepseekChatCompletion.class);
+        } catch (Exception e) {
+            log.warn("Failed to parse event:{}", event);
+            return new DeepseekChatCompletion();
+        }
+        return deepseekChatCompletion;
+    }
+
 
     // 请求和响应类保持不变
     @Data
@@ -67,6 +85,8 @@ public class DeepseekApiClient {
         }
     }
 
+    // @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     @Data
     public static class DeepseekChatCompletion {
         private String id;
@@ -77,6 +97,7 @@ public class DeepseekApiClient {
         private Usage usage;
 
         @Data
+        @JsonIgnoreProperties(ignoreUnknown = true)
         public static class Choice {
             private Integer index;
             private Message message;
@@ -88,6 +109,7 @@ public class DeepseekApiClient {
             private Delta delta;
 
             @Data
+            @JsonIgnoreProperties(ignoreUnknown = true)
             public static class Message {
                 private String role;
                 private String content;
@@ -95,7 +117,8 @@ public class DeepseekApiClient {
             }
 
             @Data
-            public static class Delta{
+            @JsonIgnoreProperties(ignoreUnknown = true)
+            public static class Delta {
                 private String role;
                 private String content;
                 private String reasoning_content;
@@ -103,6 +126,7 @@ public class DeepseekApiClient {
         }
 
         @Data
+        @JsonIgnoreProperties(ignoreUnknown = true)
         public static class Usage {
             private Integer promptTokens;
             private Integer completionTokens;

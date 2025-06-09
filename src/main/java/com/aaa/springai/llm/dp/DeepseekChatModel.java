@@ -6,6 +6,8 @@ package com.aaa.springai.llm.dp;
  */
 
 
+import com.aaa.springai.util.JacksonUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.metadata.ChatGenerationMetadata;
@@ -14,12 +16,15 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class DeepseekChatModel implements ChatModel {
 
     private final DeepseekApiClient apiClient;
@@ -46,8 +51,7 @@ public class DeepseekChatModel implements ChatModel {
     public Flux<ChatResponse> stream(Prompt prompt) {
         DeepseekApiClient.DeepseekChatCompletionRequest request = createRequest(prompt, true);
 
-        return apiClient.chatCompletionStream(request)
-                .map(this::convertResponse);
+        return apiClient.chatCompletionStream(request).map(this::convertResponse);
     }
 
     private DeepseekApiClient.DeepseekChatCompletionRequest createRequest(Prompt prompt, boolean stream) {
@@ -81,37 +85,47 @@ public class DeepseekChatModel implements ChatModel {
      * call：
      * 处理方案：OpenAiChatModel#buildGeneration(com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletion.Choice, java.util.Map, com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionRequest)
      * <p>
-     *     choices.message.content
-     *     choices.message.reasoningContent
+     * choices.message.content
+     * choices.message.reasoningContent
      * </P>
      * Stream:
      * 处理方案：OpenAiChatModel#chunkToChatCompletion(com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionChunk)
      * <p>
-     *     choices.delta.content
-     *     choices.delta.reasoningContent
+     * choices.delta.content
+     * choices.delta.reasoningContent
      * <p/>
      *
      * @param response
      * @return
      */
     private ChatResponse convertResponse(DeepseekApiClient.DeepseekChatCompletion response) {
-        List<Generation> generations = response.getChoices().stream()
-                .map(choice -> {
-                    String content = Optional.ofNullable(choice.getMessage()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Message::getContent).orElse("");
-                    String reasoning_content = Optional.ofNullable(choice.getMessage()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Message::getReasoning_content).orElse("");
-                    if (StringUtils.isBlank(content)) {
-                        content = Optional.ofNullable(choice.getDelta()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Delta::getContent).orElse("");
-                        reasoning_content = Optional.ofNullable(choice.getDelta()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Delta::getReasoning_content).orElse("");
-                    }
-                    ChatGenerationMetadata.Builder builder = ChatGenerationMetadata.builder().finishReason(choice.getFinishReason());
-                    // builder.metadata("reasoningContent", reasoningContent);
-                    AssistantMessage assistantMessage = new AssistantMessage(content);
-                    assistantMessage.getMetadata().put("reasoning_content", reasoning_content);
-                    return new Generation(
-                            assistantMessage,
-                            builder.build());
-                })
-                .collect(Collectors.toList());
+        List<Generation> generations = null;
+        try {
+            if (CollectionUtils.isEmpty(response.getChoices())) {
+                return new ChatResponse(new ArrayList<>());
+            }
+
+            generations = response.getChoices().stream()
+                    .map(choice -> {
+                        String content = Optional.ofNullable(choice.getMessage()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Message::getContent).orElse("");
+                        String reasoning_content = Optional.ofNullable(choice.getMessage()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Message::getReasoning_content).orElse("");
+                        if (StringUtils.isBlank(content)) {
+                            content = Optional.ofNullable(choice.getDelta()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Delta::getContent).orElse("");
+                            reasoning_content = Optional.ofNullable(choice.getDelta()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Delta::getReasoning_content).orElse("");
+                        }
+                        ChatGenerationMetadata.Builder builder = ChatGenerationMetadata.builder().finishReason(choice.getFinishReason());
+                        // builder.metadata("reasoningContent", reasoningContent);
+                        AssistantMessage assistantMessage = new AssistantMessage(content);
+                        assistantMessage.getMetadata().put("reasoningContent", reasoning_content);
+                        return new Generation(
+                                assistantMessage,
+                                builder.build());
+                    })
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("Failed to convertResponse:{}", JacksonUtil.toStr(response));
+            return new ChatResponse(generations);
+        }
 
         return new ChatResponse(generations);
     }

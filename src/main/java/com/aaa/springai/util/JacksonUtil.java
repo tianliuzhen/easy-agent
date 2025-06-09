@@ -38,12 +38,11 @@ public class JacksonUtil {
         }
     }
 
-    public static <T> T strToBean(String json, Class<T> clazz) {
+    public static <T> T strToBean(String json, Class<T> clazz) throws JsonProcessingException {
         try {
             return objectMapper.readValue(json, clazz);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            return null;
+            throw e;
         }
     }
 

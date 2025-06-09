@@ -55,7 +55,7 @@ public class DeepSeekChatController {
      */
     @GetMapping("/ai/chat")
     public String chat(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
-        String called = deepSeekChatModel.call(msg);
+        String called = dpChatModel.call(msg);
         return called;
     }
 
@@ -65,7 +65,7 @@ public class DeepSeekChatController {
         SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
         Prompt prompt = new Prompt(new UserMessage(msg));
         new Thread(() -> {
-            Flux<ChatResponse> stream = deepSeekChatModel.stream(prompt);
+            Flux<ChatResponse> stream = dpChatModel.stream(prompt);
             stream.subscribe(e -> {
                 try {
                     // 大模型思考内容
