@@ -1162,7 +1162,7 @@ public class OpenAiApi {
     public record ChatCompletionMessage(// @formatter:off
                                         @JsonProperty("content") Object rawContent,
                                         @JsonProperty("role") ChatCompletionMessage.Role role,
-                                        @JsonProperty("reasoning_content") String reasoning_content,
+                                        @JsonProperty("reasoning_content") String reasoningContent,
                                         @JsonProperty("name") String name,
                                         @JsonProperty("tool_call_id") String toolCallId,
                                         @JsonProperty("tool_calls")

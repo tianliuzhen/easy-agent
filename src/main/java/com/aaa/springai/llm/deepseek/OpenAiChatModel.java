@@ -316,7 +316,7 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
                                         "index", choice.index(),
                                         "finishReason", choice.finishReason() != null ? choice.finishReason().name() : "",
                                         "refusal", StringUtils.hasText(choice.message().refusal()) ? choice.message().refusal() : "",
-                                        "reasoning_content", StringUtils.hasText(choice.message().reasoning_content()) ? choice.message().reasoning_content() : ""
+                                        "reasoningContent", StringUtils.hasText(choice.message().reasoningContent()) ? choice.message().reasoningContent() : ""
                                         );
 
 

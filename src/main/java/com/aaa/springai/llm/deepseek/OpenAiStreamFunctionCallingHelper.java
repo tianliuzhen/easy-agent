@@ -90,7 +90,7 @@ public class OpenAiStreamFunctionCallingHelper {
         String name = (current.name() != null ? current.name() : previous.name());
         String toolCallId = (current.toolCallId() != null ? current.toolCallId() : previous.toolCallId());
         String refusal = (current.refusal() != null ? current.refusal() : previous.refusal());
-        String reasoning_content = current.reasoning_content();
+        String reasoning_content = current.reasoningContent();
         ChatCompletionMessage.AudioOutput audioOutput = (current.audioOutput() != null ? current.audioOutput()
                 : previous.audioOutput());
 

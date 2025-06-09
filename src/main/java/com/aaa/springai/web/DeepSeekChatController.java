@@ -55,23 +55,23 @@ public class DeepSeekChatController {
      */
     @GetMapping("/ai/chat")
     public String chat(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
-        String called = dpChatModel.call(msg);
+        String called = deepSeekChatModel.call(msg);
         return called;
     }
 
 
     @GetMapping("/ai/sseEmitter")
-    public SseEmitter sseEmitter(String msg) {
+    public SseEmitter sseEmitter(@RequestParam(value = "msg", defaultValue = "你好")String msg) {
         SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
         Prompt prompt = new Prompt(new UserMessage(msg));
         new Thread(() -> {
-            Flux<ChatResponse> stream = dpChatModel.stream(prompt);
+            Flux<ChatResponse> stream = deepSeekChatModel.stream(prompt);
             stream.subscribe(e -> {
                 try {
                     // 大模型思考内容
                     Optional.ofNullable(e.getResult()).map(Generation::getOutput).map(AbstractMessage::getMetadata).ifPresent(metadata -> {
-                        Object reasoningContent = metadata.get("reasoning_content");
-                        if (reasoningContent != null) {
+                        String reasoningContent = (String) metadata.get("reasoningContent");
+                        if (StringUtils.isNotBlank(reasoningContent)) {
                             System.out.println("reasoningContent = " + reasoningContent);
                         }
                     });

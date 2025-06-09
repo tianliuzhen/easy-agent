@@ -76,6 +76,24 @@ public class DeepseekChatModel implements ChatModel {
         return request;
     }
 
+    /**
+     * openAi的call和Stream，返回数据格式不一样
+     * call：
+     * 处理方案：OpenAiChatModel#buildGeneration(com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletion.Choice, java.util.Map, com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionRequest)
+     * <p>
+     *     choices.message.content
+     *     choices.message.reasoningContent
+     * </P>
+     * Stream:
+     * 处理方案：OpenAiChatModel#chunkToChatCompletion(com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionChunk)
+     * <p>
+     *     choices.delta.content
+     *     choices.delta.reasoningContent
+     * <p/>
+     *
+     * @param response
+     * @return
+     */
     private ChatResponse convertResponse(DeepseekApiClient.DeepseekChatCompletion response) {
         List<Generation> generations = response.getChoices().stream()
                 .map(choice -> {
@@ -86,9 +104,11 @@ public class DeepseekChatModel implements ChatModel {
                         reasoning_content = Optional.ofNullable(choice.getDelta()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Delta::getReasoning_content).orElse("");
                     }
                     ChatGenerationMetadata.Builder builder = ChatGenerationMetadata.builder().finishReason(choice.getFinishReason());
-                    builder.metadata("reasoning_content", reasoning_content);
+                    // builder.metadata("reasoningContent", reasoningContent);
+                    AssistantMessage assistantMessage = new AssistantMessage(content);
+                    assistantMessage.getMetadata().put("reasoning_content", reasoning_content);
                     return new Generation(
-                            new AssistantMessage(content),
+                            assistantMessage,
                             builder.build());
                 })
                 .collect(Collectors.toList());
