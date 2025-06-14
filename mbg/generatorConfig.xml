@@ -1,19 +1,21 @@
 <!DOCTYPE generatorConfiguration
         PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
         "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
-
+<!--https://github.com/abel533/Mapper/wiki/4.1.mappergenerator-->
 <!--suppress MybatisGenerateCustomPluginInspection -->
 <generatorConfiguration>
     <context id="Mysql" targetRuntime="MyBatis3Simple" defaultModelType="flat">
         <property name="javaFileEncoding" value="UTF-8"/>
-        <property name="useMapperCommentGenerator" value="false"/>
+        <property name="useMapperCommentGenerator" value="true"/>
 
         <plugin type="tk.mybatis.mapper.generator.MapperPlugin">
             <property name="mappers" value="tk.mybatis.mapper.common.Mapper"/>
             <property name="caseSensitive" value="true"/>
             <property name="forceAnnotation" value="true"/>
-            <property name="beginningDelimiter" value="`"/>
-            <property name="endingDelimiter" value="`"/>
+<!--            <property name="beginningDelimiter" value="`"/>-->
+<!--            <property name="endingDelimiter" value="`"/>-->
+<!--            <property name="generateColumnConsts" value="true"/>-->
+            <property name="lombok" value="Getter,Setter,ToString,Accessors"/>
         </plugin>
 
         <jdbcConnection driverClass="com.mysql.cj.jdbc.Driver"
@@ -34,7 +36,7 @@
 
 
         <table tableName="ea_agent" mapperName="EaAgentDAO" domainObjectName="EaAgentDO">
-            <generatedKey column="id" sqlStatement="JDBC"/>
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
     </context>
 </generatorConfiguration>
