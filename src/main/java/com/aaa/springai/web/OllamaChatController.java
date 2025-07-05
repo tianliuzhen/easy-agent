@@ -5,6 +5,7 @@ import com.aaa.springai.web.docs.LocalDocumentService;
 import com.aaa.springai.web.docs.RedisDocumentService;
 import com.aaa.springai.web.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -26,6 +27,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY;
 import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY;
@@ -75,7 +77,7 @@ public class OllamaChatController {
             stream.subscribe(e -> {
                 try {
                     String text = e.getResult().getOutput().getText();
-                    sseEmitter.send(e);
+                    sseEmitter.send(text);
                     System.out.println(Thread.currentThread().getName() + "-inner-2-" + text);
                 } catch (Exception ex) {
                     sseEmitter.complete();
@@ -184,5 +186,55 @@ public class OllamaChatController {
         System.out.println("AI回应: " + content);
 
         return content;
+    }
+
+
+    @GetMapping("/ai/sseChatWithMemory")
+    public SseEmitter sseChatWithMemory(
+            @RequestParam(value = "conversationId", defaultValue = "102") String conversationId,
+            @RequestParam(value = "msg", defaultValue = "你好") String msg) {
+        SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
+
+        // 对话记忆的唯一标识
+        if (StringUtils.isBlank(conversationId)) {
+            conversationId = UUID.randomUUID().toString();
+        }
+        String finalConversationId = conversationId;
+
+        new Thread(() -> {
+            // 创建AI模型客户端
+            ChatClient chatClient = ChatClient.builder(chatModel)
+                    .defaultAdvisors(new MessageChatMemoryAdvisor(inMemoryChatMemory))
+                    .build();
+
+            // 发送第一个请求
+            Flux<ChatResponse> stream = chatClient
+                    .prompt()
+                    .user(msg)
+                    .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, finalConversationId)
+                            .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
+                    .stream().chatResponse();
+
+
+            stream.subscribe(e -> {
+                try {
+                    String text = e.getResult().getOutput().getText();
+                    sseEmitter.send(text);
+                } catch (Exception ex) {
+                    sseEmitter.complete();
+                }
+
+            }, err -> {
+                // 处理流中的错误
+                // sseEmitter.completeWithError(err);
+                sseEmitter.complete();
+            }, () -> {
+                // 流完成时调用
+                sseEmitter.complete();
+            });
+
+        }).start();
+
+        return sseEmitter;
     }
 }

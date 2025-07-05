@@ -16,6 +16,7 @@ public class BaseResult<T> {
 
     public static <T> BaseResult<T> buildSuc(T data) {
         BaseResult<T> baseResult = new BaseResult();
+        baseResult.setSuccess(true);
         baseResult.setData(data);
         return baseResult;
     }
