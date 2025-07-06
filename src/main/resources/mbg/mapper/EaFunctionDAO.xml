@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.springai.mapper.EaFunctionDAO">
+  <resultMap id="BaseResultMap" type="com.aaa.springai.domain.DO.EaFunctionDO">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="name" jdbcType="VARCHAR" property="name" />
+    <result column="type" jdbcType="VARCHAR" property="type" />
+    <result column="desc" jdbcType="VARCHAR" property="desc" />
+    <result column="metadata" jdbcType="VARCHAR" property="metadata" />
+    <result column="input_template" jdbcType="VARCHAR" property="inputTemplate" />
+    <result column="output_template" jdbcType="VARCHAR" property="outputTemplate" />
+  </resultMap>
+</mapper>

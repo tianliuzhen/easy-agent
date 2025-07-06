@@ -12,9 +12,9 @@
             <property name="mappers" value="tk.mybatis.mapper.common.Mapper"/>
             <property name="caseSensitive" value="true"/>
             <property name="forceAnnotation" value="true"/>
-<!--            <property name="beginningDelimiter" value="`"/>-->
-<!--            <property name="endingDelimiter" value="`"/>-->
-<!--            <property name="generateColumnConsts" value="true"/>-->
+            <!--            <property name="beginningDelimiter" value="`"/>-->
+            <!--            <property name="endingDelimiter" value="`"/>-->
+            <!--            <property name="generateColumnConsts" value="true"/>-->
             <property name="lombok" value="Getter,Setter,ToString,Accessors"/>
         </plugin>
 
@@ -36,6 +36,10 @@
 
 
         <table tableName="ea_agent" mapperName="EaAgentDAO" domainObjectName="EaAgentDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+        <table tableName="ea_function" mapperName="EaFunctionDAO" domainObjectName="EaFunctionDO">
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
     </context>
