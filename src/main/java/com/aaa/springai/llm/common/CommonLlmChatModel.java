@@ -1,8 +1,10 @@
-package com.aaa.springai.llm.dp;
+package com.aaa.springai.llm.common;
 
 /**
+ * 通用的大模型调用组件
+ *
  * @author liuzhen.tian
- * @version 1.0 DeepseekChatModel.java  2025/6/8 19:16
+ * @version 1.0 CommonLlmChatModel.java  2025/6/8 19:16
  */
 
 
@@ -25,14 +27,14 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class DeepseekChatModel implements ChatModel {
+public class CommonLlmChatModel implements ChatModel {
 
-    private final DeepseekApiClient apiClient;
-    private final DeepseekProperties properties;
+    private final CommonLlmApiClient apiClient;
+    private final CommonLLmProperties properties;
 
-    public DeepseekChatModel(DeepseekApiClient apiClient, DeepseekProperties properties) {
-        Assert.notNull(apiClient, "DeepseekApiClient must not be null");
-        Assert.notNull(properties, "DeepseekProperties must not be null");
+    public CommonLlmChatModel(CommonLlmApiClient apiClient, CommonLLmProperties properties) {
+        Assert.notNull(apiClient, "CommonLlmApiClient must not be null");
+        Assert.notNull(properties, "CommonLLmProperties must not be null");
 
         this.apiClient = apiClient;
         this.properties = properties;
@@ -40,8 +42,8 @@ public class DeepseekChatModel implements ChatModel {
 
     @Override
     public ChatResponse call(Prompt prompt) {
-        DeepseekApiClient.DeepseekChatCompletionRequest request = createRequest(prompt, false);
-        DeepseekApiClient.DeepseekChatCompletion response = apiClient.chatCompletion(request)
+        CommonLlmApiClient.DeepseekChatCompletionRequest request = createRequest(prompt, false);
+        CommonLlmApiClient.DeepseekChatCompletion response = apiClient.chatCompletion(request)
                 .block(); // 同步阻塞获取结果
 
         return convertResponse(response);
@@ -49,25 +51,25 @@ public class DeepseekChatModel implements ChatModel {
 
     @Override
     public Flux<ChatResponse> stream(Prompt prompt) {
-        DeepseekApiClient.DeepseekChatCompletionRequest request = createRequest(prompt, true);
+        CommonLlmApiClient.DeepseekChatCompletionRequest request = createRequest(prompt, true);
 
         return apiClient.chatCompletionStream(request).map(this::convertResponse);
     }
 
-    private DeepseekApiClient.DeepseekChatCompletionRequest createRequest(Prompt prompt, boolean stream) {
-        List<DeepseekApiClient.DeepseekChatCompletionRequest.Message> messages = prompt.getInstructions()
+    private CommonLlmApiClient.DeepseekChatCompletionRequest createRequest(Prompt prompt, boolean stream) {
+        List<CommonLlmApiClient.DeepseekChatCompletionRequest.Message> messages = prompt.getInstructions()
                 .stream()
                 .map(message -> {
-                    DeepseekApiClient.DeepseekChatCompletionRequest.Message apiMessage =
-                            new DeepseekApiClient.DeepseekChatCompletionRequest.Message();
+                    CommonLlmApiClient.DeepseekChatCompletionRequest.Message apiMessage =
+                            new CommonLlmApiClient.DeepseekChatCompletionRequest.Message();
                     apiMessage.setRole(message.getMessageType().getValue());
                     apiMessage.setContent(message.getText());
                     return apiMessage;
                 })
                 .collect(Collectors.toList());
 
-        DeepseekApiClient.DeepseekChatCompletionRequest request =
-                new DeepseekApiClient.DeepseekChatCompletionRequest();
+        CommonLlmApiClient.DeepseekChatCompletionRequest request =
+                new CommonLlmApiClient.DeepseekChatCompletionRequest();
         request.setModel(this.properties.getChat().getOptions().getModel());
         request.setMessages(messages);
         request.setTemperature(this.properties.getChat().getOptions().getTemperature());
@@ -98,7 +100,7 @@ public class DeepseekChatModel implements ChatModel {
      * @param response
      * @return
      */
-    private ChatResponse convertResponse(DeepseekApiClient.DeepseekChatCompletion response) {
+    private ChatResponse convertResponse(CommonLlmApiClient.DeepseekChatCompletion response) {
         List<Generation> generations = null;
         try {
             if (CollectionUtils.isEmpty(response.getChoices())) {
@@ -107,11 +109,11 @@ public class DeepseekChatModel implements ChatModel {
 
             generations = response.getChoices().stream()
                     .map(choice -> {
-                        String content = Optional.ofNullable(choice.getMessage()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Message::getContent).orElse("");
-                        String reasoning_content = Optional.ofNullable(choice.getMessage()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Message::getReasoning_content).orElse("");
+                        String content = Optional.ofNullable(choice.getMessage()).map(CommonLlmApiClient.DeepseekChatCompletion.Choice.Message::getContent).orElse("");
+                        String reasoning_content = Optional.ofNullable(choice.getMessage()).map(CommonLlmApiClient.DeepseekChatCompletion.Choice.Message::getReasoning_content).orElse("");
                         if (StringUtils.isBlank(content)) {
-                            content = Optional.ofNullable(choice.getDelta()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Delta::getContent).orElse("");
-                            reasoning_content = Optional.ofNullable(choice.getDelta()).map(DeepseekApiClient.DeepseekChatCompletion.Choice.Delta::getReasoning_content).orElse("");
+                            content = Optional.ofNullable(choice.getDelta()).map(CommonLlmApiClient.DeepseekChatCompletion.Choice.Delta::getContent).orElse("");
+                            reasoning_content = Optional.ofNullable(choice.getDelta()).map(CommonLlmApiClient.DeepseekChatCompletion.Choice.Delta::getReasoning_content).orElse("");
                         }
                         ChatGenerationMetadata.Builder builder = ChatGenerationMetadata.builder().finishReason(choice.getFinishReason());
                         // builder.metadata("reasoningContent", reasoningContent);

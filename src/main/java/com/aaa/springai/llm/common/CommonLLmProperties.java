@@ -1,4 +1,4 @@
-package com.aaa.springai.llm.dp;
+package com.aaa.springai.llm.common;
 
 import com.aaa.springai.llm.deepseek.OpenAiChatOptions;
 import lombok.Data;
@@ -7,11 +7,11 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 /**
  * @author liuzhen.tian
- * @version 1.0 DeepseekProperties.java  2025/6/8 19:29
+ * @version 1.0 CommonLLmProperties.java  2025/6/8 19:29
  */
 @Data
 @ConfigurationProperties(prefix = "spring.ai.dp")
-public class DeepseekProperties {
+public class CommonLLmProperties {
 
     /**
      * DeepSeek API base URL

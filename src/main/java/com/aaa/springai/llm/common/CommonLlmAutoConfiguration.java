@@ -1,8 +1,8 @@
-package com.aaa.springai.llm.dp;
+package com.aaa.springai.llm.common;
 
 /**
  * @author liuzhen.tian
- * @version 1.0 DeepseekAutoConfiguration.java  2025/6/8 19:44
+ * @version 1.0 CommonLlmAutoConfiguration.java  2025/6/8 19:44
  */
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -13,20 +13,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConditionalOnClass(DeepseekChatModel.class)
-@EnableConfigurationProperties(DeepseekProperties.class)
+@ConditionalOnClass(CommonLlmChatModel.class)
+@EnableConfigurationProperties(CommonLLmProperties.class)
 @ConditionalOnProperty(prefix = "spring.ai.dp", name = "api-key")
-public class DeepseekAutoConfiguration {
+public class CommonLlmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public DeepseekApiClient deepseekApiClient(DeepseekProperties properties) {
-        return new DeepseekApiClient(properties);
+    public CommonLlmApiClient deepseekApiClient(CommonLLmProperties properties) {
+        return new CommonLlmApiClient(properties);
     }
 
     @Bean(name = "dpChatModel")
     @ConditionalOnMissingBean
-    public DeepseekChatModel dpChatModel(DeepseekApiClient apiClient, DeepseekProperties properties) {
-        return new DeepseekChatModel(apiClient, properties);
+    public CommonLlmChatModel dpChatModel(CommonLlmApiClient apiClient, CommonLLmProperties properties) {
+        return new CommonLlmChatModel(apiClient, properties);
     }
 }

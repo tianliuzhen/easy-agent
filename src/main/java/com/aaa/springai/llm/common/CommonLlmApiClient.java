@@ -1,8 +1,8 @@
-package com.aaa.springai.llm.dp;
+package com.aaa.springai.llm.common;
 
 /**
  * @author liuzhen.tian
- * @version 1.0 DeepseekApiClient.java  2025/6/8 19:16
+ * @version 1.0 CommonLlmApiClient.java  2025/6/8 19:16
  */
 
 import com.aaa.springai.util.JacksonUtil;
@@ -16,15 +16,17 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 @Slf4j
 @Data
-public class DeepseekApiClient {
+public class CommonLlmApiClient {
 
     private final WebClient webClient;
-    private final DeepseekProperties properties;
+    private final CommonLLmProperties properties;
+    private static final Predicate<String> SSE_DONE_PREDICATE = "[DONE]"::equals;
 
-    public DeepseekApiClient(DeepseekProperties properties) {
+    public CommonLlmApiClient(CommonLLmProperties properties) {
         this.properties = properties;
         this.webClient = WebClient.builder()
                 .baseUrl(properties.getBaseUrl())
@@ -50,6 +52,10 @@ public class DeepseekApiClient {
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .retrieve()
                 .bodyToFlux(String.class)
+                // cancels the flux stream after the "[DONE]" is received.
+                .takeUntil(SSE_DONE_PREDICATE)
+                // filters out the "[DONE]" message.
+                .filter(SSE_DONE_PREDICATE.negate())
                 .map(this::parseEvent); // 自定义解析
     }
 
@@ -57,8 +63,9 @@ public class DeepseekApiClient {
         DeepseekChatCompletion deepseekChatCompletion = new DeepseekChatCompletion();
         try {
             // 假设每个事件是有效的JSON对象
-             deepseekChatCompletion = JacksonUtil.strToBean(event, DeepseekChatCompletion.class);
+            deepseekChatCompletion = JacksonUtil.strToBean(event, DeepseekChatCompletion.class);
         } catch (Exception e) {
+            // "[DONE]"
             log.warn("Failed to parse event:{}", event);
             return new DeepseekChatCompletion();
         }

@@ -1,4 +1,4 @@
-package com.aaa.springai.web;
+package com.aaa.springai.web.llm;
 
 import com.aaa.springai.util.ChatResponseUtil;
 import com.aaa.springai.web.docs.LocalDocumentService;
