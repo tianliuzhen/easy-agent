@@ -217,7 +217,9 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
                                 "role", choice.message().role() != null ? choice.message().role().name() : "",
                                 "index", choice.index(),
                                 "finishReason", choice.finishReason() != null ? choice.finishReason().name() : "",
-                                "refusal", StringUtils.hasText(choice.message().refusal()) ? choice.message().refusal() : "");
+                                "refusal", StringUtils.hasText(choice.message().refusal()) ? choice.message().refusal() : "",
+                                "reasoningContent", StringUtils.hasText(choice.message().reasoningContent()) ? choice.message().reasoningContent() : ""
+                        );
                         // @formatter:on
                         return buildGeneration(choice, metadata, request);
                     }).toList();
@@ -400,7 +402,7 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
     }
 
     private Generation buildGeneration(Choice choice, Map<String, Object> metadata, ChatCompletionRequest request) {
-        List<AssistantMessage.ToolCall> toolCalls = choice.message().toolCalls() == null ? List.of()
+1        List<AssistantMessage.ToolCall> toolCalls = choice.message().toolCalls() == null ? List.of()
                 : choice.message()
                 .toolCalls()
                 .stream()
