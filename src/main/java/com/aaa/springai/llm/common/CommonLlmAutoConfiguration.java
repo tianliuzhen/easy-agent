@@ -5,6 +5,7 @@ package com.aaa.springai.llm.common;
  * @version 1.0 CommonLlmAutoConfiguration.java  2025/6/8 19:44
  */
 
+import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -20,13 +21,15 @@ public class CommonLlmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CommonLlmApiClient deepseekApiClient(CommonLLmProperties properties) {
-        return new CommonLlmApiClient(properties);
+    public CommonLlmApi deepseekApiClient(CommonLLmProperties properties) {
+        return new CommonLlmApi(properties);
     }
 
     @Bean(name = "dpChatModel")
     @ConditionalOnMissingBean
-    public CommonLlmChatModel dpChatModel(CommonLlmApiClient apiClient, CommonLLmProperties properties) {
-        return new CommonLlmChatModel(apiClient, properties);
+    public CommonLlmChatModel dpChatModel(CommonLlmApi apiClient, CommonLLmProperties properties, ToolCallingManager toolCallingManager)
+
+    {
+        return new CommonLlmChatModel(apiClient, properties, toolCallingManager);
     }
 }

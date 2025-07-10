@@ -402,7 +402,7 @@ public class OpenAiChatModel extends AbstractToolCallSupport implements ChatMode
     }
 
     private Generation buildGeneration(Choice choice, Map<String, Object> metadata, ChatCompletionRequest request) {
-1        List<AssistantMessage.ToolCall> toolCalls = choice.message().toolCalls() == null ? List.of()
+        List<AssistantMessage.ToolCall> toolCalls = choice.message().toolCalls() == null ? List.of()
                 : choice.message()
                 .toolCalls()
                 .stream()

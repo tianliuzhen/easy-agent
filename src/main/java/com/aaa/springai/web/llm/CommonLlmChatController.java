@@ -1,6 +1,7 @@
 package com.aaa.springai.web.llm;
 
 import com.aaa.springai.llm.common.CommonLlmChatModel;
+import com.aaa.springai.llm.deepseek.OpenAiChatOptions;
 import com.aaa.springai.util.ChatResponseUtil;
 import com.aaa.springai.web.sse.SseEmitterUTF8;
 import jakarta.annotation.Resource;
@@ -80,6 +81,22 @@ public class CommonLlmChatController {
 
         }).start();
         return sseEmitter;
+    }
+
+    @GetMapping("/ai/chatWithTool")
+    public Object chatWithTool(@RequestParam(value = "msg", defaultValue = "查询天气") String msg) {
+        // 注意这里是查询三个城市，会调三次tool
+        UserMessage userMessage = new UserMessage("查询 杭州 的天气?");
+        ChatResponse response = this.dpChatModel.call(
+                new Prompt(userMessage,
+                        OpenAiChatOptions.builder()
+                                .function("currentWeather")
+                                .build()
+                )
+        ); // Enable the function
+        String resStr = ChatResponseUtil.getResStr(response);
+        System.out.println(resStr);
+        return resStr;
     }
 
 }
