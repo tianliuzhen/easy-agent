@@ -46,24 +46,32 @@ public class CommonLlmApi {
     }
 
     public Flux<ChatCompletion> chatCompletionStream(ChatCompletionRequest request) {
+        // 1. 设置请求为流式模式
         request.setStream(true);
 
+        // 2. 状态标志：标记是否正在处理工具调用块
         AtomicBoolean isInsideTool = new AtomicBoolean(false);
 
+        // 3. 发起WebClient请求（SSE流）
         return this.webClient.post().uri(properties.getChat().getCompletionsPath())
                 // .bodyValue(request)
-                .body(Mono.just(request), ChatCompletionRequest.class).accept(MediaType.TEXT_EVENT_STREAM).retrieve().bodyToFlux(String.class)
-                // cancels the flux stream after the "[DONE]" is received.
-                .takeUntil(SSE_DONE_PREDICATE)
-                // filters out the "[DONE]" message.
-                .filter(SSE_DONE_PREDICATE.negate())
-                .map(this::parseEvent)
+                .body(Mono.just(request), ChatCompletionRequest.class)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .retrieve()
+                .bodyToFlux(String.class)
+                // 4. 流处理管道
+                .takeUntil(SSE_DONE_PREDICATE) // 遇到"[DONE]"时终止流
+                .filter(SSE_DONE_PREDICATE.negate())  // 过滤掉"[DONE]"消息
+                .map(this::parseEvent) // 解析SSE事件为ChatCompletion对象
+                // 5. 标记工具调用块的开始/结束
                 .map(chunk -> { // 自定义解析
                     if (CommonLlmApiHelper.isStreamingToolFunctionCall(chunk)) {
                         isInsideTool.set(true);
                     }
                     return chunk;
-                }) // Group all chunks belonging to the same function call.
+                })
+                // 6. 按工具调用块分组（windowUntil）
+                // Group all chunks belonging to the same function call.
                 // Flux<ChatCompletionChunk> -> Flux<Flux<ChatCompletionChunk>>
                 .windowUntil(chunk -> {
                     if (isInsideTool.get() && CommonLlmApiHelper.isStreamingToolFunctionCallFinish(chunk)) {
@@ -72,6 +80,7 @@ public class CommonLlmApi {
                     }
                     return !isInsideTool.get();
                 })
+                // 7. 合并每个窗口内的分块
                 // Merging the window chunks into a single chunk.
                 // Reduce the inner Flux<ChatCompletionChunk> window into a single
                 // Mono<ChatCompletionChunk>,
@@ -219,7 +228,7 @@ public class CommonLlmApi {
         @JsonProperty("refusal")
         private String refusal;
         @JsonProperty("audio")
-        private  AudioOutput audioOutput;
+        private AudioOutput audioOutput;
 
         public ChatCompletionMessage(String content, String role) {
             this.role = role;
@@ -284,6 +293,7 @@ public class CommonLlmApi {
         private Integer completionTokens;
         private Integer totalTokens;
     }
+
     /**
      * Audio response from the model.
      *

@@ -9,8 +9,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.AbstractMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
@@ -27,6 +29,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY;
@@ -237,4 +240,58 @@ public class OllamaChatController {
 
         return sseEmitter;
     }
+
+
+    @GetMapping("/ai/chatWithToolSse")
+    public SseEmitter chatWithToolSse(@RequestParam(value = "msg", defaultValue = "查询价格") String msg) {
+        SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
+        UserMessage userMessage = new UserMessage("查询白银价格");
+        record QueryDateRequest(@JsonPropertyDescription("type类型只能是[黄金,白银]") String type) {
+        }
+
+        FunctionToolCallback<QueryDateRequest, String> weatherTool = FunctionToolCallback.<QueryDateRequest, String>builder("queryMetalPrice", (request, toolContext) -> {
+                    if ("黄金".equals(request.type)) {
+                        return "600人民币";
+                    }
+                    return "7人民币";
+                })
+                // .inputSchema(FunctionToolCallback.SchemaType.JSON_SCHEMA)
+                .description("查询黄金白金贵金属价格")
+                .inputType(QueryDateRequest.class)
+                .build();
+
+        com.aaa.springai.llm.deepseek.OpenAiChatOptions chatOptions = com.aaa.springai.llm.deepseek.OpenAiChatOptions.builder()
+                .toolCallbacks(List.of(weatherTool))
+                .build();
+        Flux<ChatResponse> stream = this.chatModel.stream(new Prompt(userMessage, chatOptions));
+        stream.subscribe(e -> {
+            try {
+                // 大模型思考内容
+                Optional.ofNullable(e.getResult()).map(Generation::getOutput).map(AbstractMessage::getMetadata).ifPresent(metadata -> {
+                    String reasoningContent = (String) metadata.get("reasoningContent");
+                    if (StringUtils.isNotBlank(reasoningContent)) {
+                        System.err.print(reasoningContent);
+                    }
+                });
+
+                String resStr = ChatResponseUtil.getResStr(e);
+                if (StringUtils.isNotBlank(resStr)) {
+                    System.out.println("resStr = " + resStr);
+                }
+                sseEmitter.send(e);
+            } catch (Exception ex) {
+                sseEmitter.complete();
+            }
+        }, err -> {
+            // 处理流中的错误
+            // sseEmitter.completeWithError(err);
+            err.printStackTrace();
+            sseEmitter.complete();
+        }, () -> {
+            // 流完成时调用
+            sseEmitter.complete();
+        });
+        return sseEmitter;
+    }
+
 }
