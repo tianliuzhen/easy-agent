@@ -104,9 +104,9 @@ public class CommonLlmChatModel implements ChatModel {
         ChatResponse response = new ChatResponse(generations, from(chatCompletion, accumulatedUsage));
 
         // 4. functionCall递归调用
-        if (ToolCallingChatOptions.isInternalToolExecutionEnabled(prompt.getOptions())
-                && response != null
-                && response.hasToolCalls()) {
+        if (prompt.getOptions() != null &&
+                ToolCallingChatOptions.isInternalToolExecutionEnabled(prompt.getOptions()) &&
+                response.hasToolCalls()) {
             var toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, response);
             if (toolExecutionResult.returnDirect()) {
                 // Return tool execution result directly to the client.
@@ -212,13 +212,14 @@ public class CommonLlmChatModel implements ChatModel {
 
 
         OpenAiChatOptions requestOptions = (OpenAiChatOptions) prompt.getOptions();
-        // request = ModelOptionsUtils.merge(requestOptions, request, CommonLlmApi.ChatCompletionRequest.class);
-        // Add the tool definitions to the request's tools parameter.
-        List<ToolDefinition> toolDefinitions = this.toolCallingManager.resolveToolDefinitions(requestOptions);
-        if (!CollectionUtils.isEmpty(toolDefinitions)) {
-            request.setTools(getFunctionTools(toolDefinitions));
+        if (requestOptions != null) {
+            // request = ModelOptionsUtils.merge(requestOptions, request, CommonLlmApi.ChatCompletionRequest.class);
+            // Add the tool definitions to the request's tools parameter.
+            List<ToolDefinition> toolDefinitions = this.toolCallingManager.resolveToolDefinitions(requestOptions);
+            if (!CollectionUtils.isEmpty(toolDefinitions)) {
+                request.setTools(getFunctionTools(toolDefinitions));
+            }
         }
-
         return request;
     }
 
