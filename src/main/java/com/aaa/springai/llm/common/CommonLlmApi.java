@@ -23,6 +23,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
 @Slf4j
@@ -35,43 +36,55 @@ public class CommonLlmApi {
 
     public CommonLlmApi(CommonLLmProperties properties) {
         this.properties = properties;
-        this.restClient = RestClient.builder()
-                .baseUrl(properties.getBaseUrl())
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .build();
-        this.webClient = WebClient.builder()
-                .baseUrl(properties.getBaseUrl())
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .build();
+        this.restClient = RestClient.builder().baseUrl(properties.getBaseUrl()).defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey()).defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE).build();
+        this.webClient = WebClient.builder().baseUrl(properties.getBaseUrl()).defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey()).defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE).build();
     }
 
     public ResponseEntity<ChatCompletion> chatCompletion(ChatCompletionRequest request) {
-        ResponseEntity<ChatCompletion> entity = this.restClient.post()
-                .uri(properties.getChat().getCompletionsPath())
-                .body(request)
-                .retrieve()
-                .toEntity(ChatCompletion.class);
+        ResponseEntity<ChatCompletion> entity = this.restClient.post().uri(properties.getChat().getCompletionsPath()).body(request).retrieve().toEntity(ChatCompletion.class);
         return entity;
     }
 
     public Flux<ChatCompletion> chatCompletionStream(ChatCompletionRequest request) {
         request.setStream(true);
 
-        return this.webClient.post()
-                .uri(properties.getChat().getCompletionsPath())
+        AtomicBoolean isInsideTool = new AtomicBoolean(false);
+
+        return this.webClient.post().uri(properties.getChat().getCompletionsPath())
                 // .bodyValue(request)
-                .body(Mono.just(request), ChatCompletionRequest.class)
-                .accept(MediaType.TEXT_EVENT_STREAM)
-                .retrieve()
-                .bodyToFlux(String.class)
+                .body(Mono.just(request), ChatCompletionRequest.class).accept(MediaType.TEXT_EVENT_STREAM).retrieve().bodyToFlux(String.class)
                 // cancels the flux stream after the "[DONE]" is received.
                 .takeUntil(SSE_DONE_PREDICATE)
                 // filters out the "[DONE]" message.
                 .filter(SSE_DONE_PREDICATE.negate())
-                .map(this::parseEvent); // 自定义解析
+                .map(this::parseEvent)
+                .map(chunk -> { // 自定义解析
+                    if (CommonLlmApiHelper.isStreamingToolFunctionCall(chunk)) {
+                        isInsideTool.set(true);
+                    }
+                    return chunk;
+                }) // Group all chunks belonging to the same function call.
+                // Flux<ChatCompletionChunk> -> Flux<Flux<ChatCompletionChunk>>
+                .windowUntil(chunk -> {
+                    if (isInsideTool.get() && CommonLlmApiHelper.isStreamingToolFunctionCallFinish(chunk)) {
+                        isInsideTool.set(false);
+                        return true;
+                    }
+                    return !isInsideTool.get();
+                })
+                // Merging the window chunks into a single chunk.
+                // Reduce the inner Flux<ChatCompletionChunk> window into a single
+                // Mono<ChatCompletionChunk>,
+                // Flux<Flux<ChatCompletionChunk>> -> Flux<Mono<ChatCompletionChunk>>
+                .concatMapIterable(window -> {
+                    Mono<CommonLlmApi.ChatCompletion> monoChunk = window.reduce(
+                            new CommonLlmApi.ChatCompletion(null, null, null, null, null, null, null, null),
+                            (previous, current) -> CommonLlmApiHelper.merge(previous, current));
+                    return List.of(monoChunk);
+                })
+                .flatMap(mono -> mono);
     }
+
 
     private ChatCompletion parseEvent(String event) {
         ChatCompletion chatCompletion = new ChatCompletion();
@@ -114,6 +127,8 @@ public class CommonLlmApi {
     // @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ChatCompletion {
         protected String id;
         protected String object;
@@ -123,18 +138,29 @@ public class CommonLlmApi {
         protected Usage usage;
         @JsonProperty("system_fingerprint")
         protected String systemFingerprint;
+        @JsonProperty("service_tier")
+        protected String serviceTier;
 
         @Data
+        @NoArgsConstructor
+        @AllArgsConstructor
         @JsonIgnoreProperties(ignoreUnknown = true)
         public static class Choice {
             private Integer index;
             private ChatCompletionMessage message;
+            /**
+             * @see com.aaa.springai.llm.deepseek.OpenAiApi.ChatCompletionFinishReason
+             */
             private String finishReason;
 
             /**
              * 流式交互参数
+             * 同于：com.aaa.springai.llm.common.CommonLlmApi.ChatCompletion.Choice#message
              */
-            private Delta delta;
+            private ChatCompletionMessage delta;
+
+            @JsonProperty("logprobs")
+            private OpenAiApi.LogProbs logprobs;
         }
 
 
@@ -167,6 +193,7 @@ public class CommonLlmApi {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     @NoArgsConstructor
+    @AllArgsConstructor
     public static class ChatCompletionMessage {
         /**
          * @JsonProperty("content") Object rawContent,
@@ -188,9 +215,11 @@ public class CommonLlmApi {
         private String toolCallId;
         @JsonProperty("tool_calls")
         @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-        List<ToolCall> toolCalls;
+        private List<ToolCall> toolCalls;
         @JsonProperty("refusal")
         private String refusal;
+        @JsonProperty("audio")
+        private  AudioOutput audioOutput;
 
         public ChatCompletionMessage(String content, String role) {
             this.role = role;
@@ -214,27 +243,40 @@ public class CommonLlmApi {
         }
     }
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ChatCompletionFunction { // @formatter:on
         // @formatter:off
         @JsonProperty("name")
         private String name;
         @JsonProperty("arguments")
-        private String arguments;
-    }
+        private String arguments;public ChatCompletionFunction(String name, String arguments) {
+            this.name = name;
+            this.arguments = arguments;
+        }
+        public ChatCompletionFunction() {
+            System.out.println();
+        }
 
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Delta {
-        private String role;
-        // 回答内容
-        private String content;
-        // 回答推理
-        private String reasoning_content;
+        public String getName() {
+            return name;
+        }
+        public void setName(String name) {
+            this.name = name;
+        }
+        public String getArguments() {
+            return arguments;
+        }
+        public void setArguments(String arguments) {
+            this.arguments = arguments;
+        }
     }
+    // @JsonInclude(JsonInclude.Include.NON_NULL)
+    // public record ChatCompletionFunction(// @formatter:off
+    //                                      @JsonProperty("name") String name,
+    //                                      @JsonProperty("arguments") String arguments) { // @formatter:on
+    // }
+
+
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Usage {
@@ -242,7 +284,23 @@ public class CommonLlmApi {
         private Integer completionTokens;
         private Integer totalTokens;
     }
-
+    /**
+     * Audio response from the model.
+     *
+     * @param id         Unique identifier for the audio response from the model.
+     * @param data       Audio output from the model.
+     * @param expiresAt  When the audio content will no longer be available on the
+     *                   server.
+     * @param transcript Transcript of the audio output from the model.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record AudioOutput(// @formatter:off
+                              @JsonProperty("id") String id,
+                              @JsonProperty("data") String data,
+                              @JsonProperty("expires_at") Long expiresAt,
+                              @JsonProperty("transcript") String transcript
+    ) { // @formatter:on
+    }
 
     /**
      * Represents a tool the model may call. Currently, only functions are supported as a
@@ -274,7 +332,7 @@ public class CommonLlmApi {
          * @param type     the tool type
          * @param function function definition
          */
-        public FunctionTool(FunctionTool.Type type,FunctionTool.Function function) {
+        public FunctionTool(FunctionTool.Type type, FunctionTool.Function function) {
             this.type = type;
             this.function = function;
         }
@@ -297,8 +355,7 @@ public class CommonLlmApi {
             /**
              * Function tool type.
              */
-            @JsonProperty("function")
-            FUNCTION
+            @JsonProperty("function") FUNCTION
 
         }
 
@@ -365,7 +422,6 @@ public class CommonLlmApi {
             }
 
 
-
             public String getJsonSchema() {
                 return this.jsonSchema;
             }
@@ -375,6 +431,60 @@ public class CommonLlmApi {
                 if (jsonSchema != null) {
                     this.parameters = ModelOptionsUtils.jsonToMap(jsonSchema);
                 }
+            }
+
+        }
+
+    }
+
+    /**
+     * Log probability information for the choice.
+     *
+     * @param content A list of message content tokens with log probability information.
+     * @param refusal A list of message refusal tokens with log probability information.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record LogProbs(
+            @JsonProperty("content") List<OpenAiApi.LogProbs.Content> content,
+            @JsonProperty("refusal") List<OpenAiApi.LogProbs.Content> refusal) {
+
+        /**
+         * Message content tokens with log probability information.
+         *
+         * @param token       The token.
+         * @param logprob     The log probability of the token.
+         * @param probBytes   A list of integers representing the UTF-8 bytes representation
+         *                    of the token. Useful in instances where characters are represented by multiple
+         *                    tokens and their byte representations must be combined to generate the correct
+         *                    text representation. Can be null if there is no bytes representation for the
+         *                    token.
+         * @param topLogprobs List of the most likely tokens and their log probability, at
+         *                    this token position. In rare cases, there may be fewer than the number of
+         *                    requested top_logprobs returned.
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public record Content(// @formatter:off
+                              @JsonProperty("token") String token,
+                              @JsonProperty("logprob") Float logprob,
+                              @JsonProperty("bytes") List<Integer> probBytes,
+                              @JsonProperty("top_logprobs") List<OpenAiApi.LogProbs.Content.TopLogProbs> topLogprobs) { // @formatter:on
+
+            /**
+             * The most likely tokens and their log probability, at this token position.
+             *
+             * @param token     The token.
+             * @param logprob   The log probability of the token.
+             * @param probBytes A list of integers representing the UTF-8 bytes
+             *                  representation of the token. Useful in instances where characters are
+             *                  represented by multiple tokens and their byte representations must be
+             *                  combined to generate the correct text representation. Can be null if there
+             *                  is no bytes representation for the token.
+             */
+            @JsonInclude(JsonInclude.Include.NON_NULL)
+            public record TopLogProbs(// @formatter:off
+                                      @JsonProperty("token") String token,
+                                      @JsonProperty("logprob") Float logprob,
+                                      @JsonProperty("bytes") List<Integer> probBytes) { // @formatter:on
             }
 
         }

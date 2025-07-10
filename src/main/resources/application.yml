@@ -40,5 +40,5 @@ spring:
       base-url: https://api.siliconflow.cn/
       chat:
         options:
-          model: Qwen/Qwen3-14B
+          model: Qwen/QwQ-32B
         completions-path: /v1/chat/completions
