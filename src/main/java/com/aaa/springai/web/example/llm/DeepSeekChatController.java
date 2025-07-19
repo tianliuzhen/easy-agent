@@ -1,8 +1,8 @@
-package com.aaa.springai.web.llm;
+package com.aaa.springai.web.example.llm;
 
 import com.aaa.springai.llm.deepseek.OpenAiChatModel;
 import com.aaa.springai.util.ChatResponseUtil;
-import com.aaa.springai.web.sse.SseEmitterUTF8;
+import com.aaa.springai.web.example.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;

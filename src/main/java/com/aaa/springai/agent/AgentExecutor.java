@@ -40,54 +40,57 @@ public class AgentExecutor {
     private final AgentOutputParser agentOutputParser;
     private final FunctionToolManager functionToolManager;
 
+
     private static final String DefaultTemplate = """
-            Answer the following questions as best you can. You have access to the following tools:
-                        {tools}
-                        
-                        Use the following format:
-                        
-                        Question: the input question you must answer
-                        Thought: you should always think about what to do
-                        Action: the action to take, should be one of [{tool_names}]
-                        Action Input: the input to the action
-                        Observation: the result of the action
-                        ... (this Thought/Action/Action Input/Observation can repeat N times)
-                        Thought: I now know the final answer
-                        Final Answer: the final answer to the original input question
-                        
-                        During the process of answering questions, you need to follow the rules below:
-                        1. In the "Action" line, only include the name of the tool used, without any other characters.
-                        2. Do not guess the answer, if you need to use an Action, wait for the user to provide the results of the Action as the next step's Observation. And do not provide the subsequent Thought and Final Answer.
-                        3. Action Input must Analyze based on the description in the input type schema
-                        4. If you need more information, use the query_knowledge_base tool.
-                        5. If the result is insufficient, consider using another tool or querying the knowledge base again.
-                        6. Once you have all necessary information, provide a final answer.
-                        7. 关于查询当前时间的问题要调用工具拿到结果再回答
-                        
-                        Use the following format for your response:
-                        <analysis>
-                        1. Summarize the user's question:
-                           [Provide a brief summary of the question]
-                                    
-                        2. Key information needed:
-                           - [List the main pieces of information required to answer the question]
-                                    
-                        3. Potentially useful tools:
-                           - [List tools that might be helpful and explain why]
-                                    
-                        4. Planned sequence of tool usage:
-                           [If multiple tools are needed, outline the order in which you plan to use them]
-                                    
-                        5. Data privacy and security considerations:
-                           [Note any potential privacy or security concerns related to the tools or data being accessed]
-                        </analysis>
-                        
-                        Begin!
+            Answer the following questions as best you can. 
+            Remember not to fabricate tool execution results without execution tools.
+            You have access to the following tools: {tools}
+            
+            Use the following format:
+            If the tool execution result is not obtained, <Final Answer:> and <Thought:> should not appear
+                Question: the input question you must answer
+                Thought: you should always think about what to do
+                Action: the action to take, should be one of [{tool_names}]
+                Action Input: the input to the action
+                Observation: the result of the action (If there is no result, return empty)
+                ... (this Thought/Action/Action Input/Observation can repeat N times)
+                Thought: I now know the final answer (If you don't know the answer, don't show it)
+                Final Answer: the final answer to the original input question (If there are no results, there is no need to show them)
+        
+            
+            During the process of answering questions, you need to follow the rules below:
+                1. In the "Action" line, only include the name of the tool used, without any other characters.
+                2. Do not guess the answer, if you need to use an Action, wait for the user to provide the results of the Action as the next step's Observation. And do not provide the subsequent Thought and Final Answer.
+                3. Action Input must Analyze based on the description in the input type schema
+                4. If you need more information, use the query_knowledge_base tool.
+                5. If the result is insufficient, consider using another tool or querying the knowledge base again.
+                6. Once you have all necessary information, provide a final answer.
+                7. 关于查询当前时间的问题要调用工具拿到结果再回答
+                8. 当调用工具后得到结果后，返回结果中不用出现 Use the following format 里面的 [Action /  Action Input]，防止干扰再次调用工具
+                
+            Use the following format for your response:
+              <analysis>
+                1. 总结用户的问题:
+                   [提供问题的简要概述]
+    
+                2. 所需关键信息:
+                   - [列出回答问题所需的主要信息]
+    
+                3. 潜在有用的工具:
+                   - [列出可能有帮助的工具，并解释其原因]
+    
+                4. 计划中的工具使用顺序:
+                   [如果需要使用多个工具，请概述您计划使用它们的顺序]
+    
+                5. 数据隐私与安全考虑:
+                   注意与所访问工具或数据相关的任何潜在隐私或安全问题]
+                <analysis>
+            Begin!
             """;
 
     public static final String DEFAULT_FUNCTION_TEMPLATE = """
             Tool name: {name}, description: {description}, input type schema: {schema}
-                       """;
+            """;
 
 
     public static final PromptTemplate functionTemplate = new PromptTemplate(DEFAULT_FUNCTION_TEMPLATE);
@@ -107,6 +110,7 @@ public class AgentExecutor {
         if (chatModel == null) {
             throw new AgentException(agentModel.getModelType() + "无法匹配大模型");
         }
+        log.info("使用【{}】大模型开始决策=========》Begin", agentModel.getModelType());
 
         // 根据agent构造工具
         List<ToolModel> toolModels = agentModel.getToolModels();
@@ -119,10 +123,12 @@ public class AgentExecutor {
 
         // 限制决策轮数，防止无限调用
         int decisionCnt = 1;
+        List<String> resStrArr = new ArrayList<>();
         while (decisionCnt < DECISION_CNT_LIMIT) {
             log.info("第{}次大模型决策", decisionCnt);
             ChatResponse chatResponse = chatModel.call(prompt);
             String resStr = ChatResponseUtil.getResStr(chatResponse);
+            resStrArr.add(resStr);
             AgentOutput agentOutput = agentOutputParser.parse(resStr);
 
             // 需要调用工具
@@ -144,8 +150,10 @@ public class AgentExecutor {
 
             // 思考完成
             if (agentOutput instanceof AgentFinish) {
-                log.info("第{}次大模型决策结束", decisionCnt);
-                return ((AgentFinish) agentOutput).getLlmResponse();
+                log.info("第{}次大模型决策结束：=========》end", decisionCnt);
+                String llmResponse = ((AgentFinish) agentOutput).getResult();
+                log.info("第{}次大模型决策结果：{}", decisionCnt, llmResponse);
+                return llmResponse;
             }
 
 

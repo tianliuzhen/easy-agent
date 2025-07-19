@@ -1,4 +1,4 @@
-package com.aaa.springai.web.agent;
+package com.aaa.springai.web.biz.agent;
 
 import com.aaa.springai.domain.DO.EaAgentDO;
 import com.aaa.springai.mapper.EaAgentDAO;

@@ -1,4 +1,4 @@
-package com.aaa.springai.web.llm;
+package com.aaa.springai.web.example.llm;
 
 import com.aaa.springai.util.ChatResponseUtil;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;

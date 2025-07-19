@@ -24,6 +24,10 @@ public class HttpExecutor implements ToolExecutor {
     public String call(String functionInput, ToolModel toolModel) {
         HttpReqParamsTemplate paramsTemplate = (HttpReqParamsTemplate) toolModel.getParamsTemplate();
 
+        if (paramsTemplate.getRequestBody() != null &&
+                paramsTemplate.getRequestBody().getClass() == Object.class) {
+            throw new RuntimeException("paramsTemplate.getRequestBody() is Object");
+        }
 
         // String res = WebClientUtil.get("http://localhost:8080/example/getCurrentDate", String.class);
 

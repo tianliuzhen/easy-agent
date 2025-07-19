@@ -1,4 +1,4 @@
-package com.aaa.springai.web.sse;
+package com.aaa.springai.web.example.sse;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;

@@ -1,6 +1,5 @@
-package com.aaa.springai.document;
+package com.aaa.springai.document.yuque;
 
-import com.aaa.springai.document.yuque.YuQueApi;
 import com.aaa.springai.document.yuque.model.DocDetailInfo;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.document.DocumentReader;

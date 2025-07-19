@@ -28,10 +28,12 @@ public class WebClientUtilTest {
         AgentModel agentModel = new AgentModel();
         agentModel.setAgentId(111L);
         Object o = new Object();
-        String s = WebClientUtil.post("http://localhost:8080/example/testRequestBody",o, String.class);
+        String s = WebClientUtil.post("http://localhost:8080/example/testRequestBody", o, String.class);
         System.out.println(s);
     }
-    public static void main(String[] args) {
+
+    @Test
+    public void writeValueAsString() {
         // 创建ObjectMapper实例
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -48,8 +50,27 @@ public class WebClientUtilTest {
             System.out.println("序列化后的JSON字符串:");
             System.out.println(jsonString);
         } catch (JsonProcessingException e) {
+            /**
+             * com.fasterxml.jackson.databind.exc.InvalidDefinitionException: No serializer found
+             * for class java.lang.Object and no properties
+             * discovered to create BeanSerializer
+             * (to avoid exception, disable SerializationFeature.FAIL_ON_EMPTY_BEANS)
+             */
             e.printStackTrace();
         }
     }
 
+    @Test
+    public void equalObject() {
+        Class<?> stringClass = String.class;
+        Class<?> objectClass = Object.class;
+        Class<?> integerClass = Integer.class;
+
+        System.out.println(stringClass);
+        System.out.println(Object.class);
+        System.out.println(stringClass == Object.class);  // false（String 是 Object 的子类）
+        System.out.println(objectClass == Object.class);  // true（就是 Object 类本身）
+        System.out.println(integerClass == Object.class); // false（Integer 是 Object 的子类）
+
+    }
 }

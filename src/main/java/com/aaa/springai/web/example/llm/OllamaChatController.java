@@ -1,9 +1,9 @@
-package com.aaa.springai.web.llm;
+package com.aaa.springai.web.example.llm;
 
 import com.aaa.springai.util.ChatResponseUtil;
-import com.aaa.springai.web.docs.LocalDocumentService;
-import com.aaa.springai.web.docs.RedisDocumentService;
-import com.aaa.springai.web.sse.SseEmitterUTF8;
+import com.aaa.springai.document.load.LocalDocumentService;
+import com.aaa.springai.document.load.RedisDocumentService;
+import com.aaa.springai.web.example.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;

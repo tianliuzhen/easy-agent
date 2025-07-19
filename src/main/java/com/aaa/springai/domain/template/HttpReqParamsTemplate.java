@@ -14,7 +14,7 @@ public class HttpReqParamsTemplate extends ParamsTemplate {
     private String methodType;
 
     private Object requestParams;
-    private Object requestBody = new Object();
+    private Object requestBody;
 
     private Map<String, String> headers;
 }
