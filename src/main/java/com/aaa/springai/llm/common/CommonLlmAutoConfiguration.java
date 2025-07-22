@@ -25,9 +25,9 @@ public class CommonLlmAutoConfiguration {
         return new CommonLlmApi(properties);
     }
 
-    @Bean(name = "dpChatModel")
+    @Bean(name = "clChatModel")
     @ConditionalOnMissingBean
-    public CommonLlmChatModel dpChatModel(CommonLlmApi apiClient, CommonLLmProperties properties, ToolCallingManager toolCallingManager)
+    public CommonLlmChatModel clChatModel(CommonLlmApi apiClient, CommonLLmProperties properties, ToolCallingManager toolCallingManager)
 
     {
         return new CommonLlmChatModel(apiClient, properties, toolCallingManager);

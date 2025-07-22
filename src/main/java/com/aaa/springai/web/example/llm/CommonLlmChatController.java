@@ -108,6 +108,7 @@ public class CommonLlmChatController {
                 new Prompt(userMessage,
                         OpenAiChatOptions.builder()
                                 .function("currentWeather")
+                                .internalToolExecutionEnabled(false)
                                 .build()
                 )
         ); // Enable the function

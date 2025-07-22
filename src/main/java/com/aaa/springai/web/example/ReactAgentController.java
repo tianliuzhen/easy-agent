@@ -2,6 +2,7 @@ package com.aaa.springai.web.example;
 
 import com.aaa.springai.agent.AgentExecutor;
 import com.aaa.springai.domain.enums.ModelTypeEnum;
+import com.aaa.springai.domain.enums.ToolRunMode;
 import com.aaa.springai.domain.enums.ToolTypeEnum;
 import com.aaa.springai.domain.model.AgentModel;
 import com.aaa.springai.domain.model.ToolModel;
@@ -49,6 +50,9 @@ public class ReactAgentController {
         toolModel.setInputTypeSchemas(inputTypeSchemas);
         toolModels.add(toolModel);
         agentModel.setToolModels(toolModels);
+
+        // 工具决策-tool
+        agentModel.setToolRunMode(ToolRunMode.tool);
         agentExecutor.exec(agentModel);
     }
 

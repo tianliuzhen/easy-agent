@@ -1,6 +1,7 @@
 package com.aaa.springai.domain.model;
 
 import com.aaa.springai.domain.enums.ModelTypeEnum;
+import com.aaa.springai.domain.enums.ToolRunMode;
 import lombok.Data;
 
 import java.util.List;
@@ -45,4 +46,6 @@ public class AgentModel {
      * 大模型
      */
     private ModelTypeEnum modelType;
+
+    private ToolRunMode toolRunMode = ToolRunMode.reAct;
 }

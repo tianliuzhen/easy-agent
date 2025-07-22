@@ -82,6 +82,7 @@ public class AgentOutputParser {
                 log.info("解析对ReactAgentModel的LLM响应，没有足够的信息继续");
                 AgentFinish agentFinish = new AgentFinish();
                 agentFinish.setLlmResponse(text);
+                agentFinish.setResult(text);
                 // 返回表示结束的对象
                 return agentFinish;
             }

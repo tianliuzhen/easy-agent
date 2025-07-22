@@ -35,10 +35,10 @@ public class ModelSelector {
             return ollamaChatModel;
         }
         if (agentModel.getModelType() == ModelTypeEnum.deepseek) {
-            return ollamaChatModel;
+            return deepSeekChatModel;
         }
         if (agentModel.getModelType() == ModelTypeEnum.openai) {
-            return ollamaChatModel;
+            return openAiChatModel;
         }
         return null;
     }
