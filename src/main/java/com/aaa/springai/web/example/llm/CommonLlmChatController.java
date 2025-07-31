@@ -65,7 +65,8 @@ public class CommonLlmChatController {
     @GetMapping("/ai/sseEmitter")
     public SseEmitter sseEmitter(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
         SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
-        Prompt prompt = new Prompt(new UserMessage(msg));
+        Prompt prompt = new Prompt(new UserMessage(msg),OpenAiChatOptions.builder()
+                .build());
         new Thread(() -> {
             Flux<ChatResponse> stream = dpChatModel.stream(prompt);
             stream.subscribe(e -> {
@@ -76,11 +77,16 @@ public class CommonLlmChatController {
                         if (StringUtils.isNotBlank(reasoningContent)) {
                             System.out.println("reasoningContent = " + reasoningContent);
                         }
+
+                        System.out.println(Thread.currentThread().getName() + "-reasoningContent-" + reasoningContent);
+
                     });
 
                     String resStr = ChatResponseUtil.getResStr(e);
                     if (StringUtils.isNotBlank(resStr)) {
                         System.out.println("resStr = " + resStr);
+                        System.out.println(Thread.currentThread().getName() + "-resStr-" + resStr);
+
                     }
                     sseEmitter.send(e);
                 } catch (Exception ex) {

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+
+    <Properties>
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%t] %-40.40c{1.} : %m%n</Property>
+        <Property name="LOG_PATH">${spring:logging.file.path}</Property>
+        <Property name="LOG_FILE_NAME">${spring:logging.file.name}</Property>
+
+        <!--
+        // 在SpringApplication.run之前设置系统属性
+        System.setProperty("app.logging.path", "/var/log/myapp");
+        System.setProperty("app.logging.filename", "application");
+        <Property name="LOG_PATH">${sys:logging.file.path:-F:\WorkSpace\MyGithub\easy-agent\myapp}</Property>
+        <Property name="LOG_FILE_NAME">${sys:logging.file.name:-xx}</Property>
+        -->
+    </Properties>
+
+    <Appenders>
+
+        <!-- 控制台输出 -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <!-- 输出彩色日志的格式方案1 (不推荐)           -->
+            <!-- 需要设置 VM options:-Dlog4j.skipJansi=false -->
+            <!-- <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight{%-5level} [%t] %highlight{%c{1.}.%M(%L)}: %msg%n" />-->
+
+            <!--输出彩色日志的格式方案2 (推荐) -->
+            <!-- 不需要设置-Dlog4j.skipJansi=false  -->
+            <PatternLayout
+                    pattern="%clr{%d{yyyy-MM-dd HH:mm:ss.SSS}}{faint} %clr{%5p} %clr{${sys:PID}}{magenta} %clr{---}{faint} %clr{[%15.15t]}{faint} %clr{%-40.40c{1.}}{cyan} %clr{:}{faint} %m%n%xwEx"/>
+
+            <!--控制台只输出level及其以上级别的信息（onMatch），其他的直接拒绝（onMismatch）-->
+            <ThresholdFilter level="debug" onMatch="ACCEPT" onMismatch="DENY"/>
+        </Console>
+
+
+        <!-- 滚动文件输出 -->
+        <RollingFile name="RollingFile" fileName="${LOG_PATH}/${LOG_FILE_NAME}.log"
+                     filePattern="${LOG_PATH}/${LOG_FILE_NAME}-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10"/>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <!-- 设置root logger级别和appender -->
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RollingFile"/>
+        </Root>
+
+        <!-- 可以针对特定包设置日志级别 -->
+        <!--        <Logger name="org.springframework" level="warn"/>-->
+        <!--        <Logger name="com.yourpackage" level="debug"/>-->
+    </Loggers>
+</Configuration>
