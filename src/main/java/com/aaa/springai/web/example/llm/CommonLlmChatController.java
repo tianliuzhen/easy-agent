@@ -65,8 +65,7 @@ public class CommonLlmChatController {
     @GetMapping("/ai/sseEmitter")
     public SseEmitter sseEmitter(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
         SseEmitterUTF8 sseEmitter = new SseEmitterUTF8(1000 * 60L);
-        Prompt prompt = new Prompt(new UserMessage(msg),OpenAiChatOptions.builder()
-                .build());
+        Prompt prompt = new Prompt(new UserMessage(msg));
         new Thread(() -> {
             Flux<ChatResponse> stream = dpChatModel.stream(prompt);
             stream.subscribe(e -> {

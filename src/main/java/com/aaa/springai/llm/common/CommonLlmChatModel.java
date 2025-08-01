@@ -156,7 +156,6 @@ public class CommonLlmChatModel implements ChatModel {
     @Override
     public Flux<ChatResponse> stream(Prompt prompt) {
 
-
         return internalStream(prompt, null);
     }
 
@@ -169,7 +168,11 @@ public class CommonLlmChatModel implements ChatModel {
             Flux<CommonLlmApi.ChatCompletion> completionChunks = this.apiClient.chatCompletionStream(request);
 
 
-            final ChatModelObservationContext observationContext = ChatModelObservationContext.builder().prompt(prompt).provider(OpenAiApiConstants.PROVIDER_NAME).requestOptions(prompt.getOptions()).build();
+            final ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
+                    .prompt(prompt)
+                    .provider(OpenAiApiConstants.PROVIDER_NAME)
+                    .requestOptions(Objects.requireNonNullElse(prompt.getOptions(), OpenAiChatOptions.builder().build()))
+                    .build();
 
             Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION.observation(this.observationConvention, DEFAULT_OBSERVATION_CONVENTION, () -> observationContext, this.observationRegistry);
             observation.parentObservation(contextView.getOrDefault(ObservationThreadLocalAccessor.KEY, null)).start();
