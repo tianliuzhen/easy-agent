@@ -1,8 +1,0 @@
-package com.aaa.springai.agent.model;
-
-/**
- * @author liuzhen.tian
- * @version 1.0 AgentOutput.java  2025/4/19 21:45
- */
-public class AgentOutput {
-}

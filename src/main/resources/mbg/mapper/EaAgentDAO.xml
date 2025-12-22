@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.aaa.springai.mapper.EaAgentDAO">
-  <resultMap id="BaseResultMap" type="com.aaa.springai.domain.DO.EaAgentDO">
+<mapper namespace="com.aaa.easyagent.core.mapper.EaAgentDAO">
+  <resultMap id="BaseResultMap" type="com.aaa.easyagent.core.domain.DO.EaAgentDO">
     <!--
       WARNING - @mbg.generated
     -->
     <id column="id" jdbcType="BIGINT" property="id" />
     <result column="agent_name" jdbcType="VARCHAR" property="agentName" />
+    <result column="model_platform" jdbcType="VARCHAR" property="modelPlatform" />
     <result column="analysis_model" jdbcType="VARCHAR" property="analysisModel" />
     <result column="tool_model" jdbcType="VARCHAR" property="toolModel" />
     <result column="agent_desc" jdbcType="LONGVARCHAR" property="agentDesc" />
