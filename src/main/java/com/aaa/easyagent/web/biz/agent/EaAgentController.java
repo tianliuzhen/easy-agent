@@ -1,8 +1,8 @@
 package com.aaa.easyagent.web.biz.agent;
 
-import com.aaa.easyagent.core.domain.DO.EaAgentDO;
-import com.aaa.easyagent.core.mapper.EaAgentDAO;
+import com.aaa.easyagent.core.service.AgentManagerService;
 import com.aaa.easyagent.core.domain.base.BaseResult;
+import com.aaa.easyagent.core.domain.request.EaAgentReq;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,21 +20,21 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EaAgentController {
 
-    private final EaAgentDAO eaAgentDAO;
+    private final AgentManagerService agentManagerService;
 
     @PostMapping("/ai/saveAgent")
-    public BaseResult saveAgent(@RequestBody EaAgentDO eaAgentDO) {
-        return BaseResult.buildSuc(eaAgentDAO.save(eaAgentDO));
+    public BaseResult saveAgent(@RequestBody EaAgentReq req) {
+        return BaseResult.buildSuc(agentManagerService.save(req));
     }
 
     @PostMapping("/ai/listAgent")
     public BaseResult listAgent() {
-        return BaseResult.buildSuc(eaAgentDAO.selectAll());
+        return BaseResult.buildSuc(agentManagerService.selectAll());
     }
 
     @PostMapping("/ai/delAgent")
-    public BaseResult delAgent(@RequestBody EaAgentDO eaAgentDO) {
-        return BaseResult.buildSuc(eaAgentDAO.deleteByPrimaryKey(eaAgentDO.getId()));
+    public BaseResult delAgent(@RequestBody EaAgentReq req) {
+        return BaseResult.buildSuc(agentManagerService.delAgent(req));
     }
 
     @PostMapping("/ai/queryChatModelList")
