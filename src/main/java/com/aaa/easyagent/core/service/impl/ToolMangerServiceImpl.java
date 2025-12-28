@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import tk.mybatis.mapper.entity.Example;
 import tk.mybatis.mapper.weekend.WeekendSqlsUtils;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -35,7 +36,11 @@ public class ToolMangerServiceImpl implements ToolMangerService {
 
     @Override
     public int saveTool(EaToolConfigReq eaToolConfigReq) {
-        return eaToolConfigDAO.save(eaToolConfigReq);
+        if (eaToolConfigReq.getId() == null) {
+            return eaToolConfigDAO.insertSelective(eaToolConfigReq);
+        }
+
+        return eaToolConfigDAO.updateByPrimaryKeySelective(eaToolConfigReq);
     }
 
     @Override

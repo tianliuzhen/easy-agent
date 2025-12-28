@@ -10,6 +10,8 @@
     <result column="model_platform" jdbcType="VARCHAR" property="modelPlatform" />
     <result column="analysis_model" jdbcType="VARCHAR" property="analysisModel" />
     <result column="tool_model" jdbcType="VARCHAR" property="toolModel" />
+    <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
+    <result column="updated_at" jdbcType="TIMESTAMP" property="updatedAt" />
     <result column="agent_desc" jdbcType="LONGVARCHAR" property="agentDesc" />
   </resultMap>
 </mapper>

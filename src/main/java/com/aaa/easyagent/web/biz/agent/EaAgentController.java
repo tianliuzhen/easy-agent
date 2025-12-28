@@ -28,8 +28,8 @@ public class EaAgentController {
     }
 
     @PostMapping("/ai/listAgent")
-    public BaseResult listAgent() {
-        return BaseResult.buildSuc(agentManagerService.selectAll());
+    public BaseResult listAgent(@RequestBody EaAgentReq req) {
+        return BaseResult.buildSuc(agentManagerService.listAgent(req));
     }
 
     @PostMapping("/ai/delAgent")

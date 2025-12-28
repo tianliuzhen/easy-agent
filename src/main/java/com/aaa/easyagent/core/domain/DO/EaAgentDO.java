@@ -1,6 +1,7 @@
 package com.aaa.easyagent.core.domain.DO;
 
 import jakarta.persistence.*;
+import java.util.Date;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -44,6 +45,12 @@ public class EaAgentDO {
      */
     @Column(name = "tool_model")
     private String toolModel;
+
+    @Column(name = "created_at")
+    private Date createdAt;
+
+    @Column(name = "updated_at")
+    private Date updatedAt;
 
     /**
      * agent备注

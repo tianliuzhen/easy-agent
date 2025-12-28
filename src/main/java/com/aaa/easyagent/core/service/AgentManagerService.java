@@ -25,7 +25,7 @@ public interface AgentManagerService {
      *
      * @return 智能体结果列表，包含所有智能体的信息
      */
-    List<EaAgentResult> selectAll();
+    List<EaAgentResult> listAgent(EaAgentReq req);
 
     /**
      * 删除智能体

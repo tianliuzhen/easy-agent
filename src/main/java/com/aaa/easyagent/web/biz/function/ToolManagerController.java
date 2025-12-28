@@ -4,9 +4,12 @@ package com.aaa.easyagent.web.biz.function;
 
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.EaToolConfigReq;
+import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
 import com.aaa.easyagent.core.service.ToolMangerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 工具管理控制器
@@ -30,7 +33,8 @@ public class ToolManagerController {
      */
     @GetMapping("getToolConfigByAgentId/{agentId}")
     public BaseResult getToolConfigByAgentId(@PathVariable Long agentId) {
-        return BaseResult.buildSuc(toolMangerService.getToolConfigByAgentId(agentId));
+        List<EaToolConfigResult> toolConfigByAgentId = toolMangerService.getToolConfigByAgentId(agentId);
+        return BaseResult.buildSuc(toolConfigByAgentId);
     }
 
     /**
