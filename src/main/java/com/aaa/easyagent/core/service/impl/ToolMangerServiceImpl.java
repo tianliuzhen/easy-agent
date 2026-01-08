@@ -49,6 +49,11 @@ public class ToolMangerServiceImpl implements ToolMangerService {
     }
 
     @Override
+    public int copyTool(EaToolConfigReq eaToolConfigReq) {
+        return eaToolConfigDAO.insertSelective(eaToolConfigReq);
+    }
+
+    @Override
     public EaToolConfigResult debug(EaToolConfigReq eaToolConfigReq) {
         return null;
     }

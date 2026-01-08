@@ -1,7 +1,7 @@
-package com.aaa.easyagent.biz.agent.function.tool.instance;
+package com.aaa.easyagent.biz.tool.instance;
 
-import com.aaa.easyagent.biz.agent.function.ToolTypeChooser;
-import com.aaa.easyagent.biz.agent.function.tool.ToolExecutor;
+import com.aaa.easyagent.biz.function.ToolTypeChooser;
+import com.aaa.easyagent.biz.tool.ToolExecutor;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.core.domain.model.ToolModel;
 import com.aaa.easyagent.core.domain.template.HttpReqParamsTemplate;
@@ -16,13 +16,13 @@ import org.springframework.stereotype.Component;
  * @version 1.0 HttpExecutor.java  2025/2/23 19:34
  */
 @Component
-@ToolTypeChooser(ToolTypeEnum.common_http)
-public class HttpExecutor implements ToolExecutor {
+@ToolTypeChooser(ToolTypeEnum.HTTP)
+public class HttpExecutor implements ToolExecutor<HttpReqParamsTemplate> {
 
 
     @Override
-    public String call(String functionInput, ToolModel toolModel) {
-        HttpReqParamsTemplate paramsTemplate = (HttpReqParamsTemplate) toolModel.getParamsTemplate();
+    public String call(String functionInput, ToolModel<HttpReqParamsTemplate> toolModel) {
+        HttpReqParamsTemplate paramsTemplate = toolModel.getParamsTemplate();
 
         if (paramsTemplate.getRequestBody() != null &&
                 paramsTemplate.getRequestBody().getClass() == Object.class) {
@@ -31,10 +31,11 @@ public class HttpExecutor implements ToolExecutor {
 
         // String res = WebClientUtil.get("http://localhost:8080/example/getCurrentDate", String.class);
 
-        HttpMethod httpMethod = HttpMethod.valueOf(paramsTemplate.getMethodType().toUpperCase());
+        HttpMethod httpMethod = HttpMethod.valueOf(paramsTemplate.getMethod().toUpperCase());
         String res = WebClientUtil.exchange(httpMethod,
                 paramsTemplate.getUrl(),
-                paramsTemplate.getHeaders(),
+                paramsTemplate.buildHeader(),
+                paramsTemplate.buildRequestParams(),
                 paramsTemplate.getRequestBody(),
                 String.class);
 

@@ -1,9 +1,13 @@
 package com.aaa.easyagent.web.example;
 
 import com.aaa.easyagent.common.util.JacksonUtil;
+import groovy.util.MapEntry;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
+import java.util.Map;
+
+import static java.util.Map.entry;
 
 /**
  * @author liuzhen.tian
@@ -22,5 +26,15 @@ public class ExampleController {
     @PostMapping(value = "/testRequestBody")
     public String testRequestBody(@RequestBody Object map) {
         return JacksonUtil.toStr(map);
+    }
+
+    @PostMapping(value = "/getMap")
+    public Map getMap() {
+        Map<Integer, String> integerStringMap = Map.ofEntries(
+                entry(1, "a"),
+                entry(2, "b"),
+                entry(3, "c"),
+                entry(26, "z"));
+        return integerStringMap;
     }
 }

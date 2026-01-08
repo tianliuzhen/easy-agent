@@ -1,6 +1,6 @@
-package com.aaa.easyagent.biz.agent.function;
+package com.aaa.easyagent.biz.function;
 
-import com.aaa.easyagent.biz.agent.function.tool.ToolExecutor;
+import com.aaa.easyagent.biz.tool.ToolExecutor;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.core.domain.model.ToolModel;
 import com.aaa.easyagent.common.config.exception.AgentException;

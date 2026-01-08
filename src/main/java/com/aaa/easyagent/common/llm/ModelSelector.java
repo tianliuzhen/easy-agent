@@ -1,4 +1,4 @@
-package com.aaa.easyagent.biz.agent;
+package com.aaa.easyagent.common.llm;
 
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.model.AgentModel;

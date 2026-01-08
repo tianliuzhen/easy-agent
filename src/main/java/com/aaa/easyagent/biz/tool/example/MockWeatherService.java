@@ -1,4 +1,4 @@
-package com.aaa.easyagent.biz.agent.function.tool.example;
+package com.aaa.easyagent.biz.tool.example;
 
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 

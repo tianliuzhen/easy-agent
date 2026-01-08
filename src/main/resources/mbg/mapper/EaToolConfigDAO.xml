@@ -10,6 +10,7 @@
     <result column="tool_type" jdbcType="VARCHAR" property="toolType" />
     <result column="tool_instance_id" jdbcType="VARCHAR" property="toolInstanceId" />
     <result column="tool_instance_name" jdbcType="VARCHAR" property="toolInstanceName" />
+    <result column="tool_instance_desc" jdbcType="VARCHAR" property="toolInstanceDesc" />
     <result column="input_template" jdbcType="VARCHAR" property="inputTemplate" />
     <result column="out_template" jdbcType="VARCHAR" property="outTemplate" />
     <result column="is_required" jdbcType="BIT" property="isRequired" />

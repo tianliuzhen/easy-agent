@@ -3,7 +3,10 @@ package com.aaa.easyagent.core.domain.model;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.core.domain.template.InputTypeSchema;
 import com.aaa.easyagent.core.domain.template.ParamsTemplate;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
@@ -12,7 +15,10 @@ import java.util.List;
  * @version 1.0 ToolModel.java  2025/5/25 21:43
  */
 @Data
-public class ToolModel {
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class ToolModel<T extends ParamsTemplate> {
     /**
      * 工具Id
      */
@@ -44,7 +50,7 @@ public class ToolModel {
     /**
      * 参数实例
      * HttpReqParamsTemplate
-     * MysqlParamsTemplate
+     * SqlParamsTemplate
      */
-    private ParamsTemplate paramsTemplate;
+    private T paramsTemplate;
 }

@@ -1,6 +1,6 @@
 package com.aaa.easyagent.common.config;
 
-import com.aaa.easyagent.biz.agent.function.tool.example.MockWeatherService;
+import com.aaa.easyagent.biz.tool.example.MockWeatherService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;

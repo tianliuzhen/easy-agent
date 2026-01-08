@@ -50,6 +50,12 @@ public class EaToolConfigDO {
     private String toolInstanceName;
 
     /**
+     * 工具实例描述
+     */
+    @Column(name = "tool_instance_desc")
+    private String toolInstanceDesc;
+
+    /**
      * 入参模板
      */
     @Column(name = "input_template")

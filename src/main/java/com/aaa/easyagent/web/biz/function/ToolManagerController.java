@@ -2,6 +2,7 @@
 // ... existing code ...
 package com.aaa.easyagent.web.biz.function;
 
+import com.aaa.easyagent.biz.tool.ToolOnlineDebug;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.EaToolConfigReq;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
@@ -24,6 +25,7 @@ import java.util.List;
 public class ToolManagerController {
 
     private final ToolMangerService toolMangerService;
+    private final ToolOnlineDebug toolOnlineDebug;
 
     /**
      * 根据Agent ID获取工具配置列表
@@ -49,6 +51,17 @@ public class ToolManagerController {
     }
 
     /**
+     * 复制工具配置
+     *
+     * @param eaToolConfigReq 工具配置请求对象
+     * @return 复制结果，成功返回1，失败返回0
+     */
+    @PostMapping("copyTool")
+    public BaseResult copyTool(@RequestBody EaToolConfigReq eaToolConfigReq) {
+        return BaseResult.buildSuc(toolMangerService.copyTool(eaToolConfigReq));
+    }
+
+    /**
      * 添加工具配置
      *
      * @param eaToolConfigReq 工具配置请求对象
@@ -69,7 +82,7 @@ public class ToolManagerController {
     @PostMapping("debug")
     public BaseResult debug(@RequestBody EaToolConfigReq eaToolConfigReq) {
         // 实现添加工具配置逻辑
-        return BaseResult.buildSuc(toolMangerService.debug(eaToolConfigReq));
+        return BaseResult.buildSuc(toolOnlineDebug.debug(eaToolConfigReq));
     }
 
 }

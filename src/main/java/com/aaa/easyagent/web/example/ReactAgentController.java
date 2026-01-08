@@ -40,10 +40,10 @@ public class ReactAgentController {
         toolModel.setToolId(1L);
         toolModel.setToolName("查询当前时间");
         toolModel.setToolDesc("输入地点查询当地时间");
-        toolModel.setToolType(ToolTypeEnum.common_http);
+        toolModel.setToolType(ToolTypeEnum.HTTP);
         HttpReqParamsTemplate httpReqParamsTemplate = new HttpReqParamsTemplate();
         httpReqParamsTemplate.setUrl("http://localhost:8080/example/getCurrentDate");
-        httpReqParamsTemplate.setMethodType("get");
+        httpReqParamsTemplate.setMethod("get");
         toolModel.setParamsTemplate(httpReqParamsTemplate);
         List<InputTypeSchema> inputTypeSchemas = new ArrayList<>();
         inputTypeSchemas.add(new InputTypeSchema("type","北京时间：beijing，东京时间：dongjing","string"));
@@ -70,10 +70,10 @@ public class ReactAgentController {
         toolModel.setToolId(1L);
         toolModel.setToolName("查询当前时间");
         toolModel.setToolDesc("无需入参可查询当前系统时间");
-        toolModel.setToolType(ToolTypeEnum.common_http);
+        toolModel.setToolType(ToolTypeEnum.HTTP);
         HttpReqParamsTemplate httpReqParamsTemplate = new HttpReqParamsTemplate();
         httpReqParamsTemplate.setUrl("http://localhost:8080/example/getCurrentDate");
-        httpReqParamsTemplate.setMethodType("get");
+        httpReqParamsTemplate.setMethod("get");
         toolModel.setParamsTemplate(httpReqParamsTemplate);
         toolModel.setInputTypeSchemas(new ArrayList<>());
         toolModels.add(toolModel);

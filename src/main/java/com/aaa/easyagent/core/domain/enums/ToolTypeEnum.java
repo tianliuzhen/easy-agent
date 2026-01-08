@@ -1,5 +1,8 @@
 package com.aaa.easyagent.core.domain.enums;
 
+import com.aaa.easyagent.core.domain.template.HttpReqParamsTemplate;
+import com.aaa.easyagent.core.domain.template.SqlParamsTemplate;
+import com.aaa.easyagent.core.domain.template.ParamsTemplate;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -10,9 +13,20 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum ToolTypeEnum {
-    common_http("common_http", "htt调用"),
-    mysql("mysql", "mysql查询");
+    HTTP("HTTP", "htt调用", HttpReqParamsTemplate.class),
+    SQL("SQL", "sql查询", SqlParamsTemplate.class);
 
-    private String type;
-    private String desc;
+    private final String type;
+    private final String desc;
+    private final Class<? extends ParamsTemplate> paramsTemplate;
+
+
+    public static ToolTypeEnum getByType(String type) {
+        for (ToolTypeEnum value : values()) {
+            if (value.getType().equals(type)) {
+                return value;
+            }
+        }
+        throw new RuntimeException("未找到对应的工具类型:" + type);
+    }
 }

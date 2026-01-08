@@ -1,4 +1,4 @@
-package com.aaa.easyagent.biz.agent.function;
+package com.aaa.easyagent.biz.function;
 
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 

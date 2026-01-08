@@ -38,6 +38,14 @@ public interface ToolMangerService {
     int delTool(EaToolConfigReq eaToolConfigReq);
 
     /**
+     * 复制工具配置
+     *
+     * @param eaToolConfigReq 工具配置请求对象，包含要复制的工具配置信息
+     * @return 复制成功返回1，否则返回0
+     */
+    int copyTool(EaToolConfigReq eaToolConfigReq);
+
+    /**
      * 调试工具配置
      *
      * @param eaToolConfigReq 工具配置请求对象，包含要调试的工具配置信息
