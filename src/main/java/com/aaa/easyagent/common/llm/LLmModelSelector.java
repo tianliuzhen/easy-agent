@@ -12,10 +12,10 @@ import org.springframework.stereotype.Component;
  * 大模型选择器
  *
  * @author liuzhen.tian
- * @version 1.0 ModelSelector.java  2025/5/25 17:59
+ * @version 1.0 LLmModelSelector.java  2025/5/25 17:59
  */
 @Component
-public class ModelSelector {
+public class LLmModelSelector {
 
     @Autowired
     private OpenAiChatModel deepSeekChatModel;

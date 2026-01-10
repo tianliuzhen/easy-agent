@@ -15,7 +15,6 @@ import java.util.regex.Pattern;
  * @version 1.0 AgentOutputParser.java  2025/4/19 21:41
  */
 @Slf4j
-@Component
 public class AgentOutputParser {
 
     public static final String FINAL_ANSWER_ACTION = "Final Answer:";
@@ -33,7 +32,7 @@ public class AgentOutputParser {
      * @param text
      * @return
      */
-    public AgentOutput parse(String text) {
+    public static AgentOutput parse(String text) {
         if (!StringUtils.hasText(text)) {
             log.info("Parse LLM response to ReactAgentModel, result is empty");
             // LLM 返回空值，此时模型有问题，提前结束

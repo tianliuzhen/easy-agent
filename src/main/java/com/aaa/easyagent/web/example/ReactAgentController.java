@@ -1,6 +1,6 @@
 package com.aaa.easyagent.web.example;
 
-import com.aaa.easyagent.biz.agent.AgentExecutor;
+import com.aaa.easyagent.biz.agent.ReactAgentExecutor;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
@@ -25,7 +25,7 @@ import java.util.List;
 public class ReactAgentController {
 
     @Resource
-    private AgentExecutor agentExecutor;
+    private ReactAgentExecutor reactAgentExecutor;
 
     @GetMapping(value = "/test")
     public void test() {
@@ -53,7 +53,7 @@ public class ReactAgentController {
 
         // 工具决策-tool
         agentModel.setToolRunMode(ToolRunMode.tool);
-        agentExecutor.exec(agentModel);
+        reactAgentExecutor.exec(agentModel);
     }
 
 
@@ -78,7 +78,7 @@ public class ReactAgentController {
         toolModel.setInputTypeSchemas(new ArrayList<>());
         toolModels.add(toolModel);
         agentModel.setToolModels(toolModels);
-        agentExecutor.exec(agentModel);
+        reactAgentExecutor.exec(agentModel);
     }
 
 }
