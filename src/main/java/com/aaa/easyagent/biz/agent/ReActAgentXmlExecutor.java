@@ -19,9 +19,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * @link com.aaa.easyagent.biz.agent.ReActAgentExecutor
  * <pre>
- * 使用XML解析替换之前的 ReActAgentExecutor
- * 优点：
+ * 是的，从多个角度来看，XML解析方式确实比之前的解析方式更加友好：
+ *
  * 1. **结构化程度更高**：
  * - XML格式具有清晰的标签结构，例如`<Action>`、`<Action Input>`、`<Final Answer>`，使得大模型的输出更容易解析和处理。
  * - 相比之前的纯文本格式（如"Action: ... Action Input: ..."），XML标签提供了更明确的分隔符，减少了解析错误的可能性。
@@ -48,39 +49,51 @@ import java.util.Map;
 public class ReActAgentXmlExecutor extends BaseReActAgent {
 
     protected static final String DefaultTemplate = """
-            请遵循ReAct（推理和行动）范式来回答以下问题。
-            你必须使用XML格式的结构化输出，只能使用以下工具: {tools}
+            Answer the following questions as best you can. 
+            Remember not to fabricate tool execution results without execution tools.
+            You have access to the following tools: {tools}
             
-            严格遵循以下XML格式:
-                <Thought> 分析问题并规划解决步骤 </Thought>
-                <Action> 工具名称，必须是[{tool_names}]之一 </Action>
-                <Action Input> 工具输入参数的JSON格式 </Action Input>
-                Observation: 工具执行结果
-                <Thought> 基于结果进行分析并决定下一步 </Thought>
-                <Action> 下一个要执行的工具 </Action>
-                <Action Input> 下一个工具的输入参数 </Action Input>
-                ... (重复思考-行动-观察循环)
-                <Thought> 总结已有信息，确定是否可以得出最终答案 </Thought>
-                <Final Answer> 对原始问题的完整回答 </Final Answer>
+            Use the following XML format:
+            If the tool execution result is not obtained, <Final Answer> and <Thought> should not appear
+                Question: the input question you must answer
+                <Thought> you should always think about what to do </Thought>
+                <Action> the action to take, should be one of [{tool_names}] </Action>
+                <Action Input> the input to the action </Action Input>
+                Observation: the result of the action (If there is no result, return empty)
+                ... (this <Thought>/<Action>/<Action Input>/Observation can repeat N times)
+                <Thought> I now know the final answer (If you don't know the answer, don't show it) </Thought>
+                <Final Answer> the final answer to the original input question (If there are no results, there is no need to show them) </Final Answer>
             
-            重要约束:
-                1. <Action>标签内只能包含工具名称，不添加任何其他说明文字
-                2. <Action Input>标签内容必须是有效的JSON格式参数
-                3. 不得编造未执行工具的虚构结果
-                4. 每次调用工具后必须等待并处理Observation结果
-                5. 对于需要当前时间的问题，必须使用时间查询工具
-                6. 只有在获得足够信息后才能提供最终答案
-                7. 保持逻辑连贯，确保推理步骤合理
-                8. 如果无法通过工具获得答案，说明原因并提供替代建议
             
-            回答流程:
-                1. <Thought> 分析问题需求和可用工具 </Thought>
-                2. 使用合适的工具获取必要信息
-                3. 根据工具返回结果进行分析
-                4. 重复步骤2-3直到获得充分信息
-                5. <Final Answer> 提供基于事实的完整答案 </Final Answer>
+            During the process of answering questions, you need to follow the rules below:
+                1. The "<Action>" tag should only contain the name of the tool used, without any other characters.
+                2. Do not guess the answer, if you need to use an Action, wait for the user to provide the results of the Action as the next step's Observation. And do not provide the subsequent <Thought> and <Final Answer>.
+                3. <Action Input> must Analyze based on the description in the input type schema
+                4. If you need more information, use the query_knowledge_base tool.
+                5. If the result is insufficient, consider using another tool or querying the knowledge base again.
+                6. Once you have all necessary information, provide a final answer.
+                7. 关于查询当前时间的问题要调用工具拿到结果再回答
+                8. 当调用工具后得到结果后，返回结果中不用出现 Use the following format 里面的 [<Action> / <Action Input>]，防止干扰再次调用工具
+                9. Always use XML-like tags to structure your response: <Thought>, <Action>, <Action Input>, <Final Answer>
             
-            现在开始处理用户问题。
+            Use the following format for your response:
+              <analysis>
+                1. 总结用户的问题:
+                   [提供问题的简要概述]
+            
+                2. 所需关键信息:
+                   - [列出回答问题所需的主要信息]
+            
+                3. 潜在有用的工具:
+                   - [列出可能有帮助的工具，并解释其原因]
+            
+                4. 计划中的工具使用顺序:
+                   [如果需要使用多个工具，请概述您计划使用它们的顺序]
+            
+                5. 数据隐私与安全考虑:
+                   注意与所访问工具或数据相关的任何潜在隐私或安全问题]
+                <analysis>
+            Begin!
             """;
 
     public static final PromptTemplate reactSystemPromptTemplate = new PromptTemplate(DefaultTemplate);
