@@ -2,7 +2,7 @@
 //
 // /**
 //  * @author liuzhen.tian
-//  * @version 1.0 ReActAgent.java  2026/1/10 23:08
+//  * @version 1.0 BaseReActAgent.java  2026/1/10 23:08
 //  */
 // import lombok.Data;
 //
@@ -12,12 +12,12 @@
 //  * 真实的ReAct代理实现
 //  * 使用大模型自动进行思考-行动循环
 //  */
-// public abstract class ReActAgent extends BaseAgent {
+// public abstract class BaseReActAgent extends BaseAgent {
 //
 //     protected LLMService llmService;
 //     protected List<Tool> availableTools;
 //
-//     protected ReActAgent(ReActBuilder builder) {
+//     protected BaseReActAgent(ReActBuilder builder) {
 //         super(builder);
 //         this.llmService = new LLMService();
 //         this.availableTools = new ArrayList<>();
@@ -329,7 +329,7 @@
 //         }
 //
 //         @Override
-//         public abstract ReActAgent build();
+//         public abstract BaseReActAgent build();
 //     }
 // }
 //
@@ -493,7 +493,7 @@
 // /**
 //  * 具体的ReAct代理实现示例
 //  */
-// class SmartAssistantAgent extends ReActAgent {
+// class SmartAssistantAgent extends BaseReActAgent {
 //
 //     private SmartAssistantAgent(ReActBuilder builder) {
 //         super(builder);
@@ -521,7 +521,7 @@
 //         }
 //
 //         @Override
-//         public ReActAgent build() {
+//         public BaseReActAgent build() {
 //             return new SmartAssistantAgent(this);
 //         }
 //     }
@@ -567,7 +567,7 @@
 // /**
 //  * 更高级的ReAct代理，支持工具学习
 //  */
-// class LearningReActAgent extends ReActAgent {
+// class LearningReActAgent extends BaseReActAgent {
 //
 //     private ToolLearner toolLearner;
 //     private Map<String, Tool> learnedTools;
@@ -640,7 +640,7 @@
 //         }
 //
 //         @Override
-//         public ReActAgent build() {
+//         public BaseReActAgent build() {
 //             return new LearningReActAgent(this);
 //         }
 //     }

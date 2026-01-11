@@ -3,7 +3,6 @@ package com.aaa.easyagent.biz.agent;
 import com.aaa.easyagent.biz.agent.model.AgentFinish;
 import com.aaa.easyagent.biz.agent.model.AgentOutput;
 import com.aaa.easyagent.biz.agent.model.FunctionUseAction;
-import com.aaa.easyagent.biz.agent.parser.AgentOutputParser;
 import com.aaa.easyagent.biz.function.FunctionToolManager;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
@@ -29,39 +28,60 @@ import java.util.*;
 @Slf4j
 public abstract class BaseAgent {
 
-    protected final LLmModelSelector LLmModelSelector;
-    protected final FunctionToolManager functionToolManager;
+    protected final AgentModel agentModel;
 
+    /**
+     * 模型选择
+     */
+    protected ChatModel chatModel;
+    /**
+     * 工具回调
+     */
+    protected Map<String, FunctionCallback> callbackMap;
 
+    protected List<Message> messages;
+
+    protected Prompt prompt;
+
+    /**
+     * 决策轮数限制
+     */
     public static final int DECISION_CNT_LIMIT = 20;
 
+    /**
+     * 默认函数模板
+     */
     public static final String DEFAULT_FUNCTION_TEMPLATE = """
             Tool name: {name}, description: {description}, input type schema: {schema}
             """;
 
     public static final PromptTemplate functionTemplate = new PromptTemplate(DEFAULT_FUNCTION_TEMPLATE);
 
-    public BaseAgent(LLmModelSelector LLmModelSelector, FunctionToolManager functionToolManager) {
-        this.LLmModelSelector = LLmModelSelector;
-        this.functionToolManager = functionToolManager;
+    public BaseAgent(AgentModel agentModel) {
+        this.agentModel = agentModel;
+
+        chatModel = LLmModelSelector.getModel(agentModel);
+
+        // 根据agent构造回调工具
+        List<ToolModel> toolModels = agentModel.getToolModels();
+        callbackMap = buildToolFun(toolModels);
+
     }
 
 
     /**
      * 提示词构建
      *
-     * @param agentModel
      * @return
      */
-    public abstract Prompt buildPrompt(AgentModel agentModel);
+    public abstract Prompt buildPrompt();
 
     /**
      * 执行
      *
-     * @param callbackMap
      * @return
      */
-    public abstract AgentOutput run(ChatModel chatModel, Map<String, FunctionCallback> callbackMap, Prompt prompt);
+    public abstract AgentOutput run();
 
     /**
      * agent 执行
@@ -72,29 +92,25 @@ public abstract class BaseAgent {
      *
      * @return
      */
-    public String exec(AgentModel agentModel) {
+    public String exec(String question) {
         // 根据agent选择模型
-        ChatModel chatModel = LLmModelSelector.getModel(agentModel);
         if (chatModel == null) {
             throw new AgentException(agentModel.getModelType() + "无法匹配大模型");
         }
         log.info("使用【{}】大模型开始决策=========》Begin", agentModel.getModelType());
-
-        // 根据agent构造回调工具
-        List<ToolModel> toolModels = agentModel.getToolModels();
-        Map<String, FunctionCallback> callbackMap = buildToolFun(toolModels);
-
         // 提示词构建
-        Prompt prompt = this.buildPrompt(agentModel);
+        prompt = this.buildPrompt();
+
+        // 添加用户信息
+        addUserMessage(question);
 
         // 限制决策轮数，防止无限调用
         int decisionCnt = 1;
         while (decisionCnt < DECISION_CNT_LIMIT) {
             log.info("第{}次大模型决策", decisionCnt);
 
-
-            // tool/react
-            AgentOutput agentOutput = this.run(chatModel, callbackMap, prompt);
+            // tool/react ... 等等多模式执行
+            AgentOutput agentOutput = this.run();
 
             // 思考完成
             if (agentOutput instanceof AgentFinish) {
@@ -112,7 +128,7 @@ public abstract class BaseAgent {
     }
 
 
-    protected static void callBackForTool(FunctionUseAction functionUseAction, Map<String, FunctionCallback> callbackMap, Prompt prompt) {
+    protected void toolExecute(FunctionUseAction functionUseAction) {
         FunctionCallback functionToolCallback = callbackMap.get(functionUseAction.getAction());
         if (functionToolCallback == null) {
             throw new AgentToolException("无法匹配toolFunction");
@@ -126,7 +142,7 @@ public abstract class BaseAgent {
                 functionUseAction.getAction(),
                 callToolResult));
         ToolResponseMessage toolResponseMessage = new ToolResponseMessage(responses);
-        prompt.getInstructions().add(toolResponseMessage);
+        messages.add(toolResponseMessage);
     }
 
 
@@ -160,7 +176,7 @@ public abstract class BaseAgent {
 
                         @Override
                         public String call(String functionInput) {
-                            return functionToolManager.call(functionInput, e);
+                            return FunctionToolManager.call(functionInput, e);
                         }
                     });
 
@@ -168,9 +184,12 @@ public abstract class BaseAgent {
         return callbackMap;
     }
 
-    protected static void addAssistantMessage(Prompt prompt, ChatResponse chatResponse) {
+    protected void addAssistantMessage(Prompt prompt, ChatResponse chatResponse) {
         AssistantMessage toolResponseMessage = new AssistantMessage(ChatResponseUtil.getResStr(chatResponse));
         prompt.getInstructions().add(toolResponseMessage);
     }
 
+    protected void addUserMessage(String question) {
+        prompt.getInstructions().add(new UserMessage(question));
+    }
 }

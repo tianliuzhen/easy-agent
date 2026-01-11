@@ -34,7 +34,7 @@ public class AgentModel {
     /**
      * 用户问题
      */
-    private String question;
+    // private String question;
 
 
     /**

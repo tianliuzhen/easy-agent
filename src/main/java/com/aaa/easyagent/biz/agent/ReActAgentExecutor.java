@@ -1,39 +1,28 @@
 package com.aaa.easyagent.biz.agent;
 
-import com.aaa.easyagent.biz.function.FunctionToolManager;
-import com.aaa.easyagent.biz.agent.model.AgentFinish;
 import com.aaa.easyagent.biz.agent.model.AgentOutput;
 import com.aaa.easyagent.biz.agent.model.FunctionUseAction;
 import com.aaa.easyagent.biz.agent.parser.AgentOutputParser;
-import com.aaa.easyagent.common.llm.LLmModelSelector;
-import com.aaa.easyagent.core.domain.enums.ToolRunMode;
-import com.aaa.easyagent.core.domain.model.AgentModel;
-import com.aaa.easyagent.core.domain.model.ToolModel;
-import com.aaa.easyagent.common.config.exception.AgentException;
-import com.aaa.easyagent.common.config.exception.AgentToolException;
-import com.aaa.easyagent.common.llm.deepseek.OpenAiChatOptions;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
-import com.aaa.easyagent.common.util.JsonSchemaGenerator;
-import lombok.RequiredArgsConstructor;
+import com.aaa.easyagent.core.domain.model.AgentModel;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.messages.*;
-import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.function.FunctionCallback;
-import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author liuzhen.tian
- * @version 1.0 ReactAgentExecutor.java  2025/2/23 20:45
+ * @version 1.0 ReActAgentExecutor.java  2025/2/23 20:45
  */
 @Slf4j
-@Component
-public class ReactAgentExecutor extends BaseAgent {
+public class ReActAgentExecutor extends BaseReActAgent {
 
     protected static final String DefaultTemplate = """
             Answer the following questions as best you can. 
@@ -84,24 +73,17 @@ public class ReactAgentExecutor extends BaseAgent {
 
     public static final PromptTemplate reactSystemPromptTemplate = new PromptTemplate(DefaultTemplate);
 
-
-    public ReactAgentExecutor(LLmModelSelector LLmModelSelector,
-                              FunctionToolManager functionToolManager) {
-        super(LLmModelSelector, functionToolManager);
+    public ReActAgentExecutor(AgentModel agentModel) {
+        super(agentModel);
     }
 
 
     /**
      * 构建提示词
      *
-     * @param agentModel
      * @return
      */
-    public Prompt buildPrompt(AgentModel agentModel) {
-        List<Message> messages = new ArrayList<>();
-        List<ToolModel> toolModels = agentModel.getToolModels();
-        Map<String, FunctionCallback> callbackMap = buildToolFun(toolModels);
-
+    public Prompt buildPrompt() {
 
         if (CollectionUtils.isEmpty(callbackMap)) {
             return null;
@@ -121,23 +103,15 @@ public class ReactAgentExecutor extends BaseAgent {
             tools.append("\n");
         }
         renderModel.put("tools", tools.toString());
+
         messages.add(new SystemMessage(reactSystemPromptTemplate.render(renderModel)));
 
-        messages.add(new UserMessage(agentModel.getQuestion()));
         return new Prompt(messages);
 
     }
 
-    /**
-     * react 执行模式：  思考/行动/观察...思考/行动/观察
-     *
-     * @param chatModel
-     * @param callbackMap
-     * @param prompt
-     * @return
-     */
     @Override
-    public AgentOutput run(ChatModel chatModel, Map<String, FunctionCallback> callbackMap, Prompt prompt) {
+    public AgentOutput think() {
         ChatResponse chatResponse = chatModel.call(prompt);
 
         // 添加助手执行记忆
@@ -148,11 +122,32 @@ public class ReactAgentExecutor extends BaseAgent {
 
         // 解析Action入参或者解析成功
         AgentOutput agentOutput = AgentOutputParser.parse(resStr);
+        return agentOutput;
+    }
 
-        // 需要调用工具
+    @Override
+    public String act(FunctionUseAction functionUseAction) {
+        toolExecute(functionUseAction);
+        return "";
+    }
+
+    /**
+     * react 执行模式：  思考/行动/观察...思考/行动/观察
+     *
+     * @return
+     */
+    @Override
+    public AgentOutput run() {
+        // 思考：构建当前思考的上下文
+        AgentOutput agentOutput = think();
+
+        // 行动：基于思考决定行动
         if (agentOutput instanceof FunctionUseAction functionUseAction) {
-            callBackForTool(functionUseAction, callbackMap, prompt);
+            this.act(functionUseAction);
         }
+
+        // 观察...
+
         return agentOutput;
     }
 

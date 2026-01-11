@@ -2,11 +2,16 @@ package com.aaa.easyagent.common.llm;
 
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.model.AgentModel;
+import jakarta.annotation.PostConstruct;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.PostMapping;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 大模型选择器
@@ -24,22 +29,23 @@ public class LLmModelSelector {
     @Autowired
     private OllamaChatModel ollamaChatModel;
 
+    private static Map<ModelTypeEnum, ChatModel> chatModelMap;
+
+    @PostConstruct
+    public void init() {
+        chatModelMap = new HashMap<>();
+        chatModelMap.put(ModelTypeEnum.ollama, ollamaChatModel);
+        chatModelMap.put(ModelTypeEnum.deepseek, deepSeekChatModel);
+        chatModelMap.put(ModelTypeEnum.openai, openAiChatModel);
+    }
+
     /**
      * 根据AgentID切换大模型
      *
      * @param agentModel
      * @return
      */
-    public ChatModel getModel(AgentModel agentModel) {
-        if (agentModel.getModelType() == ModelTypeEnum.ollama) {
-            return ollamaChatModel;
-        }
-        if (agentModel.getModelType() == ModelTypeEnum.deepseek) {
-            return deepSeekChatModel;
-        }
-        if (agentModel.getModelType() == ModelTypeEnum.openai) {
-            return openAiChatModel;
-        }
-        return null;
+    public static ChatModel getModel(AgentModel agentModel) {
+        return chatModelMap.get(agentModel.getModelType());
     }
 }

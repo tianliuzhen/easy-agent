@@ -22,10 +22,9 @@ public class FunctionToolManager {
     @Resource
     private List<ToolExecutor> baseCallbackList;
 
-    private Map<ToolTypeEnum, ToolExecutor> baseCallbackMap;
+    public static Map<ToolTypeEnum, ToolExecutor> baseCallbackMap;
 
     public FunctionToolManager() {
-        System.out.println();
     }
 
     @PostConstruct
@@ -37,7 +36,7 @@ public class FunctionToolManager {
         });
     }
 
-    public String call(String functionInput, ToolModel toolModel) {
+    public static String call(String functionInput, ToolModel toolModel) {
         ToolTypeEnum toolType = toolModel.getToolType();
         if (baseCallbackMap.get(toolType) == null) {
             throw new AgentException("无法选择工具处理器：" + toolType.getType());
