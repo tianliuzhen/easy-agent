@@ -121,6 +121,11 @@ public abstract class BaseAgent {
                 return llmResponse;
             }
 
+            // todo 检查是否卡住
+            // if (isStuck()) {
+            //     handleStuckState();
+            // }
+
             decisionCnt++;
         }
 
