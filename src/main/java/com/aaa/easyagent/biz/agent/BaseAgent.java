@@ -31,7 +31,7 @@ public abstract class BaseAgent {
     protected final AgentModel agentModel;
 
     /**
-     * 模型选择
+     * llm模型
      */
     protected ChatModel chatModel;
     /**
@@ -66,6 +66,7 @@ public abstract class BaseAgent {
         List<ToolModel> toolModels = agentModel.getToolModels();
         callbackMap = buildToolFun(toolModels);
 
+        messages = new ArrayList<>();
     }
 
 

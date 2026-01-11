@@ -1,6 +1,7 @@
 package com.aaa.easyagent.web.example;
 
 import com.aaa.easyagent.biz.agent.ReActAgentExecutor;
+import com.aaa.easyagent.biz.agent.ReActAgentXmlExecutor;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
@@ -53,7 +54,35 @@ public class ReactAgentController {
 
         new ReActAgentExecutor(agentModel).exec("查询北京当前时间");
     }
+    @GetMapping(value = "/testXml")
+    public void testXml() {
+        AgentModel agentModel = new AgentModel();
+        agentModel.setAgentId(1L);
+        agentModel.setAgentName("查询时间助手");
+        // agentModel.setQuestion("查询北京当前时间");
+        agentModel.setModelType(ModelTypeEnum.ollama);
 
+        List<ToolModel> toolModels = new ArrayList<>();
+        ToolModel toolModel = new ToolModel();
+        toolModel.setToolId(1L);
+        toolModel.setToolName("查询当前时间");
+        toolModel.setToolDesc("输入地点查询当地时间");
+        toolModel.setToolType(ToolTypeEnum.HTTP);
+        HttpReqParamsTemplate httpReqParamsTemplate = new HttpReqParamsTemplate();
+        httpReqParamsTemplate.setUrl("http://localhost:8080/example/getCurrentDate");
+        httpReqParamsTemplate.setMethod("get");
+        toolModel.setParamsTemplate(httpReqParamsTemplate);
+        List<InputTypeSchema> inputTypeSchemas = new ArrayList<>();
+        inputTypeSchemas.add(new InputTypeSchema("type", "北京时间：beijing，东京时间：dongjing", "string"));
+        toolModel.setInputTypeSchemas(inputTypeSchemas);
+        toolModels.add(toolModel);
+        agentModel.setToolModels(toolModels);
+
+        // 工具决策-tool
+        agentModel.setToolRunMode(ToolRunMode.tool);
+
+        new ReActAgentXmlExecutor(agentModel).exec("查询北京当前时间");
+    }
 
     @GetMapping(value = "/test2")
     public void test2() {
