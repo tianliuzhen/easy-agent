@@ -8,21 +8,19 @@ package com.aaa.easyagent.common.config.vectorstore;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreProperties;
-import org.springframework.context.annotation.Configuration;
-import redis.clients.jedis.DefaultJedisClientConfig;
-import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.JedisClientConfig;
-import redis.clients.jedis.JedisPooled;
-
 import org.springframework.ai.embedding.BatchingStrategy;
 import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.vectorstore.redis.RedisVectorStore;
 import org.springframework.ai.vectorstore.observation.VectorStoreObservationConvention;
+import org.springframework.ai.vectorstore.redis.RedisVectorStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import redis.clients.jedis.DefaultJedisClientConfig;
+import redis.clients.jedis.HostAndPort;
+import redis.clients.jedis.JedisClientConfig;
+import redis.clients.jedis.JedisPooled;
 
 /**
  * from: org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreAutoConfiguration
@@ -35,7 +33,7 @@ import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
  * @author Jihoon Kim
  */
 @Slf4j
-@Configuration
+// @Configuration
 public class RedisVectorStoreAutoConfiguration {
 
     /**

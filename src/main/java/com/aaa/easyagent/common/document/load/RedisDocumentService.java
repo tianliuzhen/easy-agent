@@ -8,7 +8,6 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -16,7 +15,7 @@ import java.util.List;
  * @author liuzhen.tian
  * @version 1.0 LocalDocumentService.java  2024/12/28 21:31
  */
-@Component
+// @Component
 public class RedisDocumentService {
 
     @Value("classpath:docs/MetalPrice.txt") // This is the text document to load
