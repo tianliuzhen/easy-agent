@@ -21,15 +21,15 @@ public class CommonLlmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CommonLlmApi deepseekApiClient(CommonLLmProperties properties) {
+    public CommonLlmApi commonLlmApi(CommonLLmProperties properties) {
         return new CommonLlmApi(properties);
     }
 
     @Bean(name = "clChatModel")
     @ConditionalOnMissingBean
-    public CommonLlmChatModel clChatModel(CommonLlmApi apiClient, CommonLLmProperties properties, ToolCallingManager toolCallingManager)
+    public CommonLlmChatModel clChatModel(CommonLlmApi commonLlmApi, CommonLLmProperties properties, ToolCallingManager toolCallingManager)
 
     {
-        return new CommonLlmChatModel(apiClient, properties, toolCallingManager);
+        return new CommonLlmChatModel(commonLlmApi, properties, toolCallingManager);
     }
 }

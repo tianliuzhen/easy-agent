@@ -1,10 +1,10 @@
 package com.aaa.easyagent.biz.agent;
 
-import com.aaa.easyagent.biz.agent.model.AgentOutput;
-import com.aaa.easyagent.biz.agent.model.FunctionUseAction;
+import com.aaa.easyagent.biz.agent.data.AgentOutput;
+import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
 import com.aaa.easyagent.biz.agent.parser.AgentOutputParser;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
-import com.aaa.easyagent.core.domain.model.AgentModel;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -22,6 +22,7 @@ import java.util.Map;
  * @version 1.0 ReActAgentExecutor.java  2025/2/23 20:45
  */
 @Slf4j
+@Deprecated
 public class ReActAgentExecutor extends BaseReActAgent {
 
     protected static final String DefaultTemplate = """
@@ -73,8 +74,8 @@ public class ReActAgentExecutor extends BaseReActAgent {
 
     public static final PromptTemplate reactSystemPromptTemplate = new PromptTemplate(DefaultTemplate);
 
-    public ReActAgentExecutor(AgentModel agentModel) {
-        super(agentModel);
+    public ReActAgentExecutor(AgentContext agentContext) {
+        super(agentContext);
     }
 
 

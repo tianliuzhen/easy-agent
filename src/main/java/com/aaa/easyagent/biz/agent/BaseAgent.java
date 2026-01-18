@@ -1,16 +1,16 @@
 package com.aaa.easyagent.biz.agent;
 
-import com.aaa.easyagent.biz.agent.model.AgentFinish;
-import com.aaa.easyagent.biz.agent.model.AgentOutput;
-import com.aaa.easyagent.biz.agent.model.FunctionUseAction;
+import com.aaa.easyagent.biz.agent.data.AgentFinish;
+import com.aaa.easyagent.biz.agent.data.AgentOutput;
+import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
 import com.aaa.easyagent.biz.function.FunctionToolManager;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
 import com.aaa.easyagent.common.llm.LLmModelSelector;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import com.aaa.easyagent.common.util.JsonSchemaGenerator;
-import com.aaa.easyagent.core.domain.model.AgentModel;
-import com.aaa.easyagent.core.domain.model.ToolModel;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
+import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.model.ChatModel;
@@ -28,7 +28,7 @@ import java.util.*;
 @Slf4j
 public abstract class BaseAgent {
 
-    protected final AgentModel agentModel;
+    protected final AgentContext agentContext;
 
     /**
      * llm模型
@@ -57,14 +57,19 @@ public abstract class BaseAgent {
 
     public static final PromptTemplate functionTemplate = new PromptTemplate(DEFAULT_FUNCTION_TEMPLATE);
 
-    public BaseAgent(AgentModel agentModel) {
-        this.agentModel = agentModel;
+    /**
+     * agent初始化
+     *
+     * @param agentContext
+     */
+    public BaseAgent(AgentContext agentContext) {
+        this.agentContext = agentContext;
 
-        chatModel = LLmModelSelector.getModel(agentModel);
+        chatModel = LLmModelSelector.buildChatModel(agentContext);
 
         // 根据agent构造回调工具
-        List<ToolModel> toolModels = agentModel.getToolModels();
-        callbackMap = buildToolFun(toolModels);
+        List<ToolDefinition> toolDefinitions = agentContext.getToolDefinitions();
+        callbackMap = buildToolFun(toolDefinitions);
 
         messages = new ArrayList<>();
     }
@@ -96,9 +101,9 @@ public abstract class BaseAgent {
     public String exec(String question) {
         // 根据agent选择模型
         if (chatModel == null) {
-            throw new AgentException(agentModel.getModelType() + "无法匹配大模型");
+            throw new AgentException(agentContext.getModelType() + "无法匹配大模型");
         }
-        log.info("使用【{}】大模型开始决策=========》Begin", agentModel.getModelType());
+        log.info("使用【{}】{}大模型开始决策=========》Begin...", agentContext.getModelType(), agentContext.getAgentModelConfig().getModelVersion());
         // 提示词构建
         prompt = this.buildPrompt();
 
@@ -155,13 +160,13 @@ public abstract class BaseAgent {
     /**
      * 构建函数回调
      *
-     * @param toolModels
+     * @param toolDefinitions
      * @return
      */
-    protected Map<String, FunctionCallback> buildToolFun(List<ToolModel> toolModels) {
+    protected Map<String, FunctionCallback> buildToolFun(List<ToolDefinition> toolDefinitions) {
         Map<String, FunctionCallback> callbackMap = new HashMap<>();
         // 解析成函数
-        toolModels.forEach(e -> {
+        toolDefinitions.forEach(e -> {
             callbackMap.put(e.getToolName(),
                     new FunctionCallback() {
 

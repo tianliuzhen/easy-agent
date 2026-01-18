@@ -3,9 +3,10 @@ package com.aaa.easyagent.biz.tool.instance;
 import com.aaa.easyagent.biz.function.ToolTypeChooser;
 import com.aaa.easyagent.biz.tool.ToolExecutor;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
-import com.aaa.easyagent.core.domain.model.ToolModel;
+import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.core.domain.template.HttpReqParamsTemplate;
 import com.aaa.easyagent.common.util.WebClientUtil;
+import com.alibaba.fastjson.JSONObject;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
@@ -21,8 +22,8 @@ public class HttpExecutor implements ToolExecutor<HttpReqParamsTemplate> {
 
 
     @Override
-    public String call(String functionInput, ToolModel<HttpReqParamsTemplate> toolModel) {
-        HttpReqParamsTemplate paramsTemplate = toolModel.getParamsTemplate();
+    public String call(String functionInput, ToolDefinition<HttpReqParamsTemplate> toolDefinition) {
+        HttpReqParamsTemplate paramsTemplate = toolDefinition.getParamsTemplate();
 
         if (paramsTemplate.getRequestBody() != null &&
                 paramsTemplate.getRequestBody().getClass() == Object.class) {
@@ -36,7 +37,8 @@ public class HttpExecutor implements ToolExecutor<HttpReqParamsTemplate> {
                 paramsTemplate.getUrl(),
                 paramsTemplate.buildHeader(),
                 paramsTemplate.buildRequestParams(),
-                paramsTemplate.getRequestBody(),
+                // paramsTemplate.getRequestBody(),
+                JSONObject.parse(functionInput), // fixme 有问题，需要区分是 path/param 参数
                 String.class);
 
         return res;

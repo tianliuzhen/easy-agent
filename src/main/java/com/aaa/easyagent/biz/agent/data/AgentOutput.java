@@ -1,4 +1,4 @@
-package com.aaa.easyagent.biz.agent.model;
+package com.aaa.easyagent.biz.agent.data;
 
 /**
  * @author liuzhen.tian

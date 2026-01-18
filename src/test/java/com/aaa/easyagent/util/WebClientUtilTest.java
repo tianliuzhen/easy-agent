@@ -1,7 +1,7 @@
 package com.aaa.easyagent.util;
 
 import com.aaa.easyagent.common.util.WebClientUtil;
-import com.aaa.easyagent.core.domain.model.AgentModel;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -26,8 +26,8 @@ public class WebClientUtilTest {
 
         HashMap<Object, Object> map = new HashMap<>();
         map.put("test", "123");
-        AgentModel agentModel = new AgentModel();
-        agentModel.setAgentId(111L);
+        AgentContext agentContext = new AgentContext();
+        agentContext.setAgentId(111L);
         Object o = new Object();
         String s = WebClientUtil.post("http://localhost:8080/example/testRequestBody", o, String.class);
         System.out.println(s);

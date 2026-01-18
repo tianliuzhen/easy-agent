@@ -1,11 +1,11 @@
 package com.aaa.easyagent.biz.agent;
 
-import com.aaa.easyagent.biz.agent.model.AgentFinish;
-import com.aaa.easyagent.biz.agent.model.AgentOutput;
-import com.aaa.easyagent.biz.agent.model.FunctionUseAction;
+import com.aaa.easyagent.biz.agent.data.AgentFinish;
+import com.aaa.easyagent.biz.agent.data.AgentOutput;
+import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
 import com.aaa.easyagent.biz.agent.parser.OutputParserException;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
-import com.aaa.easyagent.core.domain.model.AgentModel;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -59,7 +59,7 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
                 <Thought> you should always think about what to do </Thought>
                 <Action> the action to take, should be one of [{tool_names}] </Action>
                 <Action Input> the input to the action </Action Input>
-                Observation: the result of the action (If there is no result, return empty)
+                Observation: the result of the action (Do not guess the answer,If there is no result, return empty)
                 ... (this <Thought>/<Action>/<Action Input>/Observation can repeat N times)
                 <Thought> I now know the final answer (If you don't know the answer, don't show it) </Thought>
                 <Final Answer> the final answer to the original input question (If there are no results, there is no need to show them) </Final Answer>
@@ -78,6 +78,7 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
             
             Use the following format for your response:
               <analysis>
+              不要自己直接回答，要借用工具来回答
                 1. 总结用户的问题:
                    [提供问题的简要概述]
             
@@ -98,8 +99,8 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
 
     public static final PromptTemplate reactSystemPromptTemplate = new PromptTemplate(DefaultTemplate);
 
-    public ReActAgentXmlExecutor(AgentModel agentModel) {
-        super(agentModel);
+    public ReActAgentXmlExecutor(AgentContext agentContext) {
+        super(agentContext);
     }
 
 

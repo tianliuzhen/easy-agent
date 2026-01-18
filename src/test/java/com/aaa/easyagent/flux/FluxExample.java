@@ -1,6 +1,6 @@
 package com.aaa.easyagent.flux;
 
-import com.aaa.easyagent.biz.agent.context.AgentContext;
+import com.aaa.easyagent.biz.agent.context.AgentHolder;
 import reactor.core.publisher.Flux;
 
 import java.time.Duration;
@@ -23,46 +23,46 @@ public class FluxExample {
 
         CountDownLatch latch = new CountDownLatch(1);
 
-        List<String> agentThink = AgentContext.getAgentThink();
-        AgentContext.writeThink("begin:", "开始执行");
+        List<String> agentThink = AgentHolder.getAgentThink();
+        AgentHolder.writeThink("begin:", "开始执行");
 
-        // 如果先激活线程,并且使用完销毁    AgentContext.clearThink();
+        // 如果先激活线程,并且使用完销毁    AgentHolder.clearThink();
         executorService.execute(() -> {
-            List<String> think = AgentContext.getAgentThink();
+            List<String> think = AgentHolder.getAgentThink();
             System.err.println(think == agentThink);
-            AgentContext.clearThink();
+            AgentHolder.clearThink();
         });
-        AgentContext.writeThink("begin:", "开始执行2");
+        AgentHolder.writeThink("begin:", "开始执行2");
 
-        // 再次使用线程，  AgentContext.getAgentThink(); 会是空
+        // 再次使用线程，  AgentHolder.getAgentThink(); 会是空
         executorService.execute(() -> {
             System.out.println("Thread.currentThread().getName() = " + Thread.currentThread().getName());
-            List<String> think = AgentContext.getAgentThink();
+            List<String> think = AgentHolder.getAgentThink();
             System.err.println(think == agentThink);
             // 订阅并处理数据
             stringFlux.subscribe(
                     value -> {
                         System.out.println("Thread.currentThread().getName()1 = " + Thread.currentThread().getName());
                         // onNext
-                        List<String> think2 = AgentContext.getAgentThink();
+                        List<String> think2 = AgentHolder.getAgentThink();
                         System.out.println(think2 == agentThink);
-                        AgentContext.writeThink("data:", value);
+                        AgentHolder.writeThink("data:", value);
                         System.err.println("Received: " + value);
                     },
                     error -> {
                         // onError
-                        List<String> agentThink3 = AgentContext.getAgentThink();
-                        AgentContext.writeThink("err:", error.getLocalizedMessage());
+                        List<String> agentThink3 = AgentHolder.getAgentThink();
+                        AgentHolder.writeThink("err:", error.getLocalizedMessage());
                         latch.countDown();
                         System.err.println("Error: " + error);
                     },
                     () -> {
                         System.out.println("Thread.currentThread().getName()2 = " + Thread.currentThread().getName());
                         // onComplete
-                        AgentContext.writeThink("end:", "执行结束");
-                        List<String> agentThink4 = AgentContext.getAgentThink();
+                        AgentHolder.writeThink("end:", "执行结束");
+                        List<String> agentThink4 = AgentHolder.getAgentThink();
 
-                        System.out.println(AgentContext.getThink());
+                        System.out.println(AgentHolder.getThink());
                         System.out.println("Completed!");
                         latch.countDown();
                     }

@@ -2,7 +2,7 @@ package com.aaa.easyagent.biz.tool;
 
 import com.aaa.easyagent.biz.function.FunctionToolManager;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
-import com.aaa.easyagent.core.domain.model.ToolModel;
+import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.core.domain.request.EaToolConfigReq;
 import com.aaa.easyagent.core.domain.template.InputTypeSchema;
 import com.alibaba.fastjson.JSON;
@@ -28,7 +28,7 @@ public class ToolOnlineDebug {
         ToolTypeEnum toolTypeEnum = ToolTypeEnum.getByType(eaToolConfigReq.getToolType());
         String toolValue = eaToolConfigReq.getToolValue();
 
-        ToolModel toolModel = ToolModel.builder()
+        ToolDefinition toolDefinition = ToolDefinition.builder()
                 .toolId(eaToolConfigReq.getId())
                 .toolName(eaToolConfigReq.getToolInstanceName())
                 .toolDesc(eaToolConfigReq.getToolInstanceDesc())
@@ -41,7 +41,7 @@ public class ToolOnlineDebug {
                 .paramsTemplate(JSON.parseObject(toolValue, toolTypeEnum.getParamsTemplate()))
                 .build();
 
-        String call = functionToolManager.call(toolValue, toolModel);
+        String call = functionToolManager.call(toolValue, toolDefinition);
         return JSON.parse(call);
     }
 }

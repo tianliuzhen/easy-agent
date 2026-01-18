@@ -3,6 +3,7 @@ package com.aaa.easyagent.web.example.llm;
 import com.aaa.easyagent.common.document.load.EsDocumentService;
 import com.aaa.easyagent.common.document.load.LocalDocumentService;
 import com.aaa.easyagent.common.document.load.RedisDocumentService;
+import com.aaa.easyagent.common.llm.common.CommonLlmChatOptions;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import com.aaa.easyagent.web.example.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -259,7 +260,7 @@ public class OllamaChatController {
                 .inputType(QueryDateRequest.class)
                 .build();
 
-        com.aaa.easyagent.common.llm.deepseek.OpenAiChatOptions chatOptions = com.aaa.easyagent.common.llm.deepseek.OpenAiChatOptions.builder()
+        CommonLlmChatOptions chatOptions = CommonLlmChatOptions.builder()
                 .toolCallbacks(List.of(weatherTool))
                 .build();
         Flux<ChatResponse> stream = this.chatModel.stream(new Prompt(userMessage, chatOptions));

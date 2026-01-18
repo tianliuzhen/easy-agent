@@ -10,9 +10,9 @@ import java.util.Map;
 
 /**
  * @author liuzhen.tian
- * @version 1.0 AgentContext.java  2025/5/10 18:45
+ * @version 1.0 AgentHolder.java  2025/5/10 18:45
  */
-public class AgentContext {
+public class AgentHolder {
 
     private static final ThreadLocal<List<String>> agentThink = new InheritableThreadLocal<>();
 

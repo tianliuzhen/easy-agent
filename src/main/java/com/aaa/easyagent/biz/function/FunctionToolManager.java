@@ -2,7 +2,7 @@ package com.aaa.easyagent.biz.function;
 
 import com.aaa.easyagent.biz.tool.ToolExecutor;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
-import com.aaa.easyagent.core.domain.model.ToolModel;
+import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
@@ -36,12 +36,12 @@ public class FunctionToolManager {
         });
     }
 
-    public static String call(String functionInput, ToolModel toolModel) {
-        ToolTypeEnum toolType = toolModel.getToolType();
+    public static String call(String functionInput, ToolDefinition toolDefinition) {
+        ToolTypeEnum toolType = toolDefinition.getToolType();
         if (baseCallbackMap.get(toolType) == null) {
             throw new AgentException("无法选择工具处理器：" + toolType.getType());
         }
-        return baseCallbackMap.get(toolType).call(functionInput, toolModel);
+        return baseCallbackMap.get(toolType).call(functionInput, toolDefinition);
     }
 
 }

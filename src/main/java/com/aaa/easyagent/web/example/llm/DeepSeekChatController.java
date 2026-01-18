@@ -112,7 +112,7 @@ public class DeepSeekChatController {
 
 
     /**
-     * OpenAiChatOptions.builder() 传入的一个参数，可以控制大模型的设置
+     * CommonLlmChatOptions.builder() 传入的一个参数，可以控制大模型的设置
      *
      * @param msg
      * @return

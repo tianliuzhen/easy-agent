@@ -7,6 +7,6 @@ package com.aaa.easyagent.core.domain.enums;
  * @version 1.0 ToolRunMode.java  2025/7/21 23:10
  */
 public enum ToolRunMode {
-    reAct,
-    tool
+    ReAct,
+    Tool
 }

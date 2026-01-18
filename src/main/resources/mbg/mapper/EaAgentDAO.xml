@@ -10,8 +10,11 @@
     <result column="model_platform" jdbcType="VARCHAR" property="modelPlatform" />
     <result column="analysis_model" jdbcType="VARCHAR" property="analysisModel" />
     <result column="tool_model" jdbcType="VARCHAR" property="toolModel" />
+    <result column="tool_run_mode" jdbcType="VARCHAR" property="toolRunMode" />
+    <result column="model_config" jdbcType="VARCHAR" property="modelConfig" />
     <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
     <result column="updated_at" jdbcType="TIMESTAMP" property="updatedAt" />
+    <result column="avatar" jdbcType="LONGVARCHAR" property="avatar" />
     <result column="agent_desc" jdbcType="LONGVARCHAR" property="agentDesc" />
   </resultMap>
 </mapper>

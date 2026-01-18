@@ -3,10 +3,9 @@ package com.aaa.easyagent.biz.tool.instance;
 import com.aaa.easyagent.biz.function.ToolTypeChooser;
 import com.aaa.easyagent.biz.tool.ToolExecutor;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
-import com.aaa.easyagent.core.domain.model.ToolModel;
+import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.core.domain.template.SqlParamsTemplate;
 import com.aaa.easyagent.common.util.JacksonUtil;
-import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +14,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -52,8 +50,8 @@ public class SqlExecutor implements ToolExecutor<SqlParamsTemplate> {
     }
 
     @Override
-    public String call(String functionInput, ToolModel<SqlParamsTemplate> toolModel) {
-        SqlParamsTemplate paramsTemplate = toolModel.getParamsTemplate();
+    public String call(String functionInput, ToolDefinition<SqlParamsTemplate> toolDefinition) {
+        SqlParamsTemplate paramsTemplate = toolDefinition.getParamsTemplate();
 
         try {
             // 验证必要参数

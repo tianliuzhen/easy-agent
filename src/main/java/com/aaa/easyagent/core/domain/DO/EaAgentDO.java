@@ -29,28 +29,46 @@ public class EaAgentDO {
     private String agentName;
 
     /**
-     * 大模型平台
+     * 大模型平台: ollama/deepseek/硅基流动
      */
     @Column(name = "model_platform")
     private String modelPlatform;
 
     /**
-     * 决策大模型
+     * 决策大模型：todo
      */
     @Column(name = "analysis_model")
     private String analysisModel;
 
     /**
-     * 工具大模型
+     * 工具大模型：todo
      */
     @Column(name = "tool_model")
     private String toolModel;
+
+    /**
+     * 工具运行模式：reAct/tool
+     */
+    @Column(name = "tool_run_mode")
+    private String toolRunMode;
+
+    /**
+     * 模型配置:{}
+     */
+    @Column(name = "model_config")
+    private String modelConfig;
 
     @Column(name = "created_at")
     private Date createdAt;
 
     @Column(name = "updated_at")
     private Date updatedAt;
+
+    /**
+     * 头像
+     */
+    @Column(name = "avatar")
+    private String avatar;
 
     /**
      * agent备注

@@ -3,6 +3,9 @@ package com.aaa.easyagent.core.domain.enums;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * todo
  *
@@ -12,10 +15,32 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum ModelTypeEnum {
-    deepseek("deepseek", "123"),
-    openai("openai", "123"),
-    ollama("ollama", "345");
+    deepseek("deepseek", "deepseek", "https://chat.deepseek.com/"),
+    siliconflow("siliconflow", "硅基流动", "https://cloud.siliconflow.cn/"),
+    openai("openai", "openai", "https://openApi.com/"),
+    ollama("ollama", "ollama", "https://ollama.com/");
 
     private String model;
-    private String version;
+    private String desc;
+    private String links;
+
+    /**
+     * 查询所有大模型配置，并且返回所有的枚举信息
+     *
+     * @return Map<模型名称, Map<属性名, 属性值>>
+     */
+    public static Map<String, HashMap<String, String>> getAll() {
+        Map<String, HashMap<String, String>> result = new HashMap<>();
+        
+        for (ModelTypeEnum modelType : values()) {
+            HashMap<String, String> modelInfo = new HashMap<>();
+            modelInfo.put("model", modelType.getModel());
+            modelInfo.put("desc", modelType.getDesc());
+            modelInfo.put("links", modelType.getLinks());
+            
+            result.put(modelType.getModel(), modelInfo);
+        }
+        
+        return result;
+    }
 }

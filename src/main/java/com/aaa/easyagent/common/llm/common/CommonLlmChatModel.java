@@ -8,7 +8,6 @@ package com.aaa.easyagent.common.llm.common;
  */
 
 
-import com.aaa.easyagent.common.llm.deepseek.OpenAiChatOptions;
 import com.aaa.easyagent.common.util.JacksonUtil;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
@@ -171,7 +170,7 @@ public class CommonLlmChatModel implements ChatModel {
             final ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
                     .prompt(prompt)
                     .provider(OpenAiApiConstants.PROVIDER_NAME)
-                    .requestOptions(Objects.requireNonNullElse(prompt.getOptions(), OpenAiChatOptions.builder().build()))
+                    .requestOptions(Objects.requireNonNullElse(prompt.getOptions(), CommonLlmChatOptions.builder().build()))
                     .build();
 
             Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION.observation(this.observationConvention, DEFAULT_OBSERVATION_CONVENTION, () -> observationContext, this.observationRegistry);
@@ -200,7 +199,7 @@ public class CommonLlmChatModel implements ChatModel {
             Flux<ChatResponse> flux = chatResponse.flatMap(response -> {
                         if (prompt.getOptions()!=null &&
                                 ToolCallingChatOptions.isInternalToolExecutionEnabled(prompt.getOptions()) && response.hasToolCalls()) {
-                            var toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, response);
+                            ToolExecutionResult toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, response);
                             if (toolExecutionResult.returnDirect()) {
                                 // Return tool execution result directly to the client.
                                 return Flux.just(ChatResponse.builder().from(response)
@@ -265,7 +264,7 @@ public class CommonLlmChatModel implements ChatModel {
         request.setStream(stream);
 
 
-        OpenAiChatOptions requestOptions = (OpenAiChatOptions) prompt.getOptions();
+        CommonLlmChatOptions requestOptions = (CommonLlmChatOptions) prompt.getOptions();
         if (requestOptions != null) {
             // request = ModelOptionsUtils.merge(requestOptions, request, CommonLlmApi.ChatCompletionRequest.class);
             // Add the tool definitions to the request's tools parameter.

@@ -2,11 +2,12 @@ package com.aaa.easyagent.web.example;
 
 import com.aaa.easyagent.biz.agent.ReActAgentExecutor;
 import com.aaa.easyagent.biz.agent.ReActAgentXmlExecutor;
+import com.aaa.easyagent.biz.agent.data.AgentModelConfig;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
-import com.aaa.easyagent.core.domain.model.AgentModel;
-import com.aaa.easyagent.core.domain.model.ToolModel;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
+import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.core.domain.template.HttpReqParamsTemplate;
 import com.aaa.easyagent.core.domain.template.InputTypeSchema;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,85 +28,113 @@ public class ReactAgentController {
 
     @GetMapping(value = "/test")
     public void test() {
-        AgentModel agentModel = new AgentModel();
-        agentModel.setAgentId(1L);
-        agentModel.setAgentName("查询时间助手");
-        // agentModel.setQuestion("查询北京当前时间");
-        agentModel.setModelType(ModelTypeEnum.ollama);
+        AgentContext agentContext = new AgentContext();
+        agentContext.setAgentId(1L);
+        agentContext.setAgentName("查询时间助手");
+        // agentContext.setQuestion("查询北京当前时间");
+        agentContext.setModelType(ModelTypeEnum.ollama);
 
-        List<ToolModel> toolModels = new ArrayList<>();
-        ToolModel toolModel = new ToolModel();
-        toolModel.setToolId(1L);
-        toolModel.setToolName("查询当前时间");
-        toolModel.setToolDesc("输入地点查询当地时间");
-        toolModel.setToolType(ToolTypeEnum.HTTP);
+        List<ToolDefinition> toolDefinitions = new ArrayList<>();
+        ToolDefinition toolDefinition = new ToolDefinition();
+        toolDefinition.setToolId(1L);
+        toolDefinition.setToolName("查询当前时间");
+        toolDefinition.setToolDesc("输入地点查询当地时间");
+        toolDefinition.setToolType(ToolTypeEnum.HTTP);
         HttpReqParamsTemplate httpReqParamsTemplate = new HttpReqParamsTemplate();
         httpReqParamsTemplate.setUrl("http://localhost:8080/example/getCurrentDate");
         httpReqParamsTemplate.setMethod("get");
-        toolModel.setParamsTemplate(httpReqParamsTemplate);
+        toolDefinition.setParamsTemplate(httpReqParamsTemplate);
         List<InputTypeSchema> inputTypeSchemas = new ArrayList<>();
         inputTypeSchemas.add(new InputTypeSchema("type", "北京时间：beijing，东京时间：dongjing", "string"));
-        toolModel.setInputTypeSchemas(inputTypeSchemas);
-        toolModels.add(toolModel);
-        agentModel.setToolModels(toolModels);
+        toolDefinition.setInputTypeSchemas(inputTypeSchemas);
+        toolDefinitions.add(toolDefinition);
+        agentContext.setToolDefinitions(toolDefinitions);
+
+        AgentModelConfig agentModelConfig = AgentModelConfig.builder()
+                .modelVersion("deepseek-ai/DeepSeek-V3")
+                .apiKey("sk-ewykgprysbswuqagkpbuglgodbxshtucznttazynawykgsds")
+                .baseUrl("https://api.siliconflow.cn/")
+                .build();
+        agentContext.setAgentModelConfig(agentModelConfig);
+        agentContext.setModelType(ModelTypeEnum.siliconflow);
 
         // 工具决策-tool
-        agentModel.setToolRunMode(ToolRunMode.tool);
+        agentContext.setToolRunMode(ToolRunMode.Tool);
 
-        new ReActAgentExecutor(agentModel).exec("查询北京当前时间");
+        new ReActAgentExecutor(agentContext).exec("查询北京当前时间");
     }
     @GetMapping(value = "/testXml")
     public void testXml() {
-        AgentModel agentModel = new AgentModel();
-        agentModel.setAgentId(1L);
-        agentModel.setAgentName("查询时间助手");
-        // agentModel.setQuestion("查询北京当前时间");
-        agentModel.setModelType(ModelTypeEnum.ollama);
+        AgentContext agentContext = new AgentContext();
+        agentContext.setAgentId(1L);
+        agentContext.setAgentName("查询时间助手");
+        // agentContext.setQuestion("查询北京当前时间");
+        agentContext.setModelType(ModelTypeEnum.ollama);
 
-        List<ToolModel> toolModels = new ArrayList<>();
-        ToolModel toolModel = new ToolModel();
-        toolModel.setToolId(1L);
-        toolModel.setToolName("查询当前时间");
-        toolModel.setToolDesc("输入地点查询当地时间");
-        toolModel.setToolType(ToolTypeEnum.HTTP);
+        List<ToolDefinition> toolDefinitions = new ArrayList<>();
+        ToolDefinition toolDefinition = new ToolDefinition();
+        toolDefinition.setToolId(1L);
+        toolDefinition.setToolName("查询贵金属实时价格");
+        toolDefinition.setToolDesc("查询黄金白银的价格");
+        toolDefinition.setToolType(ToolTypeEnum.HTTP);
         HttpReqParamsTemplate httpReqParamsTemplate = new HttpReqParamsTemplate();
-        httpReqParamsTemplate.setUrl("http://localhost:8080/example/getCurrentDate");
+        httpReqParamsTemplate.setUrl("http://localhost:8080/example/queryPreciousMetalsPrice");
         httpReqParamsTemplate.setMethod("get");
-        toolModel.setParamsTemplate(httpReqParamsTemplate);
+        toolDefinition.setParamsTemplate(httpReqParamsTemplate);
         List<InputTypeSchema> inputTypeSchemas = new ArrayList<>();
-        inputTypeSchemas.add(new InputTypeSchema("type", "北京时间：beijing，东京时间：dongjing", "string"));
-        toolModel.setInputTypeSchemas(inputTypeSchemas);
-        toolModels.add(toolModel);
-        agentModel.setToolModels(toolModels);
+        inputTypeSchemas.add(new InputTypeSchema("type", "silver gold", "string"));
+        toolDefinition.setInputTypeSchemas(inputTypeSchemas);
+        toolDefinitions.add(toolDefinition);
+        agentContext.setToolDefinitions(toolDefinitions);
+
+        AgentModelConfig agentModelConfig = AgentModelConfig.builder()
+                .modelVersion("Pro/Qwen/Qwen2.5-7B-Instruct")
+                .apiKey("sk-ewykgprysbswuqagkpbuglgodbxshtucznttazynawykgsds")
+                .baseUrl("https://api.siliconflow.cn/")
+                .build();
+        agentContext.setAgentModelConfig(agentModelConfig);
+        agentContext.setModelType(ModelTypeEnum.siliconflow);
+
 
         // 工具决策-tool
-        agentModel.setToolRunMode(ToolRunMode.tool);
+        agentContext.setToolRunMode(ToolRunMode.Tool);
 
-        new ReActAgentXmlExecutor(agentModel).exec("查询北京当前时间");
+        new ReActAgentXmlExecutor(agentContext).exec("查询黄金的价格");
     }
 
     @GetMapping(value = "/test2")
     public void test2() {
-        AgentModel agentModel = new AgentModel();
-        agentModel.setAgentId(1L);
-        agentModel.setAgentName("查询时间助手");
-        // agentModel.setQuestion("查询当前时间");
-        agentModel.setModelType(ModelTypeEnum.deepseek);
+        AgentContext agentContext = new AgentContext();
+        agentContext.setAgentId(1L);
+        agentContext.setAgentName("查询时间助手");
+        // agentContext.setQuestion("查询当前时间");
+        agentContext.setModelType(ModelTypeEnum.deepseek);
 
-        List<ToolModel> toolModels = new ArrayList<>();
-        ToolModel toolModel = new ToolModel();
-        toolModel.setToolId(1L);
-        toolModel.setToolName("查询当前时间");
-        toolModel.setToolDesc("无需入参可查询当前系统时间");
-        toolModel.setToolType(ToolTypeEnum.HTTP);
+        List<ToolDefinition> toolDefinitions = new ArrayList<>();
+        ToolDefinition toolDefinition = new ToolDefinition();
+        toolDefinition.setToolId(1L);
+        toolDefinition.setToolName("查询当前时间");
+        toolDefinition.setToolDesc("无需入参可查询当前系统时间");
+        toolDefinition.setToolType(ToolTypeEnum.HTTP);
         HttpReqParamsTemplate httpReqParamsTemplate = new HttpReqParamsTemplate();
         httpReqParamsTemplate.setUrl("http://localhost:8080/example/getCurrentDate");
         httpReqParamsTemplate.setMethod("get");
-        toolModel.setParamsTemplate(httpReqParamsTemplate);
-        toolModel.setInputTypeSchemas(new ArrayList<>());
-        toolModels.add(toolModel);
-        agentModel.setToolModels(toolModels);
-        new ReActAgentExecutor(agentModel).exec("查询当前时间");
+        toolDefinition.setParamsTemplate(httpReqParamsTemplate);
+        toolDefinition.setInputTypeSchemas(new ArrayList<>());
+        toolDefinitions.add(toolDefinition);
+        agentContext.setToolDefinitions(toolDefinitions);
+
+
+        AgentModelConfig agentModelConfig = AgentModelConfig.builder()
+                .modelVersion("Qwen/QwQ-32B")
+                .apiKey("sk-ewykgprysbswuqagkpbuglgodbxshtucznttazynawykgsds")
+                .baseUrl("https://api.siliconflow.cn/")
+                .build();
+        agentContext.setAgentModelConfig(agentModelConfig);
+        agentContext.setModelType(ModelTypeEnum.siliconflow);
+
+
+        new ReActAgentExecutor(agentContext).exec("查询当前时间");
     }
 
 }

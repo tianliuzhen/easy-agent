@@ -1,10 +1,11 @@
-package com.aaa.easyagent.common.llm.deepseek;
+package com.aaa.easyagent.common.llm.common;
 
 /**
  * @author liuzhen.tian
- * @version 1.0 OpenAiChatOptions.java  2025/6/8 14:14
+ * @version 1.0 CommonLlmChatOptions.java  2025/6/8 14:14
  */
 
+import com.aaa.easyagent.common.llm.deepseek.OpenAiApi;
 import com.aaa.easyagent.common.llm.deepseek.OpenAiApi.ChatCompletionRequest.AudioParameters;
 import com.aaa.easyagent.common.llm.deepseek.OpenAiApi.ChatCompletionRequest.StreamOptions;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -31,7 +32,7 @@ import java.util.*;
  * @since 0.8.0
  */
 @JsonInclude(Include.NON_NULL)
-public class OpenAiChatOptions implements ToolCallingChatOptions {
+public class CommonLlmChatOptions implements ToolCallingChatOptions {
 
     // @formatter:off
     /**
@@ -202,12 +203,12 @@ public class OpenAiChatOptions implements ToolCallingChatOptions {
 
     // @formatter:on
 
-    public static  OpenAiChatOptions.Builder builder() {
-        return new  OpenAiChatOptions.Builder();
+    public static  CommonLlmChatOptions.Builder builder() {
+        return new  CommonLlmChatOptions.Builder();
     }
 
-    public static OpenAiChatOptions fromOptions(OpenAiChatOptions fromOptions) {
-        return  OpenAiChatOptions.builder()
+    public static CommonLlmChatOptions fromOptions(CommonLlmChatOptions fromOptions) {
+        return  CommonLlmChatOptions.builder()
                 .model(fromOptions.getModel())
                 .frequencyPenalty(fromOptions.getFrequencyPenalty())
                 .logitBias(fromOptions.getLogitBias())
@@ -568,8 +569,8 @@ public class OpenAiChatOptions implements ToolCallingChatOptions {
     }
 
     @Override
-    public OpenAiChatOptions copy() {
-        return  OpenAiChatOptions.fromOptions(this);
+    public CommonLlmChatOptions copy() {
+        return  CommonLlmChatOptions.fromOptions(this);
     }
 
     @Override
@@ -590,7 +591,7 @@ public class OpenAiChatOptions implements ToolCallingChatOptions {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-     OpenAiChatOptions other = (OpenAiChatOptions) o;
+     CommonLlmChatOptions other = (CommonLlmChatOptions) o;
         return Objects.equals(this.model, other.model) && Objects.equals(this.frequencyPenalty, other.frequencyPenalty)
                 && Objects.equals(this.logitBias, other.logitBias) && Objects.equals(this.logprobs, other.logprobs)
                 && Objects.equals(this.topLogprobs, other.topLogprobs)
@@ -616,188 +617,188 @@ public class OpenAiChatOptions implements ToolCallingChatOptions {
 
     @Override
     public String toString() {
-        return "OpenAiChatOptions: " + ModelOptionsUtils.toJsonString(this);
+        return "CommonLlmChatOptions: " + ModelOptionsUtils.toJsonString(this);
     }
 
     public static class Builder {
 
-        protected OpenAiChatOptions options;
+        protected CommonLlmChatOptions options;
 
         public Builder() {
-            this.options = new OpenAiChatOptions();
+            this.options = new CommonLlmChatOptions();
         }
 
-        public Builder(OpenAiChatOptions options) {
+        public Builder(CommonLlmChatOptions options) {
             this.options = options;
         }
 
-        public  OpenAiChatOptions.Builder model(String model) {
+        public  CommonLlmChatOptions.Builder model(String model) {
             this.options.model = model;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder model(OpenAiApi.ChatModel openAiChatModel) {
+        public  CommonLlmChatOptions.Builder model(OpenAiApi.ChatModel openAiChatModel) {
             this.options.model = openAiChatModel.getName();
             return this;
         }
 
-        public  OpenAiChatOptions.Builder frequencyPenalty(Double frequencyPenalty) {
+        public  CommonLlmChatOptions.Builder frequencyPenalty(Double frequencyPenalty) {
             this.options.frequencyPenalty = frequencyPenalty;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder logitBias(Map<String, Integer> logitBias) {
+        public  CommonLlmChatOptions.Builder logitBias(Map<String, Integer> logitBias) {
             this.options.logitBias = logitBias;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder logprobs(Boolean logprobs) {
+        public  CommonLlmChatOptions.Builder logprobs(Boolean logprobs) {
             this.options.logprobs = logprobs;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder topLogprobs(Integer topLogprobs) {
+        public  CommonLlmChatOptions.Builder topLogprobs(Integer topLogprobs) {
             this.options.topLogprobs = topLogprobs;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder maxTokens(Integer maxTokens) {
+        public  CommonLlmChatOptions.Builder maxTokens(Integer maxTokens) {
             this.options.maxTokens = maxTokens;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder maxCompletionTokens(Integer maxCompletionTokens) {
+        public  CommonLlmChatOptions.Builder maxCompletionTokens(Integer maxCompletionTokens) {
             this.options.maxCompletionTokens = maxCompletionTokens;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder N(Integer n) {
+        public  CommonLlmChatOptions.Builder N(Integer n) {
             this.options.n = n;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder outputModalities(List<String> modalities) {
+        public  CommonLlmChatOptions.Builder outputModalities(List<String> modalities) {
             this.options.outputModalities = modalities;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder outputAudio(AudioParameters audio) {
+        public  CommonLlmChatOptions.Builder outputAudio(AudioParameters audio) {
             this.options.outputAudio = audio;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder presencePenalty(Double presencePenalty) {
+        public  CommonLlmChatOptions.Builder presencePenalty(Double presencePenalty) {
             this.options.presencePenalty = presencePenalty;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder responseFormat(ResponseFormat responseFormat) {
+        public  CommonLlmChatOptions.Builder responseFormat(ResponseFormat responseFormat) {
             this.options.responseFormat = responseFormat;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder streamUsage(boolean enableStreamUsage) {
+        public  CommonLlmChatOptions.Builder streamUsage(boolean enableStreamUsage) {
             this.options.streamOptions = (enableStreamUsage) ? StreamOptions.INCLUDE_USAGE : null;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder seed(Integer seed) {
+        public  CommonLlmChatOptions.Builder seed(Integer seed) {
             this.options.seed = seed;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder stop(List<String> stop) {
+        public  CommonLlmChatOptions.Builder stop(List<String> stop) {
             this.options.stop = stop;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder temperature(Double temperature) {
+        public  CommonLlmChatOptions.Builder temperature(Double temperature) {
             this.options.temperature = temperature;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder topP(Double topP) {
+        public  CommonLlmChatOptions.Builder topP(Double topP) {
             this.options.topP = topP;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder tools(List<OpenAiApi.FunctionTool> tools) {
+        public  CommonLlmChatOptions.Builder tools(List<OpenAiApi.FunctionTool> tools) {
             this.options.tools = tools;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder toolChoice(Object toolChoice) {
+        public  CommonLlmChatOptions.Builder toolChoice(Object toolChoice) {
             this.options.toolChoice = toolChoice;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder user(String user) {
+        public  CommonLlmChatOptions.Builder user(String user) {
             this.options.user = user;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder parallelToolCalls(Boolean parallelToolCalls) {
+        public  CommonLlmChatOptions.Builder parallelToolCalls(Boolean parallelToolCalls) {
             this.options.parallelToolCalls = parallelToolCalls;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder toolCallbacks(List<FunctionCallback> toolCallbacks) {
+        public  CommonLlmChatOptions.Builder toolCallbacks(List<FunctionCallback> toolCallbacks) {
             this.options.setToolCallbacks(toolCallbacks);
             return this;
         }
 
-        public  OpenAiChatOptions.Builder toolCallbacks(FunctionCallback... toolCallbacks) {
+        public  CommonLlmChatOptions.Builder toolCallbacks(FunctionCallback... toolCallbacks) {
             Assert.notNull(toolCallbacks, "toolCallbacks cannot be null");
             this.options.toolCallbacks.addAll(Arrays.asList(toolCallbacks));
             return this;
         }
 
-        public  OpenAiChatOptions.Builder toolNames(Set<String> toolNames) {
+        public  CommonLlmChatOptions.Builder toolNames(Set<String> toolNames) {
             Assert.notNull(toolNames, "toolNames cannot be null");
             this.options.setToolNames(toolNames);
             return this;
         }
 
-        public  OpenAiChatOptions.Builder toolNames(String... toolNames) {
+        public  CommonLlmChatOptions.Builder toolNames(String... toolNames) {
             Assert.notNull(toolNames, "toolNames cannot be null");
             this.options.toolNames.addAll(Set.of(toolNames));
             return this;
         }
 
-        public  OpenAiChatOptions.Builder internalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
+        public  CommonLlmChatOptions.Builder internalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
             this.options.setInternalToolExecutionEnabled(internalToolExecutionEnabled);
             return this;
         }
 
         @Deprecated
-        public  OpenAiChatOptions.Builder functionCallbacks(List<FunctionCallback> functionCallbacks) {
+        public  CommonLlmChatOptions.Builder functionCallbacks(List<FunctionCallback> functionCallbacks) {
             return toolCallbacks(functionCallbacks);
         }
 
         @Deprecated
-        public  OpenAiChatOptions.Builder functions(Set<String> functionNames) {
+        public  CommonLlmChatOptions.Builder functions(Set<String> functionNames) {
             return toolNames(functionNames);
         }
 
         @Deprecated
-        public  OpenAiChatOptions.Builder function(String functionName) {
+        public  CommonLlmChatOptions.Builder function(String functionName) {
             return toolNames(functionName);
         }
 
         @Deprecated
-        public  OpenAiChatOptions.Builder proxyToolCalls(Boolean proxyToolCalls) {
+        public  CommonLlmChatOptions.Builder proxyToolCalls(Boolean proxyToolCalls) {
             if (proxyToolCalls != null) {
                 this.options.setInternalToolExecutionEnabled(!proxyToolCalls);
             }
             return this;
         }
 
-        public  OpenAiChatOptions.Builder httpHeaders(Map<String, String> httpHeaders) {
+        public  CommonLlmChatOptions.Builder httpHeaders(Map<String, String> httpHeaders) {
             this.options.httpHeaders = httpHeaders;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder toolContext(Map<String, Object> toolContext) {
+        public  CommonLlmChatOptions.Builder toolContext(Map<String, Object> toolContext) {
             if (this.options.toolContext == null) {
                 this.options.toolContext = toolContext;
             }
@@ -807,22 +808,22 @@ public class OpenAiChatOptions implements ToolCallingChatOptions {
             return this;
         }
 
-        public  OpenAiChatOptions.Builder store(Boolean store) {
+        public  CommonLlmChatOptions.Builder store(Boolean store) {
             this.options.store = store;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder metadata(Map<String, String> metadata) {
+        public  CommonLlmChatOptions.Builder metadata(Map<String, String> metadata) {
             this.options.metadata = metadata;
             return this;
         }
 
-        public  OpenAiChatOptions.Builder reasoningEffort(String reasoningEffort) {
+        public  CommonLlmChatOptions.Builder reasoningEffort(String reasoningEffort) {
             this.options.reasoningEffort = reasoningEffort;
             return this;
         }
 
-        public OpenAiChatOptions build() {
+        public CommonLlmChatOptions build() {
             return this.options;
         }
 

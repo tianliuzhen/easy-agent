@@ -1,6 +1,5 @@
 package com.aaa.easyagent.common.llm.common;
 
-import com.aaa.easyagent.common.llm.deepseek.OpenAiChatOptions;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
@@ -42,7 +41,7 @@ public class CommonLLmProperties {
         private String completionsPath = DEFAULT_COMPLETIONS_PATH;
 
         @NestedConfigurationProperty
-        private OpenAiChatOptions options = OpenAiChatOptions.builder()
+        private CommonLlmChatOptions options = CommonLlmChatOptions.builder()
                 .temperature(DEFAULT_TEMPERATURE)
                 .build();
     }

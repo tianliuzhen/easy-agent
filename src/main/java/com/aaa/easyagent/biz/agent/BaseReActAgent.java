@@ -1,8 +1,8 @@
 package com.aaa.easyagent.biz.agent;
 
-import com.aaa.easyagent.biz.agent.model.AgentOutput;
-import com.aaa.easyagent.biz.agent.model.FunctionUseAction;
-import com.aaa.easyagent.core.domain.model.AgentModel;
+import com.aaa.easyagent.biz.agent.data.AgentOutput;
+import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
 
 /**
  * @author liuzhen.tian
@@ -10,8 +10,8 @@ import com.aaa.easyagent.core.domain.model.AgentModel;
  */
 public abstract class BaseReActAgent extends BaseAgent {
 
-    public BaseReActAgent(AgentModel agentModel) {
-        super(agentModel);
+    public BaseReActAgent(AgentContext agentContext) {
+        super(agentContext);
     }
 
     /**

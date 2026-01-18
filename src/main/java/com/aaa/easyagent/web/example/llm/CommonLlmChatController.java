@@ -1,7 +1,7 @@
 package com.aaa.easyagent.web.example.llm;
 
 import com.aaa.easyagent.common.llm.common.CommonLlmChatModel;
-import com.aaa.easyagent.common.llm.deepseek.OpenAiChatOptions;
+import com.aaa.easyagent.common.llm.common.CommonLlmChatOptions;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import com.aaa.easyagent.web.example.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -111,7 +111,7 @@ public class CommonLlmChatController {
         UserMessage userMessage = new UserMessage("查询 杭州 的天气?");
         ChatResponse response = this.dpChatModel.call(
                 new Prompt(userMessage,
-                        OpenAiChatOptions.builder()
+                        CommonLlmChatOptions.builder()
                                 .function("currentWeather")
                                 .internalToolExecutionEnabled(false)
                                 .build()
@@ -140,7 +140,7 @@ public class CommonLlmChatController {
                 .inputType(QueryDateRequest.class)
                 .build();
 
-        OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
+        CommonLlmChatOptions chatOptions = CommonLlmChatOptions.builder()
                 .toolCallbacks(List.of(weatherTool))
                 .build();
         Flux<ChatResponse> stream = this.dpChatModel.stream(new Prompt(userMessage, chatOptions));

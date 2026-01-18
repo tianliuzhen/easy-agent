@@ -1,10 +1,9 @@
 package com.aaa.easyagent.biz.agent.parser;
 
-import com.aaa.easyagent.biz.agent.model.AgentFinish;
-import com.aaa.easyagent.biz.agent.model.AgentOutput;
-import com.aaa.easyagent.biz.agent.model.FunctionUseAction;
+import com.aaa.easyagent.biz.agent.data.AgentFinish;
+import com.aaa.easyagent.biz.agent.data.AgentOutput;
+import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.regex.Matcher;

@@ -1,4 +1,4 @@
-package com.aaa.easyagent.core.domain.model;
+package com.aaa.easyagent.biz.agent.data;
 
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.core.domain.template.InputTypeSchema;
@@ -11,14 +11,18 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
+ * 用于存储工具相关的信息
+ * 包括工具ID、名称、描述、类型以及输入输出参数模式等
+ * 供AI代理调用工具时使用
+ *
  * @author liuzhen.tian
- * @version 1.0 ToolModel.java  2025/5/25 21:43
+ * @version 1.0 ToolDefinition.java  2025/5/25 21:43
  */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ToolModel<T extends ParamsTemplate> {
+public class ToolDefinition<T extends ParamsTemplate> {
     /**
      * 工具Id
      */
@@ -41,6 +45,7 @@ public class ToolModel<T extends ParamsTemplate> {
      * 请求参数结构体
      */
     private List<InputTypeSchema> inputTypeSchemas;
+
     /**
      * 返回参数结构体
      */

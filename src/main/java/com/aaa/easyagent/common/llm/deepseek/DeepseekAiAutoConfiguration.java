@@ -1,5 +1,6 @@
 package com.aaa.easyagent.common.llm.deepseek;
 
+import com.aaa.easyagent.common.llm.common.CommonLlmChatOptions;
 import io.micrometer.observation.ObservationRegistry;
 import org.springframework.ai.autoconfigure.openai.OpenAiEmbeddingProperties;
 import org.springframework.ai.chat.observation.ChatModelObservationConvention;
@@ -147,16 +148,16 @@ public class DeepseekAiAutoConfiguration {
         private String completionsPath = DEFAULT_COMPLETIONS_PATH;
 
         @NestedConfigurationProperty
-        private OpenAiChatOptions options = OpenAiChatOptions.builder()
+        private CommonLlmChatOptions options = CommonLlmChatOptions.builder()
                 .model(DEFAULT_CHAT_MODEL)
                 .temperature(DEFAULT_TEMPERATURE)
                 .build();
 
-        public OpenAiChatOptions getOptions() {
+        public CommonLlmChatOptions getOptions() {
             return this.options;
         }
 
-        public void setOptions(OpenAiChatOptions options) {
+        public void setOptions(CommonLlmChatOptions options) {
             this.options = options;
         }
 

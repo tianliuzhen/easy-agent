@@ -1,7 +1,7 @@
 package com.aaa.easyagent.web.example;
 
 import com.aaa.easyagent.common.util.JacksonUtil;
-import groovy.util.MapEntry;
+import com.alibaba.fastjson.JSONObject;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
@@ -20,6 +20,18 @@ public class ExampleController {
     @GetMapping(value = "/getCurrentDate")
     public String getCurrentDate() {
         return new Date().toString();
+    }
+
+    @GetMapping(value = "/queryPreciousMetalsPrice")
+    public String queryPreciousMetalsPrice(@RequestBody JSONObject req) {
+        String type = req.getString("type");
+        if ("gold".equals(type)) {
+            return "黄金目前1050元每克";
+        }
+        if ("silver".equals(type)) {
+            return "白银目前20元每克";
+        }
+        return type+"：类型输入有误无法查询" ;
     }
 
 

@@ -1,4 +1,4 @@
-package com.aaa.easyagent.core.domain.model;
+package com.aaa.easyagent.biz.agent.data;
 
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
@@ -8,10 +8,10 @@ import java.util.List;
 
 /**
  * @author liuzhen.tian
- * @version 1.0 AgentModel.java  2025/5/25 18:20
+ * @version 1.0 AgentHolder.java  2025/5/25 18:20
  */
 @Data
-public class AgentModel {
+public class AgentContext {
     /**
      * agentId
      */
@@ -36,16 +36,22 @@ public class AgentModel {
      */
     // private String question;
 
+    private AgentModelConfig agentModelConfig;
 
     /**
      * agent 关联工具
      */
-    private List<ToolModel> toolModels;
+    private List<ToolDefinition> toolDefinitions;
 
     /**
      * 大模型
      */
     private ModelTypeEnum modelType;
 
-    private ToolRunMode toolRunMode = ToolRunMode.reAct;
+    /**
+     * 工具允运行模式
+     */
+    private ToolRunMode toolRunMode = ToolRunMode.ReAct;
+
+
 }
