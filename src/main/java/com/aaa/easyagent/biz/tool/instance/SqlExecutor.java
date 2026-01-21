@@ -2,6 +2,7 @@ package com.aaa.easyagent.biz.tool.instance;
 
 import com.aaa.easyagent.biz.function.ToolTypeChooser;
 import com.aaa.easyagent.biz.tool.ToolExecutor;
+import com.aaa.easyagent.common.config.exception.AgentToolException;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.core.domain.template.SqlParamsTemplate;
@@ -58,9 +59,7 @@ public class SqlExecutor implements ToolExecutor<SqlParamsTemplate> {
             if (paramsTemplate.getHost() == null || paramsTemplate.getPort() == null ||
                     paramsTemplate.getDatabase() == null || paramsTemplate.getUsername() == null ||
                     paramsTemplate.getPassword() == null || paramsTemplate.getSql() == null) {
-                Map<String, Object> errorResult = new HashMap<>();
-                errorResult.put("error", "缺少必要的数据库连接参数或SQL语句");
-                return JacksonUtil.toStr(errorResult);
+                throw new AgentToolException("缺少必要的数据库连接参数或SQL语句");
             }
 
             // 构建数据库连接URL
@@ -102,14 +101,10 @@ public class SqlExecutor implements ToolExecutor<SqlParamsTemplate> {
             }
         } catch (SQLException e) {
             log.error("执行SQL查询时发生错误:" + e.getMessage(), e);
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("error", "执行SQL查询时发生错误: " + e.getMessage());
-            return JacksonUtil.toStr(errorResult);
+            throw new AgentToolException("执行SQL查询时发生错误: " + e.getMessage());
         } catch (Exception e) {
             log.error("执行SQL查询时发生未知错误: {}", e.getMessage(), e);
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("error", "执行SQL查询时发生未知错误: " + e.getMessage());
-            return JacksonUtil.toStr(errorResult);
+            throw new AgentToolException("执行SQL查询时发生未知错误: " + e.getMessage());
         }
     }
 

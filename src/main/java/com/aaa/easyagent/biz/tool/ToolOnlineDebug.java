@@ -27,7 +27,6 @@ public class ToolOnlineDebug {
     public Object debug(EaToolConfigReq eaToolConfigReq) {
         ToolTypeEnum toolTypeEnum = ToolTypeEnum.getByType(eaToolConfigReq.getToolType());
         String toolValue = eaToolConfigReq.getToolValue();
-
         ToolDefinition toolDefinition = ToolDefinition.builder()
                 .toolId(eaToolConfigReq.getId())
                 .toolName(eaToolConfigReq.getToolInstanceName())
@@ -41,7 +40,14 @@ public class ToolOnlineDebug {
                 .paramsTemplate(JSON.parseObject(toolValue, toolTypeEnum.getParamsTemplate()))
                 .build();
 
-        String call = functionToolManager.call(toolValue, toolDefinition);
-        return JSON.parse(call);
+        toolDefinition.setDebug(true);
+        String call = functionToolManager.call(null, toolDefinition);
+        Object parse = null;
+        try {
+            parse = JSON.parse(call);
+        } catch (Exception e) {
+            return call;
+        }
+        return parse;
     }
 }

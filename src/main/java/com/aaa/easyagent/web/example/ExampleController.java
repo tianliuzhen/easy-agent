@@ -1,7 +1,6 @@
 package com.aaa.easyagent.web.example;
 
 import com.aaa.easyagent.common.util.JacksonUtil;
-import com.alibaba.fastjson.JSONObject;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
@@ -23,8 +22,7 @@ public class ExampleController {
     }
 
     @GetMapping(value = "/queryPreciousMetalsPrice")
-    public String queryPreciousMetalsPrice(@RequestBody JSONObject req) {
-        String type = req.getString("type");
+    public String queryPreciousMetalsPrice(String type) {
         if ("gold".equals(type)) {
             return "黄金目前1050元每克";
         }

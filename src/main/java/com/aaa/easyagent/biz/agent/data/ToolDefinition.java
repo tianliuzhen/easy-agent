@@ -58,4 +58,9 @@ public class ToolDefinition<T extends ParamsTemplate> {
      * SqlParamsTemplate
      */
     private T paramsTemplate;
+
+    /**
+     * 调试模式
+     */
+    private boolean isDebug;
 }

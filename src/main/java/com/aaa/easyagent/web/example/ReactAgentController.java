@@ -2,20 +2,22 @@ package com.aaa.easyagent.web.example;
 
 import com.aaa.easyagent.biz.agent.ReActAgentExecutor;
 import com.aaa.easyagent.biz.agent.ReActAgentXmlExecutor;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.AgentModelConfig;
+import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
-import com.aaa.easyagent.biz.agent.data.AgentContext;
-import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.core.domain.template.HttpReqParamsTemplate;
 import com.aaa.easyagent.core.domain.template.InputTypeSchema;
+import com.google.common.collect.Lists;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author liuzhen.tian
@@ -71,20 +73,26 @@ public class ReactAgentController {
         // agentContext.setQuestion("查询北京当前时间");
         agentContext.setModelType(ModelTypeEnum.ollama);
 
+        // mock工具：描述
         List<ToolDefinition> toolDefinitions = new ArrayList<>();
         ToolDefinition toolDefinition = new ToolDefinition();
         toolDefinition.setToolId(1L);
         toolDefinition.setToolName("查询贵金属实时价格");
         toolDefinition.setToolDesc("查询黄金白银的价格");
         toolDefinition.setToolType(ToolTypeEnum.HTTP);
+        // mock工具：http调用
         HttpReqParamsTemplate httpReqParamsTemplate = new HttpReqParamsTemplate();
         httpReqParamsTemplate.setUrl("http://localhost:8080/example/queryPreciousMetalsPrice");
         httpReqParamsTemplate.setMethod("get");
+        httpReqParamsTemplate.setRequestParams(Lists.newArrayList(Map.of("key", "type","value","")));
         toolDefinition.setParamsTemplate(httpReqParamsTemplate);
+        // mock工具：入参解析模板
         List<InputTypeSchema> inputTypeSchemas = new ArrayList<>();
-        inputTypeSchemas.add(new InputTypeSchema("type", "silver gold", "string"));
+        inputTypeSchemas.add(new InputTypeSchema("type", "silver or gold", "string","","$.requestParams.type"));
         toolDefinition.setInputTypeSchemas(inputTypeSchemas);
         toolDefinitions.add(toolDefinition);
+
+
         agentContext.setToolDefinitions(toolDefinitions);
 
         AgentModelConfig agentModelConfig = AgentModelConfig.builder()

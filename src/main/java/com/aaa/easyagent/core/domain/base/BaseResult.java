@@ -12,12 +12,21 @@ import java.util.function.Supplier;
 public class BaseResult<T> {
     private T data;
 
+    private String message;
+
     private boolean success;
 
     public static <T> BaseResult<T> buildSuc(T data) {
         BaseResult<T> baseResult = new BaseResult();
         baseResult.setSuccess(true);
         baseResult.setData(data);
+        return baseResult;
+    }
+
+    public static <T> BaseResult<T> buildFail(String data) {
+        BaseResult<T> baseResult = new BaseResult();
+        baseResult.setSuccess(false);
+        baseResult.setMessage(data);
         return baseResult;
     }
 
