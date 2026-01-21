@@ -21,6 +21,13 @@ public class BaseResult<T> {
         return baseResult;
     }
 
+    public static <T> BaseResult<T> buildFail(T data) {
+        BaseResult<T> baseResult = new BaseResult();
+        baseResult.setSuccess(false);
+        baseResult.setData(data);
+        return baseResult;
+    }
+
     public static <T> BaseResult<T> buildSuc(Runnable runnable) {
         BaseResult<T> baseResult = new BaseResult();
         baseResult.setSuccess(true);

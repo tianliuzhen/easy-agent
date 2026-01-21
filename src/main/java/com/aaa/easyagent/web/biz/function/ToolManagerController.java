@@ -8,6 +8,7 @@ import com.aaa.easyagent.core.domain.request.EaToolConfigReq;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
 import com.aaa.easyagent.core.service.ToolMangerService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +20,7 @@ import java.util.List;
  * @author liuzhen.tian
  * @version 1.0 ToolManagerController.java  2025/12/22 21:55
  */
+@Slf4j
 @RestController
 @RequestMapping("eaAgent/tool/")
 @RequiredArgsConstructor
@@ -82,7 +84,16 @@ public class ToolManagerController {
     @PostMapping("debug")
     public BaseResult debug(@RequestBody EaToolConfigReq eaToolConfigReq) {
         // 实现添加工具配置逻辑
-        return BaseResult.buildSuc(toolOnlineDebug.debug(eaToolConfigReq));
+        Object debug = null;
+        try {
+            debug = toolOnlineDebug.debug(eaToolConfigReq);
+            return BaseResult.buildSuc(debug);
+        } catch (Exception e) {
+            log.error("debug error:{}", e.getMessage());
+            return BaseResult.buildFail(e.getMessage()
+            );
+        }
+
     }
 
 }
