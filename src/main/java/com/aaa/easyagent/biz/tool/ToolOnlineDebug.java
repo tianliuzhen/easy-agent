@@ -25,20 +25,7 @@ public class ToolOnlineDebug {
      * @return
      */
     public Object debug(EaToolConfigReq eaToolConfigReq) {
-        ToolTypeEnum toolTypeEnum = ToolTypeEnum.getByType(eaToolConfigReq.getToolType());
-        String toolValue = eaToolConfigReq.getToolValue();
-        ToolDefinition toolDefinition = ToolDefinition.builder()
-                .toolId(eaToolConfigReq.getId())
-                .toolName(eaToolConfigReq.getToolInstanceName())
-                .toolDesc(eaToolConfigReq.getToolInstanceDesc())
-                // 工具类型
-                .toolType(toolTypeEnum)
-                // 解析大模型识别的参数
-                .inputTypeSchemas(JSON.parseArray(eaToolConfigReq.getInputTemplate(), InputTypeSchema.class))
-                // .outputTypeSchema(JSON.parseArray(eaToolConfigReq.getOutTemplate(), InputTypeSchema.class))
-                // 解析工具参数元数据
-                .paramsTemplate(JSON.parseObject(toolValue, toolTypeEnum.getParamsTemplate()))
-                .build();
+        ToolDefinition toolDefinition = ToolDefinition.buildToolDefinition(eaToolConfigReq);
 
         toolDefinition.setDebug(true);
         String call = functionToolManager.call(null, toolDefinition);
@@ -50,4 +37,6 @@ public class ToolOnlineDebug {
         }
         return parse;
     }
+
+
 }

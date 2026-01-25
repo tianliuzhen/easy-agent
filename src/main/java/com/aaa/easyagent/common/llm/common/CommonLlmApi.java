@@ -8,6 +8,7 @@ package com.aaa.easyagent.common.llm.common;
 import com.aaa.easyagent.common.llm.deepseek.OpenAiApi;
 import com.aaa.easyagent.common.util.JacksonUtil;
 import com.fasterxml.jackson.annotation.*;
+import io.netty.channel.ChannelOption;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,11 +17,15 @@ import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,12 +41,40 @@ public class CommonLlmApi {
 
     public CommonLlmApi(CommonLLmProperties properties) {
         this.properties = properties;
-        this.restClient = RestClient.builder().baseUrl(properties.getBaseUrl()).defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey()).defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE).build();
-        this.webClient = WebClient.builder().baseUrl(properties.getBaseUrl()).defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey()).defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE).build();
+        
+        // 配置HttpClient用于WebClient，添加超时设置
+        HttpClient webClientHttp = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30000) // 连接超时30秒
+                .responseTimeout(Duration.ofMinutes(5)); // 响应超时5分钟
+
+        // 创建带超时配置的WebClient
+        this.webClient = WebClient.builder()
+                .baseUrl(properties.getBaseUrl())
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .clientConnector(new ReactorClientHttpConnector(webClientHttp))
+                .build();
+                
+        // 配置HttpComponentsClientHttpRequestFactory用于RestClient，添加超时配置
+        HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
+        factory.setConnectTimeout(30000); // 连接超时30秒
+        factory.setReadTimeout(300000); // 读取超时5分钟
+
+        // 配置RestClient，添加超时配置
+        this.restClient = RestClient.builder()
+                .baseUrl(properties.getBaseUrl())
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .requestFactory(factory)
+                .build();
     }
 
     public ResponseEntity<ChatCompletion> chatCompletion(ChatCompletionRequest request) {
-        ResponseEntity<ChatCompletion> entity = this.restClient.post().uri(properties.getChat().getCompletionsPath()).body(request).retrieve().toEntity(ChatCompletion.class);
+        ResponseEntity<ChatCompletion> entity = this.restClient.post()
+                .uri(properties.getChat().getCompletionsPath())
+                .body(request)
+                .retrieve()
+                .toEntity(ChatCompletion.class);
         return entity;
     }
 

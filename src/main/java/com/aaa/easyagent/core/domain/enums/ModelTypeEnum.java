@@ -31,16 +31,25 @@ public enum ModelTypeEnum {
      */
     public static Map<String, HashMap<String, String>> getAll() {
         Map<String, HashMap<String, String>> result = new HashMap<>();
-        
+
         for (ModelTypeEnum modelType : values()) {
             HashMap<String, String> modelInfo = new HashMap<>();
             modelInfo.put("model", modelType.getModel());
             modelInfo.put("desc", modelType.getDesc());
             modelInfo.put("links", modelType.getLinks());
-            
+
             result.put(modelType.getModel(), modelInfo);
         }
-        
+
         return result;
+    }
+
+    public static ModelTypeEnum getByModel(String model) {
+        for (ModelTypeEnum modelType : values()) {
+            if (modelType.getModel().equals(model)) {
+                return modelType;
+            }
+        }
+        return null;
     }
 }

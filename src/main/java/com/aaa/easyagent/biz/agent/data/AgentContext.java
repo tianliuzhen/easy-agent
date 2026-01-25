@@ -3,6 +3,7 @@ package com.aaa.easyagent.biz.agent.data;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
 import lombok.Data;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -36,6 +37,9 @@ public class AgentContext {
      */
     // private String question;
 
+    /**
+     * 模式参数配置
+     */
     private AgentModelConfig agentModelConfig;
 
     /**
@@ -54,4 +58,8 @@ public class AgentContext {
     private ToolRunMode toolRunMode = ToolRunMode.ReAct;
 
 
+    /**
+     *sseEmitter
+     */
+    private SseEmitter sseEmitter;
 }

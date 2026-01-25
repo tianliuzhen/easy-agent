@@ -1,23 +1,24 @@
 package com.aaa.easyagent.biz.agent;
 
-import com.aaa.easyagent.biz.agent.data.AgentFinish;
-import com.aaa.easyagent.biz.agent.data.AgentOutput;
-import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
+import com.aaa.easyagent.biz.agent.context.SseHelper;
+import com.aaa.easyagent.biz.agent.data.*;
 import com.aaa.easyagent.biz.function.FunctionToolManager;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
 import com.aaa.easyagent.common.llm.LLmModelSelector;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import com.aaa.easyagent.common.util.JsonSchemaGenerator;
-import com.aaa.easyagent.biz.agent.data.AgentContext;
-import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.messages.*;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.function.FunctionCallback;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.*;
 
@@ -42,6 +43,8 @@ public abstract class BaseAgent {
     protected List<Message> messages;
 
     protected Prompt prompt;
+
+    private SseEmitter sseEmitter;
 
     /**
      * 决策轮数限制
@@ -72,6 +75,8 @@ public abstract class BaseAgent {
         callbackMap = buildToolFun(toolDefinitions);
 
         messages = new ArrayList<>();
+
+        sseEmitter = agentContext.getSseEmitter();
     }
 
 
@@ -99,11 +104,18 @@ public abstract class BaseAgent {
      * @return
      */
     public String exec(String question) {
+        return doExec(question);
+    }
+
+
+    private String doExec(String question) {
         // 根据agent选择模型
         if (chatModel == null) {
             throw new AgentException(agentContext.getModelType() + "无法匹配大模型");
         }
-        log.info("使用【{}】{}大模型开始决策=========》Begin...", agentContext.getModelType(), agentContext.getAgentModelConfig().getModelVersion());
+
+        SseHelper.sendLog(sseEmitter, "使用【{}】{}大模型开始决策=========》Begin...", agentContext.getModelType(), agentContext.getAgentModelConfig().getModelVersion());
+
         // 提示词构建
         prompt = this.buildPrompt();
 
@@ -113,16 +125,24 @@ public abstract class BaseAgent {
         // 限制决策轮数，防止无限调用
         int decisionCnt = 1;
         while (decisionCnt < DECISION_CNT_LIMIT) {
-            log.info("第{}次大模型决策", decisionCnt);
+            SseHelper.sendLog(sseEmitter, "第{}次大模型决策", decisionCnt);
+
 
             // tool/react ... 等等多模式执行
             AgentOutput agentOutput = this.run();
 
             // 思考完成
             if (agentOutput instanceof AgentFinish) {
-                log.info("第{}次大模型决策结束：=========》end", decisionCnt);
+                SseHelper.sendLog(sseEmitter, "第{}次大模型决策结束：=========》end", decisionCnt);
                 String llmResponse = ((AgentFinish) agentOutput).getResult();
-                log.info("第{}次大模型决策结果：{}", decisionCnt, llmResponse);
+                SseHelper.sendLog(sseEmitter, "第{}次大模型决策结果：{}", decisionCnt, llmResponse);
+
+                SseHelper.sendData(sseEmitter, ((AgentFinish) agentOutput).getResult());
+
+
+                if (sseEmitter != null) {
+                    sseEmitter.complete();
+                }
                 return llmResponse;
             }
 

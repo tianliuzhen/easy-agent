@@ -3,7 +3,6 @@ package com.aaa.easyagent.core.service.impl;
 import com.aaa.easyagent.common.util.BeanConvertUtil;
 import com.aaa.easyagent.common.util.FunFiledHelper;
 import com.aaa.easyagent.core.domain.DO.EaAgentDO;
-import com.aaa.easyagent.core.domain.DO.EaToolConfigDO;
 import com.aaa.easyagent.core.domain.request.EaAgentReq;
 import com.aaa.easyagent.core.domain.result.EaAgentResult;
 import com.aaa.easyagent.core.mapper.EaAgentDAO;
@@ -12,12 +11,7 @@ import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import tk.mybatis.mapper.entity.Example;
-import tk.mybatis.mapper.weekend.Fn;
-import tk.mybatis.mapper.weekend.WeekendSqls;
-import tk.mybatis.mapper.weekend.WeekendSqlsUtils;
-import tk.mybatis.mapper.weekend.reflection.Reflections;
 
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -55,4 +49,11 @@ public class AgentManagerServiceImpl implements AgentManagerService {
     public int delAgent(EaAgentReq req) {
         return eaAgentDAO.deleteByPrimaryKey(req.getId());
     }
+
+    @Override
+    public EaAgentResult getAgent(Long agentId) {
+        EaAgentResult eaAgentResult = BeanConvertUtil.beanTo(eaAgentDAO.selectByPrimaryKey(agentId), EaAgentResult.class);
+        return eaAgentResult;
+    }
+
 }

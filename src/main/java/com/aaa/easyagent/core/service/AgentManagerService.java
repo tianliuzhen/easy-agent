@@ -34,4 +34,14 @@ public interface AgentManagerService {
      * @return 删除成功返回1，否则返回0
      */
     int delAgent(EaAgentReq req);
+
+    /**
+     * 获取智能体信息
+     *
+     * @param agentId
+     * @return
+     */
+    EaAgentResult getAgent(Long agentId);
+
+
 }
