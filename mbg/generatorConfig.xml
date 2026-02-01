@@ -47,5 +47,9 @@
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
+        <table tableName="ea_knowledge_base" mapperName="EaKnowledgeBaseDAO" domainObjectName="EaKnowledgeBaseDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
     </context>
 </generatorConfiguration>

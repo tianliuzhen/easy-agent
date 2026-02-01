@@ -20,7 +20,7 @@ const routes = [
     children: [
       { key: '1', label: 'agent配置', path: '/page/AgentManager', component: <AgentManager /> },
       { key: '2', label: '大模型配置', path: '/page/ToolManager', component: <ChatModelConfig /> },
-      { key: '2', label: 'User配置', path: '/page/User', component: <ChatModelConfig /> },
+      { key: '3', label: 'User配置', path: '/page/User', component: <User /> },
     ]
   },
   {
