@@ -6,6 +6,7 @@
       WARNING - @mbg.generated
     -->
     <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="agent_id" jdbcType="BIGINT" property="agentId" />
     <result column="kb_name" jdbcType="VARCHAR" property="kbName" />
     <result column="kb_desc" jdbcType="VARCHAR" property="kbDesc" />
     <result column="file_name" jdbcType="VARCHAR" property="fileName" />

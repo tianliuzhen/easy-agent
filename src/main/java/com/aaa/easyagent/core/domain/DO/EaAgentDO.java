@@ -29,6 +29,12 @@ public class EaAgentDO {
     private String agentName;
 
     /**
+     * agentKey
+     */
+    @Column(name = "agent_key")
+    private String agentKey;
+
+    /**
      * 大模型平台: ollama/deepseek/硅基流动
      */
     @Column(name = "model_platform")

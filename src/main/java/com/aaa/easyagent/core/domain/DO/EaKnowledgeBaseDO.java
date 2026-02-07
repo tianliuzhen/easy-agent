@@ -26,6 +26,12 @@ public class EaKnowledgeBaseDO {
     private Long id;
 
     /**
+     * agentId
+     */
+    @Column(name = "agent_id")
+    private Long agentId;
+
+    /**
      * 知识库名称
      */
     @Column(name = "kb_name")

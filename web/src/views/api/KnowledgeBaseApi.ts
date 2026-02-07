@@ -11,8 +11,9 @@ export const knowledgeBaseApi = {
     /**
      * 上传文档
      */
-    upload: async (kbName: string, kbDesc: string, file: File): Promise<BaseResult<any>> => {
+    upload: async (agentId: string, kbName: string, kbDesc: string, file: File): Promise<BaseResult<any>> => {
         const formData = new FormData();
+        formData.append('agentId', agentId);
         formData.append('kbName', kbName);
         formData.append('kbDesc', kbDesc);
         formData.append('file', file);
@@ -29,6 +30,19 @@ export const knowledgeBaseApi = {
      */
     list: async (): Promise<BaseResult<any[]>> => {
         const response = await fetch(`${API_BASE_URL}/knowledge/list`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        return response.json();
+    },
+
+    /**
+     * 根据Agent ID查询知识库列表
+     */
+    listByAgentId: async (agentId: string): Promise<BaseResult<any[]>> => {
+        const response = await fetch(`${API_BASE_URL}/knowledge/listByAgentId?agentId=${agentId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

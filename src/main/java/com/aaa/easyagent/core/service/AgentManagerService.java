@@ -42,6 +42,7 @@ public interface AgentManagerService {
      * @return
      */
     EaAgentResult getAgent(Long agentId);
+    EaAgentResult getAgent(String agentId);
 
 
 }

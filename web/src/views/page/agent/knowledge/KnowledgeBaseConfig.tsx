@@ -102,7 +102,12 @@ const KnowledgeBaseConfig: React.FC<{ agentId?: number }> = ({agentId}) => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const result = await knowledgeBaseApi.list();
+            let result;
+            if (agentId) {
+                result = await knowledgeBaseApi.listByAgentId(agentId.toString());
+            } else {
+                result = await knowledgeBaseApi.list();
+            }
             if (result.success) {
                 setDataSource(result.data || []);
             } else {
@@ -139,6 +144,7 @@ const KnowledgeBaseConfig: React.FC<{ agentId?: number }> = ({agentId}) => {
         setLoading(true);
         try {
             const result = await knowledgeBaseApi.upload(
+                agentId?.toString() || '',
                 values.kbName,
                 values.kbDesc,
                 file

@@ -1,12 +1,11 @@
 package com.aaa.easyagent.core.service;
 
 import com.aaa.easyagent.core.domain.DO.EaKnowledgeBaseDO;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 /**
- * 知识库管理服务接口
+ * 知识库管理服务接口 - 业务层
  *
  * @author liuzhen.tian
  * @version 1.0 KnowledgeBaseService.java  2026/2/1 0:00
@@ -14,14 +13,26 @@ import java.util.List;
 public interface KnowledgeBaseService {
 
     /**
-     * 上传文档到知识库
+     * 保存知识库记录
      *
-     * @param kbName 知识库名称
-     * @param kbDesc 知识库描述
-     * @param file   文件
+     * @param knowledgeBase 知识库记录
+     */
+    void saveKnowledgeBase(EaKnowledgeBaseDO knowledgeBase);
+
+    /**
+     * 根据ID获取知识库记录
+     *
+     * @param id 知识库ID
      * @return 知识库记录
      */
-    EaKnowledgeBaseDO uploadDocument(String kbName, String kbDesc, MultipartFile file);
+    EaKnowledgeBaseDO getKnowledgeBaseById(Long id);
+
+    /**
+     * 更新知识库记录
+     *
+     * @param knowledgeBase 知识库记录
+     */
+    void updateKnowledgeBase(EaKnowledgeBaseDO knowledgeBase);
 
     /**
      * 查询知识库列表
@@ -31,18 +42,10 @@ public interface KnowledgeBaseService {
     List<EaKnowledgeBaseDO> listKnowledgeBase();
 
     /**
-     * 删除知识库
+     * 根据Agent ID查询知识库列表
      *
-     * @param id 知识库ID
+     * @param agentId Agent ID
+     * @return 知识库列表
      */
-    void deleteKnowledgeBase(Long id);
-
-    /**
-     * 搜索知识
-     *
-     * @param query 搜索内容
-     * @param topK  返回结果数量
-     * @return 搜索结果
-     */
-    List<String> searchKnowledge(String query, Integer topK);
+    List<EaKnowledgeBaseDO> listKnowledgeBaseByAgentId(String agentId);
 }

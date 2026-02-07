@@ -2,6 +2,7 @@ package com.aaa.easyagent.core.service.impl;
 
 import com.aaa.easyagent.common.util.BeanConvertUtil;
 import com.aaa.easyagent.common.util.FunFiledHelper;
+import com.aaa.easyagent.common.util.PinyinUtil;
 import com.aaa.easyagent.core.domain.DO.EaAgentDO;
 import com.aaa.easyagent.core.domain.request.EaAgentReq;
 import com.aaa.easyagent.core.domain.result.EaAgentResult;
@@ -25,6 +26,10 @@ public class AgentManagerServiceImpl implements AgentManagerService {
 
     @Override
     public int save(EaAgentReq req) {
+        // 根据agent_name 拼音 生成
+        String pinyin = PinyinUtil.getPinyin(req.getAgentName());
+        pinyin = pinyin.length() > 255 ? pinyin.substring(0, 255) : pinyin;
+        req.setAgentKey(pinyin);
         if (req.getId() == null) {
             return eaAgentDAO.insertSelective(req);
         }
@@ -56,4 +61,8 @@ public class AgentManagerServiceImpl implements AgentManagerService {
         return eaAgentResult;
     }
 
+    @Override
+    public EaAgentResult getAgent(String agentId) {
+        return this.getAgent(Long.valueOf(agentId));
+    }
 }

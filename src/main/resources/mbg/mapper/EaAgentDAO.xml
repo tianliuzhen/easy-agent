@@ -7,6 +7,7 @@
     -->
     <id column="id" jdbcType="BIGINT" property="id" />
     <result column="agent_name" jdbcType="VARCHAR" property="agentName" />
+    <result column="agent_key" jdbcType="VARCHAR" property="agentKey" />
     <result column="model_platform" jdbcType="VARCHAR" property="modelPlatform" />
     <result column="analysis_model" jdbcType="VARCHAR" property="analysisModel" />
     <result column="tool_model" jdbcType="VARCHAR" property="toolModel" />
