@@ -1,5 +1,6 @@
 package com.aaa.easyagent.biz.agent;
 
+import com.aaa.easyagent.biz.agent.context.SseHelper;
 import com.aaa.easyagent.biz.agent.data.AgentFinish;
 import com.aaa.easyagent.biz.agent.data.AgentOutput;
 import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
@@ -8,7 +9,9 @@ import com.aaa.easyagent.common.util.ChatResponseUtil;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.function.FunctionCallback;
@@ -16,6 +19,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -77,7 +81,6 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
                 9. Always use XML-like tags to structure your response: <Thought>, <Action>, <Action Input>, <Final Answer>
             
             Use the following format for your response:
-              <analysis>
               不要自己直接回答，要借用工具来回答
                 1. 总结用户的问题:
                    [提供问题的简要概述]
@@ -93,7 +96,6 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
             
                 5. 数据隐私与安全考虑:
                    注意与所访问工具或数据相关的任何潜在隐私或安全问题]
-                <analysis>
             Begin!
             """;
 
@@ -140,14 +142,18 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
     public AgentOutput think() {
         ChatResponse chatResponse = chatModel.call(prompt);
 
+
         // 添加助手执行记忆
         addAssistantMessage(prompt, chatResponse);
 
         // reAct-决策模式
         String resStr = ChatResponseUtil.getResStr(chatResponse);
 
+        String reasoningContent = ChatResponseUtil.getReasoningContent(chatResponse);
+
         // 使用XML格式解析Action入参或者解析成功
         AgentOutput agentOutput = parseXmlResponse(resStr);
+        agentOutput.setReasoningContent(reasoningContent);
         return agentOutput;
     }
 

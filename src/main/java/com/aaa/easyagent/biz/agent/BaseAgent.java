@@ -44,7 +44,7 @@ public abstract class BaseAgent {
 
     protected Prompt prompt;
 
-    private SseEmitter sseEmitter;
+    protected SseEmitter sseEmitter;
 
     /**
      * 决策轮数限制
@@ -114,7 +114,7 @@ public abstract class BaseAgent {
             throw new AgentException(agentContext.getModelType() + "无法匹配大模型");
         }
 
-        SseHelper.sendLog(sseEmitter, "使用【{}】{}大模型开始决策=========》Begin...", agentContext.getModelType(), agentContext.getAgentModelConfig().getModelVersion());
+        SseHelper.sendLog(sseEmitter, "使用【{}】{}大模型开始决策...", agentContext.getModelType(), agentContext.getAgentModelConfig().getModelVersion());
 
         // 提示词构建
         prompt = this.buildPrompt();
@@ -125,7 +125,7 @@ public abstract class BaseAgent {
         // 限制决策轮数，防止无限调用
         int decisionCnt = 1;
         while (decisionCnt < DECISION_CNT_LIMIT) {
-            SseHelper.sendLog(sseEmitter, "第{}次大模型决策", decisionCnt);
+            SseHelper.sendLog(sseEmitter, "第{}次大模型决策开始执行...", decisionCnt);
 
 
             // tool/react ... 等等多模式执行
@@ -133,11 +133,12 @@ public abstract class BaseAgent {
 
             // 思考完成
             if (agentOutput instanceof AgentFinish) {
-                SseHelper.sendLog(sseEmitter, "第{}次大模型决策结束：=========》end", decisionCnt);
+                SseHelper.sendLog(sseEmitter, "第{}次大模型决策结束...：", decisionCnt);
                 String llmResponse = ((AgentFinish) agentOutput).getResult();
-                SseHelper.sendLog(sseEmitter, "第{}次大模型决策结果：{}", decisionCnt, llmResponse);
+                SseHelper.sendLog(sseEmitter, "第{}次大模型决策结果...：{}", decisionCnt, llmResponse);
 
-                SseHelper.sendData(sseEmitter, ((AgentFinish) agentOutput).getResult());
+                SseHelper.sendThink(sseEmitter, agentOutput.getReasoningContent());
+                SseHelper.sendFinalAnswer(sseEmitter, ((AgentFinish) agentOutput).getResult());
 
 
                 if (sseEmitter != null) {
@@ -145,6 +146,10 @@ public abstract class BaseAgent {
                 }
                 return llmResponse;
             }
+
+            SseHelper.sendThink(sseEmitter, agentOutput.getReasoningContent());
+
+            SseHelper.sendData(sseEmitter, "第{}次大模型决策：{}", decisionCnt, agentOutput);
 
             // todo 检查是否卡住
             // if (isStuck()) {

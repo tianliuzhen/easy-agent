@@ -40,7 +40,9 @@ public class SseHelper {
      * @param message    消息模板及参数（支持{}占位符，{}等价于{0}，多个参数可用{0}{1}等）
      */
     public static void sendThink(SseEmitter sseEmitter, Object... message) {
-        doSend(sseEmitter, message, "think");
+        if (message != null && message.length > 0) {
+            doSend(sseEmitter, message, "think");
+        }
     }
 
     /**
@@ -51,6 +53,22 @@ public class SseHelper {
      */
     public static void sendData(SseEmitter sseEmitter, Object... message) {
         doSend(sseEmitter, message, "data");
+    }
+
+    public static void sendFinalAnswer(SseEmitter sseEmitter, Object... message) {
+        doSend(sseEmitter, message, "finalAnswer");
+    }
+
+    /**
+     * 发送错误消息
+     *
+     * @param sseEmitter SSE连接对象，可为null
+     * @param message    消息模板及参数
+     */
+    public static void sendError(SseEmitter sseEmitter, Object... message) {
+        // 在消息前添加[ERROR]前缀用于前端识别
+        doSend(sseEmitter, message, "log");
+
     }
 
 
@@ -75,7 +93,7 @@ public class SseHelper {
         if (sseEmitter != null) {
             try {
                 // 统一发送JSON格式数据，包含事件类型和消息内容
-                String jsonData = "{\"type\":\"" + eventName + "\",\"content\":\"" +escapeJsonString(formattedMessage) + "\"}";
+                String jsonData = "{\"type\":\"" + eventName + "\",\"content\":\"" + escapeJsonString(formattedMessage) + "\"}";
                 sseEmitter.send(SseEmitter.event()
                         .data(jsonData));
             } catch (IOException e) {
@@ -162,11 +180,11 @@ public class SseHelper {
             return "";
         }
         return str.replace("\\", "\\\\")
-                  .replace("\"", "\\\"")
-                  .replace("\b", "\\b")
-                  .replace("\f", "\\f")
-                  .replace("\n", "\\n")
-                  .replace("\r", "\\r")
-                  .replace("\t", "\\t");
+                .replace("\"", "\\\"")
+                .replace("\b", "\\b")
+                .replace("\f", "\\f")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 }

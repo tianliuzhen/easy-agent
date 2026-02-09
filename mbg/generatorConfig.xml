@@ -51,5 +51,13 @@
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
+        <table tableName="ea_chat_conversation" mapperName="EaChatConversationDAO" domainObjectName="EaChatConversationDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+        <table tableName="ea_chat_message" mapperName="EaChatMessageDAO" domainObjectName="EaChatMessageDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
     </context>
 </generatorConfiguration>

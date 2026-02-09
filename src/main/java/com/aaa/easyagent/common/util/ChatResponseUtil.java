@@ -18,4 +18,13 @@ public class ChatResponseUtil {
                 .map(AssistantMessage::getText)
                 .orElse(null);
     }
+
+    public static String getReasoningContent(ChatResponse chatResponse) {
+        return Optional.ofNullable(chatResponse)
+                .map(ChatResponse::getResult)
+                .map(Generation::getOutput)
+                .map(AssistantMessage::getMetadata)
+                .map(e -> (String) e.get("reasoningContent"))
+                .orElse(null);
+    }
 }
