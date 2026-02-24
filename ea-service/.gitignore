@@ -32,8 +32,4 @@ build/
 ### VS Code ###
 .vscode/
 /log/
-
-
-### vite ###
-/.vite/deps/
-/.vite/
+/.mvn/

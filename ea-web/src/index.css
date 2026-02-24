@@ -1,0 +1,5 @@
+/* 覆盖 Sider 折叠按钮背景色 */
+.ant-layout-sider-trigger {
+    background: #e1ecf7 !important;
+    color: #000 !important;
+}
