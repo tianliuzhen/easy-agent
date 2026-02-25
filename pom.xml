@@ -13,6 +13,7 @@
 
     <modules>
         <module>ea-service</module>
+        <module>ea-mcp</module>
         <!-- web模块使用npm构建，不在maven管理范围内 -->
     </modules>
 
