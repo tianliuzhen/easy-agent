@@ -46,6 +46,8 @@ const ChatDemo: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
     const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+    const thinkingContentRef = useRef<HTMLDivElement>(null);
+    const prevThinkingContentLengthRef = useRef<number>(0);
     const [uuid, setUuid] = useState('');
     const location = useLocation();
     const currentAnsweringMsgIdRef = useRef<string | null>(null);
@@ -56,6 +58,31 @@ const ChatDemo: React.FC = () => {
     useEffect(() => {
         chatMessagesEndRef.current?.scrollIntoView({behavior: 'smooth'});
     }, [messages, thinkingLog, isThinking]);
+
+    // 思考内容自动滚动到底部
+    useEffect(() => {
+        if (thinkingContentRef.current && currentAnsweringMsgIdRef.current) {
+            const thinkingContent = messageThinkingLogs[currentAnsweringMsgIdRef.current]?.content || [];
+            const currentLength = thinkingContent.length;
+
+            // 只有当思考内容增加时才滚动
+            if (currentLength > prevThinkingContentLengthRef.current) {
+                // 等待下一帧确保DOM已更新
+                setTimeout(() => {
+                    thinkingContentRef.current?.scrollTo({
+                        top: thinkingContentRef.current.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }, 0);
+            }
+
+            // 更新上一次的长度
+            prevThinkingContentLengthRef.current = currentLength;
+        } else {
+            // 如果没有当前思考内容，重置长度计数
+            prevThinkingContentLengthRef.current = 0;
+        }
+    }, [messageThinkingLogs, currentAnsweringMsgIdRef.current]);
 
     useEffect(() => {
         return () => {
@@ -287,14 +314,15 @@ const ChatDemo: React.FC = () => {
     const renderThinkingContent = (entries: ThinkingLogEntry[]) => {
         if (!entries || entries.length === 0) return null;
 
-        // 分离think类型和其他类型的数据
+        // 分离不同类型的数据
         const thinkEntries = entries.filter(entry => entry.type === 'think');
-        const otherEntries = entries.filter(entry => entry.type !== 'think');
+        const dataEntries = entries.filter(entry => entry.type === 'data');
+        const restEntries = entries.filter(entry => entry.type !== 'think' && entry.type !== 'data');
 
         return (
             <>
-                {/* 非think类型的内容 */}
-                {otherEntries.map((entry, index) => {
+                {/* log和error类型的内容 - 单独显示 */}
+                {restEntries.map((entry, index) => {
                     // 根据条目类型应用样式
                     let lineStyle = {};
                     let lineContent = entry.content;
@@ -302,44 +330,53 @@ const ChatDemo: React.FC = () => {
                     if (entry.type === 'log') {
                         // log类型：浅灰色
                         lineStyle = {color: '#999999', fontStyle: 'italic'};
-                    } else if (entry.type === 'data') {
-                        // data类型：黑色
-                        lineStyle = {color: '#000000'};
                     } else if (entry.type === 'error') {
                         // 错误类型：红色
                         lineStyle = {color: '#ff4d4f', fontWeight: 500};
                     }
 
                     return (
-                        <div key={`other-${index}`} style={lineStyle}>
+                        <div key={`rest-${index}`} style={lineStyle}>
                             {lineContent}
                         </div>
                     );
                 })}
 
-                {/* think类型的内容，放入带边框的独立div中 */}
+                {/* think类型的内容，放入带边框的独立div中 - 显示在最上方 */}
                 {thinkEntries.length > 0 && (
                     <div style={{
                         background: '#ffffff',
                         border: '1px solid #91caff',
                         borderRadius: '8px',
                         padding: '12px',
-                        marginTop: otherEntries.length > 0 ? '12px' : '0',
+                        marginTop: restEntries.length > 0 ? '12px' : '0',
                         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
                     }}>
-                        {thinkEntries.map((entry, index) => (
-                            <div 
-                                key={`think-${index}`} 
-                                style={{
-                                    color: '#666666',
-                                    fontWeight: 500,
-                                    marginBottom: index < thinkEntries.length - 1 ? '8px' : '0'
-                                }}
-                                className={index < thinkEntries.length - 1 ? "think-line" : ""}
-                            >
-                                {entry.content}
-                            </div>
-                        ))}
+                        <div
+                            style={{
+                                color: '#666666',
+                                fontWeight: 500,
+                                whiteSpace: 'pre-wrap'
+                            }}
+                        >
+                            {thinkEntries.map(entry => entry.content).join('')}
+                        </div>
+                    </div>
+                )}
+
+                {/* data类型的内容，连续显示 - 在think之后显示 */}
+                {dataEntries.length > 0 && (
+                    <div style={{
+                        background: '#f6ffed',
+                        border: '1px solid #b7eb8f',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginTop: (restEntries.length > 0 || thinkEntries.length > 0) ? '12px' : '0',
+                        color: '#000000',
+                        whiteSpace: 'pre-wrap',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+                    }}>
+                        {dataEntries.map(entry => entry.content).join('')}
                     </div>
                 )}
             </>
@@ -936,14 +973,17 @@ const ChatDemo: React.FC = () => {
                                                         />
                                                     </Tooltip>
                                                 </div>
-                                                <div style={{
-                                                    fontSize: '12px',
-                                                    lineHeight: 1.6,
-                                                    color: '#333',
-                                                    whiteSpace: 'pre-wrap',
-                                                    maxHeight: '200px',
-                                                    overflowY: 'auto'
-                                                }}>
+                                                <div
+                                                    ref={thinkingContentRef}
+                                                    style={{
+                                                        fontSize: '12px',
+                                                        lineHeight: 1.6,
+                                                        color: '#333',
+                                                        whiteSpace: 'pre-wrap',
+                                                        maxHeight: '200px',
+                                                        overflowY: 'auto'
+                                                    }}
+                                                >
                                                     {renderThinkingContent(messageThinkingLogs[currentAnsweringMsgIdRef.current]?.content || [])}
                                                 </div>
                                             </div>

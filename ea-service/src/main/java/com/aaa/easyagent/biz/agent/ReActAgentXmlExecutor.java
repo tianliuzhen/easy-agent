@@ -167,9 +167,11 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
                         // 执行异常
                         log.error("ReActAgentXmlExecutor.think.error:" + error.getMessage(), error);
                         runOver.countDown();
+                        SseHelper.sendData(sseEmitter, "系统异常：" + error.getMessage());
                     }, () -> {
                         // 执行结束
                         runOver.countDown();
+                        log.info("ReActAgentXmlExecutor.think.runOver");
                     });
 
             try {

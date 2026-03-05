@@ -43,7 +43,7 @@ public class JsonSchemaGenerator {
             property.put("type", field.getType());
 
             // 设置描述（优先使用覆盖描述）
-            String description = field.getDesc();
+            String description = field.getDescription();
             if (fieldDescriptions != null && fieldDescriptions.containsKey(field.getName())) {
                 description = fieldDescriptions.get(field.getName());
             }

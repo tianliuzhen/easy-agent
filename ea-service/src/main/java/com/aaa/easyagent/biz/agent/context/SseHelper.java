@@ -6,6 +6,8 @@ import org.slf4j.helpers.MessageFormatter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * SLF4J 的 MessageFormatter
@@ -23,6 +25,16 @@ import java.io.IOException;
  */
 @Slf4j
 public class SseHelper {
+
+    // 为每个 SseEmitter 维护一个锁，用于同步发送
+    private static final ConcurrentHashMap<SseEmitter, ReentrantLock> emitterLocks = new ConcurrentHashMap<>();
+
+    /**
+     * 获取或创建 SseEmitter 对应的锁
+     */
+    private static ReentrantLock getLock(SseEmitter sseEmitter) {
+        return emitterLocks.computeIfAbsent(sseEmitter, k -> new ReentrantLock());
+    }
 
     /**
      * 发送日志消息
@@ -76,7 +88,7 @@ public class SseHelper {
     /**
      * 通用发送方法
      *
-     * @param sseEmitter SSE连接对象
+     * @param sseEmitter SSE 连接对象
      * @param message    消息模板及参数
      * @param eventName  事件名称
      */
@@ -87,27 +99,36 @@ public class SseHelper {
         if (message.length == 1 && message[0] instanceof String && StringUtils.isBlank((String) message[0])) {
             return;
         }
-
+    
         String formattedMessage = parseMessage(message);
-
+    
         // 发送日志
         log.info(formattedMessage);
-
+    
         // 如果需要通过 SSE 发送
         if (sseEmitter != null) {
+            ReentrantLock lock = getLock(sseEmitter);
+            lock.lock();
             try {
-                // 统一发送JSON格式数据，包含事件类型和消息内容
+                // 统一发送 JSON 格式数据，包含事件类型和消息内容
                 String jsonData = "{\"type\":\"" + eventName + "\",\"content\":\"" + escapeJsonString(formattedMessage) + "\"}";
                 sseEmitter.send(SseEmitter.event()
                         .data(jsonData));
             } catch (IOException e) {
-                log.error("SSE发送失败", e);
+                log.error("SSE 发送失败，type={}", eventName, e);
                 // 可选：通知监听器连接已断开
                 try {
                     sseEmitter.complete();
                 } catch (Exception ex) {
-                    log.error("SSE连接关闭失败", ex);
+                    log.error("SSE 连接关闭失败", ex);
                 }
+            } catch (IllegalStateException e) {
+                // 处理 ResponseBodyEmitter has already completed 错误
+                log.warn("SSE 连接已关闭，无法发送消息，type={}", eventName);
+                // 清理锁
+                emitterLocks.remove(sseEmitter);
+            } finally {
+                lock.unlock();
             }
         }
     }

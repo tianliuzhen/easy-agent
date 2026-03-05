@@ -17,7 +17,7 @@ public class InputTypeSchema {
     /**
      * 参数描述
      */
-    private String desc;
+    private String description;
     /**
      * 参数类型
      */
@@ -34,22 +34,22 @@ public class InputTypeSchema {
      */
     private String referenceValue;
 
-    public InputTypeSchema(String name, String desc, String type) {
+    public InputTypeSchema(String name, String description, String type) {
         this.name = name;
-        this.desc = desc;
+        this.description = description;
         this.type = type;
     }
 
-    public InputTypeSchema(String name, String desc, String type, String defaultValue) {
+    public InputTypeSchema(String name, String description, String type, String defaultValue) {
         this.name = name;
-        this.desc = desc;
+        this.description = description;
         this.type = type;
         this.defaultValue = defaultValue;
     }
 
-    public InputTypeSchema(String name, String desc, String type, String defaultValue, String referenceValue) {
+    public InputTypeSchema(String name, String description, String type, String defaultValue, String referenceValue) {
         this.name = name;
-        this.desc = desc;
+        this.description = description;
         this.type = type;
         this.defaultValue = defaultValue;
         this.referenceValue = referenceValue;

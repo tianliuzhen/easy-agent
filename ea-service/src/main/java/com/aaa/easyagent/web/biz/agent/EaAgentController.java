@@ -56,8 +56,8 @@ public class EaAgentController {
             @RequestParam(defaultValue = "110") String conversationId,
             @RequestParam(defaultValue = "你好") String msg,
             @RequestParam(defaultValue = "1", required = false) String agentId) {
-        // 默认设置60分钟
-        SseEmitter sseEmitter = new SseEmitterUTF8(1000 * 60L);
+        // 默认设置5分钟
+        SseEmitter sseEmitter = new SseEmitterUTF8(1000 * 60L * 5);
 
 
         // todo 改为线程池
