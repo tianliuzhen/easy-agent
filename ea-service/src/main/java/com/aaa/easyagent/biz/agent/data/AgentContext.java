@@ -62,4 +62,10 @@ public class AgentContext {
      * sseEmitter
      */
     private SseEmitter sseEmitter;
+
+
+    /**
+     * 流式返回
+     */
+    private boolean withStream = true;
 }

@@ -14,9 +14,9 @@
 #          prompt: true
 #          completion: true
 #        # sse properties
-#        sse-message-endpoint: /mcp/messages
+#        sse-message-endpoint: /mcp/message
+#        sse-endpoint: /sse
 #        keep-alive-interval: 30s
-
 
 
 # Using spring-ai-starter-mcp-server-streamable-webmvc

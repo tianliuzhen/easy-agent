@@ -72,9 +72,8 @@ class WeatherServiceTest {
      * sseEndpoint 发送和接受可以是不相同的，配置文件是 mcp/messages ，底层默认是：/sse
      */
     public static void sseHttpTest() {
-
         var sseClientTransport = HttpClientSseClientTransport
-                .builder("http://localhost:8083/mcp/messages")
+                .builder("http://localhost:8083/")
                 // .sseEndpoint("/sse") // 默认/sse
                 .build();
 
@@ -96,6 +95,8 @@ class WeatherServiceTest {
 
     /**
      * endpoint 发送和接受是相同的，必须要指定 api/mcp  和配置文件相同
+     *
+     * claude mcp add --transport http notion http://localhost:8083/api/mcp
      */
     private static void streamableHTTP() {
         var sseClientTransport = HttpClientStreamableHttpTransport

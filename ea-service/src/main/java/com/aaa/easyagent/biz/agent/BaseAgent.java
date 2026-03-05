@@ -126,25 +126,32 @@ public abstract class BaseAgent {
         int decisionCnt = 1;
         while (decisionCnt < DECISION_CNT_LIMIT) {
             SseHelper.sendLog(sseEmitter, "第{}次大模型决策开始执行...", decisionCnt);
+            AgentOutput agentOutput = null;
 
 
-            // tool/react ... 等等多模式执行
-            AgentOutput agentOutput = this.run();
+            try {
+                // tool/react ... 等等多模式执行
+                agentOutput = this.run();
 
-            // 思考完成
-            if (agentOutput instanceof AgentFinish) {
-                SseHelper.sendLog(sseEmitter, "第{}次大模型决策结束...：", decisionCnt);
-                String llmResponse = ((AgentFinish) agentOutput).getResult();
-                SseHelper.sendLog(sseEmitter, "第{}次大模型决策结果...：{}", decisionCnt, llmResponse);
+                // 思考完成
+                if (agentOutput instanceof AgentFinish) {
+                    SseHelper.sendLog(sseEmitter, "第{}次大模型决策结束...：", decisionCnt);
+                    String llmResponse = ((AgentFinish) agentOutput).getResult();
+                    SseHelper.sendLog(sseEmitter, "第{}次大模型决策结果...：{}", decisionCnt, llmResponse);
 
-                SseHelper.sendThink(sseEmitter, agentOutput.getReasoningContent());
-                SseHelper.sendFinalAnswer(sseEmitter, ((AgentFinish) agentOutput).getResult());
+                    SseHelper.sendThink(sseEmitter, agentOutput.getReasoningContent());
+                    SseHelper.sendFinalAnswer(sseEmitter, ((AgentFinish) agentOutput).getResult());
 
 
-                if (sseEmitter != null) {
-                    sseEmitter.complete();
+                    if (sseEmitter != null) {
+                        sseEmitter.complete();
+                    }
+                    return llmResponse;
                 }
-                return llmResponse;
+            } catch (Exception e) {
+                log.error("大模型执行异常:", e);
+                SseHelper.sendData(sseEmitter, "第{}次大模型决策异常：{}", decisionCnt, e.getMessage());
+                return null;
             }
 
             SseHelper.sendThink(sseEmitter, agentOutput.getReasoningContent());

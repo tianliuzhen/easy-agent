@@ -1,26 +1,25 @@
 package com.aaa.easyagent.biz.agent;
 
 import com.aaa.easyagent.biz.agent.context.SseHelper;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.AgentFinish;
 import com.aaa.easyagent.biz.agent.data.AgentOutput;
 import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
 import com.aaa.easyagent.biz.agent.parser.OutputParserException;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
-import com.aaa.easyagent.biz.agent.data.AgentContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.util.CollectionUtils;
+import reactor.core.publisher.Flux;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * @link com.aaa.easyagent.biz.agent.ReActAgentExecutor
@@ -138,22 +137,61 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
 
     }
 
+    /**
+     * reAct-决策模式
+     *
+     * @return
+     */
     @Override
     public AgentOutput think() {
-        ChatResponse chatResponse = chatModel.call(prompt);
+        StringBuilder resStr = new StringBuilder();
+        StringBuilder reasoningContent = new StringBuilder();
 
 
-        // 添加助手执行记忆
-        addAssistantMessage(prompt, chatResponse);
+        if (this.agentContext.isWithStream()) {
+            CountDownLatch runOver = new CountDownLatch(1);
 
-        // reAct-决策模式
-        String resStr = ChatResponseUtil.getResStr(chatResponse);
+            Flux<ChatResponse> stream = chatModel.stream(prompt);
+            stream.subscribe(chatRes -> {
+                        // 结果
+                        String lineResStr = ChatResponseUtil.getResStr(chatRes);
+                        resStr.append(lineResStr);
+                        SseHelper.sendData(sseEmitter, lineResStr);
 
-        String reasoningContent = ChatResponseUtil.getReasoningContent(chatResponse);
+                        // 思考
+                        String lineThinks = ChatResponseUtil.getReasoningContent(chatRes);
+                        reasoningContent.append(lineThinks);
+                        SseHelper.sendThink(sseEmitter, lineThinks);
+                    },
+                    error -> {
+                        // 执行异常
+                        log.error("ReActAgentXmlExecutor.think.error:" + error.getMessage(), error);
+                        runOver.countDown();
+                    }, () -> {
+                        // 执行结束
+                        runOver.countDown();
+                    });
+
+            try {
+                // 串行等待
+                runOver.await();
+            } catch (InterruptedException e) {
+                log.error("ReActAgentXmlExecutor.runOver.await.error:" + e.getMessage(), e);
+            }
+        } else {
+            ChatResponse chatResponse = chatModel.call(prompt);
+            // 添加助手执行记忆
+            addAssistantMessage(prompt, chatResponse);
+            // 结果
+            resStr.append(ChatResponseUtil.getResStr(chatResponse));
+            // 思考过程
+            reasoningContent.append(ChatResponseUtil.getReasoningContent(chatResponse));
+        }
+
 
         // 使用XML格式解析Action入参或者解析成功
-        AgentOutput agentOutput = parseXmlResponse(resStr);
-        agentOutput.setReasoningContent(reasoningContent);
+        AgentOutput agentOutput = parseXmlResponse(resStr.toString());
+        agentOutput.setReasoningContent(reasoningContent.toString());
         return agentOutput;
     }
 
