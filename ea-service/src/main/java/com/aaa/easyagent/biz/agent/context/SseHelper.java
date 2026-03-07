@@ -1,7 +1,6 @@
 package com.aaa.easyagent.biz.agent.context;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.helpers.MessageFormatter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -96,15 +95,15 @@ public class SseHelper {
         if (message == null || message.length == 0) {
             return;
         }
-        if (message.length == 1 && message[0] instanceof String && StringUtils.isBlank((String) message[0])) {
+        if (message.length == 1 && message[0] == null) {
             return;
         }
-    
+
         String formattedMessage = parseMessage(message);
-    
+
         // 发送日志
         log.info(formattedMessage);
-    
+
         // 如果需要通过 SSE 发送
         if (sseEmitter != null) {
             ReentrantLock lock = getLock(sseEmitter);

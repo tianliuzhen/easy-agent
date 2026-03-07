@@ -15,19 +15,21 @@ import java.util.Map;
 @Getter
 @AllArgsConstructor
 public enum ModelTypeEnum {
-    deepseek("deepseek", "deepseek", "https://chat.deepseek.com/"),
-    siliconflow("siliconflow", "硅基流动", "https://cloud.siliconflow.cn/"),
-    openai("openai", "openai", "https://openApi.com/"),
-    ollama("ollama", "ollama", "https://ollama.com/");
+    deepseek("deepseek", "deepseek", "https://api.deepseek.com/v1", "https://api.deepseek.com", "https://www.deepseek.com/favicon.ico"),
+    siliconflow("siliconflow", "硅基流动", "https://cloud.siliconflow.cn/v1", "https://api.siliconflow.cn", "https://cloud.siliconflow.cn/favicon.ico"),
+    openai("openai", "openai", "https://openai.com/", "https://api.openai.com/v1", "https://openai.com/favicon.ico"),
+    ollama("ollama", "ollama", "https://ollama.com/", "http://localhost:11434", "https://ollama.com/public/ollama.png");
 
     private String model;
     private String desc;
     private String links;
+    private String defaultBaseUrl;
+    private String icon;
 
     /**
      * 查询所有大模型配置，并且返回所有的枚举信息
      *
-     * @return Map<模型名称, Map<属性名, 属性值>>
+     * @return Map<模型名称, Map < 属性名, 属性值>>
      */
     public static Map<String, HashMap<String, String>> getAll() {
         Map<String, HashMap<String, String>> result = new HashMap<>();
@@ -37,6 +39,8 @@ public enum ModelTypeEnum {
             modelInfo.put("model", modelType.getModel());
             modelInfo.put("desc", modelType.getDesc());
             modelInfo.put("links", modelType.getLinks());
+            modelInfo.put("defaultBaseUrl", modelType.getDefaultBaseUrl());
+            modelInfo.put("icon", modelType.getIcon());
 
             result.put(modelType.getModel(), modelInfo);
         }

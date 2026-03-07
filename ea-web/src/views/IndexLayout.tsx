@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {LaptopOutlined, UserOutlined, SlackOutlined} from '@ant-design/icons';
+import {LaptopOutlined, UserOutlined, SlackOutlined, RobotOutlined, ToolOutlined, ApiOutlined} from '@ant-design/icons';
 import type {MenuProps} from 'antd';
 import {Breadcrumb, Layout, Menu, theme} from 'antd';
 import {Link, Routes, Route, useLocation} from 'react-router-dom';
@@ -15,21 +15,43 @@ const {Header, Content, Sider} = Layout;
 const routes = [
     {
         key: 'sub1',
-        icon: <UserOutlined/>,
-        label: 'agent管理',
+        icon: <RobotOutlined/>,
+        label: 'agent 应用',
         children: [
-            {key: '1', label: 'agent配置', path: '/page/AgentManager', component: <AgentManager/>},
-            {key: '2', label: '大模型配置', path: '/page/ToolManager', component: <ChatModelConfig/>},
-            {key: '3', label: 'User配置', path: '/page/User', component: <User/>},
+            {key: '1', label: '我的 agent', path: '/page/AgentManager', component: <AgentManager/>},
+            {key: '2', label: 'agent 市场', path: '/page/AgentManager', component: <AgentManager/>},
         ]
     },
     {
         key: 'sub2',
-        icon: <LaptopOutlined/>,
+        icon: <ToolOutlined/>,
         label: '工具管理',
         children: [
-            {key: '5', label: 'option5', path: '/tool/option5', component: <Option5/>},
-            {key: '6', label: 'option6', path: '/tool/option6', component: <Option6/>},
+            {key: '5', label: '默认工具', path: '/tool/option5', component: <Option5/>},
+        ]
+    },
+    {
+        key: 'sub6',
+        icon: <ApiOutlined/>,
+        label: 'MCP 管理',
+        children: [
+            {key: '6', label: 'mcp 配置', path: '/tool/option6', component: <Option6/>},
+        ]
+    },
+    {
+        key: 'sub3',
+        icon: <SlackOutlined/>,
+        label: '模型平台',
+        children: [
+            {key: '2', label: '模型配置', path: '/page/ToolManager', component: <ChatModelConfig/>},
+        ]
+    },
+    {
+        key: 'sub4',
+        icon: <UserOutlined/>,
+        label: '用户配置',
+        children: [
+            {key: '3', label: 'User配置', path: '/page/User', component: <User/>},
         ]
     }
 ];

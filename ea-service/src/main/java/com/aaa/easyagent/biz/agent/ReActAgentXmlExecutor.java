@@ -113,7 +113,7 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
     public Prompt buildPrompt() {
 
         if (CollectionUtils.isEmpty(callbackMap)) {
-            return null;
+            return new Prompt(messages);
         }
 
         Map<String, Object> renderModel = new HashMap<>();

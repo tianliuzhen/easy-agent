@@ -1,6 +1,6 @@
 // src/pages/EaAgentPage.tsx
 import React, {useEffect, useState, useRef} from 'react';
-import {Button, Table, Modal, Form, Input, Space, Popconfirm, Select, Card, List, Row, Col, Divider} from 'antd';
+import {Button, Table, Modal, Form, Input, Space, Popconfirm, Select, Card, List, Row, Col, Divider, Tag} from 'antd';
 import {App} from 'antd';
 import {Link, useNavigate} from 'react-router-dom';
 
@@ -13,7 +13,9 @@ import {
     MessageOutlined,
     PlusOutlined,
     ApiOutlined,
-    ThunderboltOutlined
+    ThunderboltOutlined,
+    EyeOutlined,
+    EyeInvisibleOutlined
 } from '@ant-design/icons';
 
 // 添加动态渐变动画的CSS
@@ -56,14 +58,23 @@ const EaAgentPage: React.FC = () => {
     const [form] = Form.useForm();
     const [editingId, setEditingId] = useState<number | null>(null);
     const [analysisModels, setAnalysisModels] = useState<string[]>([]);
+    // 添加模型图标映射
+    const [modelIcons, setModelIcons] = useState<Map<string, string>>(new Map());
+    // 添加模型默认 baseUrl 映射
+    const [modelBaseUrls, setModelBaseUrls] = useState<Map<string, string>>(new Map());
+    // 添加模型版本映射
+    const [modelVersions, setModelVersions] = useState<Map<string, string[]>>(new Map());
     const [searchText, setSearchText] = useState('');
     // 添加 modelConfigFields 状态用于管理字段数据
     const [modelConfigFields, setModelConfigFields] = useState<any[]>([
         {fieldName: 'apiKey', fieldValue: '', fieldLabel: 'API密钥'},
-        {fieldName: 'baseUrl', fieldValue: '', fieldLabel: '基础URL'},
+        {fieldName: 'baseUrl', fieldValue: '', fieldLabel: '基础 URL'},
         {fieldName: 'modelVersion', fieldValue: '', fieldLabel: '模型版本'},
         {fieldName: 'completionsPath', fieldValue: '', fieldLabel: '补全路径'},
     ]);
+
+    // 控制 API 密钥是否显示明文
+    const [showApiKey, setShowApiKey] = useState(false);
 
     // 添加默认图标推荐状态
     const [showDefaultIcons, setShowDefaultIcons] = useState(false);
@@ -163,11 +174,45 @@ const EaAgentPage: React.FC = () => {
         }
 
         eaAgentApi.queryChatModelTypeList().then((response) => {
-            // 处理后端返回的Map<String, HashMap<String, String>>格式
+            // 处理后端返回的 Map<String, HashMap<String, String>>格式
             const modelData = response?.data;
             if (modelData && typeof modelData === 'object') {
                 // 提取所有模型的键作为可选项
-                setAnalysisModels(Object.keys(modelData));
+                const modelKeys = Object.keys(modelData);
+                setAnalysisModels(modelKeys);
+
+                // 提取每个模型的 icon URL、defaultBaseUrl 和 modelVersions
+                const iconMap = new Map<string, string>();
+                const baseUrlMap = new Map<string, string>();
+                const versionsMap = new Map<string, string[]>();
+                modelKeys.forEach(key => {
+                    const modelInfo = modelData[key];
+                    if (modelInfo) {
+                        if (modelInfo.icon) {
+                            iconMap.set(key, modelInfo.icon);
+                        }
+                        if (modelInfo.defaultBaseUrl) {
+                            baseUrlMap.set(key, modelInfo.defaultBaseUrl);
+                        }
+                        // 处理模型版本，可能是字符串或数组
+                        if (modelInfo.modelVersions) {
+                            let versions: string[] = [];
+                            if (typeof modelInfo.modelVersions === 'string') {
+                                try {
+                                    versions = JSON.parse(modelInfo.modelVersions);
+                                } catch (e) {
+                                    versions = modelInfo.modelVersions.split(',').map((v: string) => v.trim());
+                                }
+                            } else if (Array.isArray(modelInfo.modelVersions)) {
+                                versions = modelInfo.modelVersions;
+                            }
+                            versionsMap.set(key, versions);
+                        }
+                    }
+                });
+                setModelIcons(iconMap);
+                setModelBaseUrls(baseUrlMap);
+                setModelVersions(versionsMap);
             } else {
                 setAnalysisModels([]);
             }
@@ -192,6 +237,49 @@ const EaAgentPage: React.FC = () => {
         loadData();
     }, []);
 
+    // 添加一个状态来强制重新渲染
+    const [renderKey, setRenderKey] = useState(0);
+
+    // 处理模型平台切换，自动更新基础 URL 和模型版本
+    const handleModelPlatformChange = (value: string | string[]) => {
+        // 如果是数组，取第一个值（单选）
+        const selectedValue = Array.isArray(value) ? value[0] : value;
+
+        console.log('切换模型平台:', selectedValue);
+
+        const defaultBaseUrl = modelBaseUrls.get(selectedValue);
+        const versions = modelVersions.get(selectedValue) || [];
+
+        console.log('基础 URL:', defaultBaseUrl, '可用版本:', versions);
+
+        // 获取当前的 modelConfig 字段
+        const currentFields = [...modelConfigFields];
+
+        // 更新 baseUrl 字段
+        const baseUrlIndex = currentFields.findIndex(f => f.fieldName === 'baseUrl');
+        if (baseUrlIndex !== -1 && defaultBaseUrl) {
+            currentFields[baseUrlIndex].fieldValue = defaultBaseUrl;
+        }
+
+        // 更新 modelVersion 字段 - 清空当前值（设置为空字符串）
+        const versionIndex = currentFields.findIndex(f => f.fieldName === 'modelVersion');
+        if (versionIndex !== -1) {
+            // 清空当前值，让用户可以重新选择或输入
+            currentFields[versionIndex].fieldValue = '';
+        }
+
+        setModelConfigFields(currentFields);
+
+        // 同时更新表单中的 modelPlatform 字段和 modelVersion 字段
+        form.setFieldsValue({
+            modelPlatform: selectedValue,
+            modelVersion: '' // 使用空字符串清空模型版本
+        });
+
+        // 增加渲染 key，强制重新渲染整个 Select 组件
+        setRenderKey(prev => prev + 1);
+    };
+
     // 显示添加对话框
     const showAddModal = () => {
         form.resetFields();
@@ -201,10 +289,11 @@ const EaAgentPage: React.FC = () => {
             avatar: '🤖'        // 默认图标
         });
         setEditingId(null);
+        setRenderKey(0); // 重置渲染 key
         // 初始化模型配置字段
         setModelConfigFields([
-            {fieldName: 'apiKey', fieldValue: '', fieldLabel: 'API密钥'},
-            {fieldName: 'baseUrl', fieldValue: '', fieldLabel: '基础URL'},
+            {fieldName: 'apiKey', fieldValue: '', fieldLabel: 'API 密钥'},
+            {fieldName: 'baseUrl', fieldValue: '', fieldLabel: '基础 URL'},
             {fieldName: 'modelVersion', fieldValue: '', fieldLabel: '模型版本'},
             {fieldName: 'completionsPath', fieldValue: '', fieldLabel: '补全路径'},
         ]);
@@ -226,24 +315,35 @@ const EaAgentPage: React.FC = () => {
 
         console.log('设置表单数据:', formData);
         form.setFieldsValue(formData);
-
+        setRenderKey(0); // 重置渲染 key
         // 设置 modelConfig 字段数据
         if (record.modelConfig) {
             try {
                 const configObj = typeof record.modelConfig === 'string' ?
                     JSON.parse(record.modelConfig) : record.modelConfig;
 
-                const updatedFields = modelConfigFields.map(field => ({
-                    ...field,
-                    fieldValue: configObj[field.fieldName] || ''
-                }));
+                const updatedFields = modelConfigFields.map(field => {
+                    let value = configObj[field.fieldName];
+                    if (field.fieldName === 'modelVersion') {
+                        // 处理 modelVersion 字段：如果是数组，取第一个元素；如果是字符串，直接使用；否则为空字符串
+                        if (Array.isArray(value)) {
+                            value = value.length > 0 ? value[0] : '';
+                        } else if (typeof value !== 'string') {
+                            value = '';
+                        }
+                    }
+                    return {
+                        ...field,
+                        fieldValue: value || ''
+                    };
+                });
                 setModelConfigFields(updatedFields);
             } catch (e) {
                 console.error('解析 modelConfig 失败:', e);
                 // 如果解析失败，保持默认值
                 setModelConfigFields([
-                    {fieldName: 'apiKey', fieldValue: '', fieldLabel: 'API密钥'},
-                    {fieldName: 'baseUrl', fieldValue: '', fieldLabel: '基础URL'},
+                    {fieldName: 'apiKey', fieldValue: '', fieldLabel: 'API 密钥'},
+                    {fieldName: 'baseUrl', fieldValue: '', fieldLabel: '基础 URL'},
                     {fieldName: 'modelVersion', fieldValue: '', fieldLabel: '模型版本'},
                     {fieldName: 'completionsPath', fieldValue: '', fieldLabel: '补全路径'},
                 ]);
@@ -251,8 +351,8 @@ const EaAgentPage: React.FC = () => {
         } else {
             // 如果没有 modelConfig，使用默认值
             setModelConfigFields([
-                {fieldName: 'apiKey', fieldValue: '', fieldLabel: 'API密钥'},
-                {fieldName: 'baseUrl', fieldValue: '', fieldLabel: '基础URL'},
+                {fieldName: 'apiKey', fieldValue: '', fieldLabel: 'API 密钥'},
+                {fieldName: 'baseUrl', fieldValue: '', fieldLabel: '基础 URL'},
                 {fieldName: 'modelVersion', fieldValue: '', fieldLabel: '模型版本'},
                 {fieldName: 'completionsPath', fieldValue: '', fieldLabel: '补全路径'},
             ]);
@@ -287,11 +387,30 @@ const EaAgentPage: React.FC = () => {
     };
 
     // 处理模型配置字段的变更
-    const handleModelConfigFieldChange = (fieldName: string, value: string) => {
+    const handleModelConfigFieldChange = (fieldName: string, value: string | string[] | undefined) => {
         const newFields = modelConfigFields.map(field =>
             field.fieldName === fieldName ? {...field, fieldValue: value} : field
         );
         setModelConfigFields(newFields);
+    };
+
+    // 格式化 API 密钥：只显示前后缀，中间用*代替
+    const formatApiKey = (apiKey: string) => {
+        if (!apiKey || apiKey.length === 0) return '';
+        if (apiKey.length <= 8) {
+            // 如果密钥长度小于等于 8，全部用*显示
+            return '*'.repeat(apiKey.length);
+        }
+        // 显示前 4 位和后 4 位，中间用*代替
+        const prefix = apiKey.substring(0, 4);
+        const suffix = apiKey.substring(apiKey.length - 4);
+        const maskLength = apiKey.length - 8;
+        return `${prefix}${'*'.repeat(maskLength)}${suffix}`;
+    };
+
+    // 切换 API 密钥显示/隐藏
+    const toggleShowApiKey = () => {
+        setShowApiKey(!showApiKey);
     };
 
     // 提交表单
@@ -374,7 +493,7 @@ const EaAgentPage: React.FC = () => {
                         md: 3,
                         lg: 3,
                         xl: 4,
-                        xxl: 4,
+                        xxl: 5,
                     }}
                     loading={loading}
                     dataSource={data}
@@ -394,20 +513,21 @@ const EaAgentPage: React.FC = () => {
                       <span style={{marginRight: '8px', marginTop: '1px', fontSize: '18px'}}>
                         {item.avatar || item.agentIcon || '🤖'}
                       </span>
-                                            <Link to={`/home/chatdemo?agentId=${item.id}`} style={{
-                                                color: 'black',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                fontSize: '16px',
-                                                fontWeight: 'bold'
+                                            <a href="#"
+                                               style={{
+                                                   color: 'black',
+                                                   display: 'flex',
+                                                   alignItems: 'center',
+                                                   fontSize: '16px',
+                                                   fontWeight: 'bold',
+                                                   textDecoration: 'none'
+                                               }} onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                window.open(`/agentChat/chatDemo/?agentId=${item.id}`, '_blank');
                                             }}>
                                                 {item.agentName}
-                                            </Link>
-                                            <Link to={`/home/chatdemo?agentId=${item.id}`}
-                                                  style={{marginLeft: '8px', color: 'rgba(255, 255, 255, 0.85)'}}
-                                                  title="开始对话">
-                                                <MessageOutlined/>
-                                            </Link>
+                                            </a>
                                         </div>
                                         {item.agentDesc && (
                                             <div style={{
@@ -489,24 +609,12 @@ const EaAgentPage: React.FC = () => {
                                     e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.15)';
                                     e.currentTarget.style.borderColor = '#1890ff';
                                     e.currentTarget.style.animationPlayState = 'paused';
-
-                                    // 添加动态手型图标
-                                    const handIcon = e.currentTarget.querySelector('.hand-icon');
-                                    if (handIcon) {
-                                        handIcon.style.animation = 'handIconPulse 1s infinite';
-                                    }
                                 }}
                                 onMouseLeave={(e) => {
                                     e.currentTarget.style.transform = 'translateY(0)';
                                     e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
                                     e.currentTarget.style.borderColor = '#f0f0f0';
                                     e.currentTarget.style.animationPlayState = 'running';
-
-                                    // 移除动态手型图标动画
-                                    const handIcon = e.currentTarget.querySelector('.hand-icon');
-                                    if (handIcon) {
-                                        handIcon.style.animation = 'none';
-                                    }
                                 }}
                             >
                                 <div style={{
@@ -528,14 +636,38 @@ const EaAgentPage: React.FC = () => {
                                         display: 'flex',
                                         alignItems: 'center'
                                     }}>
-                                        <ThunderboltOutlined style={{marginRight: 6, fontSize: '12px'}}/>
+                                        {modelIcons.get(item.modelPlatform) && (
+                                            <img
+                                                src={modelIcons.get(item.modelPlatform)}
+                                                alt={item.modelPlatform}
+                                                style={{
+                                                    width: '14px',
+                                                    height: '14px',
+                                                    objectFit: 'contain',
+                                                    marginRight: '6px'
+                                                }}
+                                                onError={(e) => {
+                                                    // 如果图片加载失败，隐藏
+                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                }}
+                                            />
+                                        )}
                                         {item.modelPlatform}
                                     </div>
                                     {item.modelConfig && (() => {
                                         try {
                                             const config = typeof item.modelConfig === 'string' ?
                                                 JSON.parse(item.modelConfig) : item.modelConfig;
-                                            return config.modelVersion ? (
+                                            const modelVersion = config.modelVersion;
+                                            const hasVersion = modelVersion &&
+                                                (Array.isArray(modelVersion) ? modelVersion.length > 0 : true);
+                                            if (!hasVersion) return null;
+
+                                            // 格式化显示：如果是数组，取第一个元素；否则显示字符串
+                                            const displayVersion = Array.isArray(modelVersion)
+                                                ? (modelVersion.length > 0 ? modelVersion[0] : '')
+                                                : modelVersion;
+                                            return (
                                                 <div style={{
                                                     marginBottom: 6,
                                                     color: 'rgba(255, 255, 255, 0.85)',
@@ -546,10 +678,10 @@ const EaAgentPage: React.FC = () => {
                                                     display: 'flex',
                                                     alignItems: 'center'
                                                 }}>
-                                                    <ApiOutlined style={{marginRight: 6, fontSize: '12px'}}/>
-                                                    {config.modelVersion}
+                                                    <ApiOutlined style={{marginRight: 6, fontSize: '14px'}}/>
+                                                    {displayVersion}
                                                 </div>
-                                            ) : null;
+                                            );
                                         } catch (e) {
                                             return null;
                                         }
@@ -566,7 +698,7 @@ const EaAgentPage: React.FC = () => {
                                             alignItems: 'center'
                                         }}>
                                             <ThunderboltOutlined
-                                                style={{marginRight: 6, fontSize: '12px', color: '#fa8c16'}}/>
+                                                style={{marginRight: 6, fontSize: '14px', color: '#fa8c16'}}/>
                                             {item.toolRunMode}
                                         </div>
                                     )}
@@ -576,9 +708,10 @@ const EaAgentPage: React.FC = () => {
                                     bottom: '10px',
                                     right: '10px',
                                     fontSize: '16px',
-                                    color: '#1890ff',
+                                    color: 'white',
                                     opacity: 0.7,
-                                    zIndex: 1
+                                    zIndex: 1,
+                                    animation: 'handIconPulse 1s infinite'
                                 }}>
                                     <MessageOutlined/>
                                 </div>
@@ -618,12 +751,35 @@ const EaAgentPage: React.FC = () => {
                                 <Form.Item
                                     name="modelPlatform"
                                     label="模型平台"
-                                    rules={[{required: true, message: '请选择模型平台'}]}
+                                    rules={[{required: true, message: '请选择或输入模型平台'}]}
                                 >
-                                    <Select placeholder="请选择模型平台">
+                                    <Select
+                                        placeholder="请选择模型平台"
+                                        onChange={handleModelPlatformChange}
+                                        showSearch
+                                        style={{width: '100%'}}
+                                        allowClear
+                                    >
                                         {analysisModels?.map(model => (
                                             <Select.Option key={model} value={model}>
-                                                {model}
+                                                <span style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                    {modelIcons.get(model) && (
+                                                        <img
+                                                            src={modelIcons.get(model)}
+                                                            alt={model}
+                                                            style={{
+                                                                width: '16px',
+                                                                height: '16px',
+                                                                objectFit: 'contain'
+                                                            }}
+                                                            onError={(e) => {
+                                                                // 如果图片加载失败，显示一个默认图标
+                                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                            }}
+                                                        />
+                                                    )}
+                                                    {model}
+                                                </span>
                                             </Select.Option>
                                         ))}
                                     </Select>
@@ -719,13 +875,20 @@ const EaAgentPage: React.FC = () => {
                                 <Row gutter={16}>
                                     <Col span={12}>
                                         <Form.Item
-                                            label="API密钥"
+                                            label="API 密钥"
                                         >
                                             <Input
-                                                value={modelConfigFields.find(f => f.fieldName === 'apiKey')?.fieldValue}
+                                                value={showApiKey
+                                                    ? modelConfigFields.find(f => f.fieldName === 'apiKey')?.fieldValue
+                                                    : formatApiKey(modelConfigFields.find(f => f.fieldName === 'apiKey')?.fieldValue || '')}
                                                 onChange={(e) => handleModelConfigFieldChange('apiKey', e.target.value)}
-                                                placeholder="请输入API密钥"
-                                                type="password"
+                                                placeholder="请输入 API 密钥"
+                                                type={showApiKey ? 'text' : 'password'}
+                                                suffix={
+                                                    <span onClick={toggleShowApiKey} style={{cursor: 'pointer'}}>
+                                                        {showApiKey ? <EyeInvisibleOutlined/> : <EyeOutlined/>}
+                                                    </span>
+                                                }
                                             />
                                         </Form.Item>
                                     </Col>
@@ -746,12 +909,28 @@ const EaAgentPage: React.FC = () => {
                                     <Col span={12}>
                                         <Form.Item
                                             label="模型版本"
+                                            name="modelVersion"
+                                            initialValue={''}
                                         >
-                                            <Input
-                                                value={modelConfigFields.find(f => f.fieldName === 'modelVersion')?.fieldValue}
-                                                onChange={(e) => handleModelConfigFieldChange('modelVersion', e.target.value)}
-                                                placeholder="请输入模型版本"
-                                            />
+                                            <Select
+                                                value={modelConfigFields.find(f => f.fieldName === 'modelVersion')?.fieldValue || ''}
+                                                onChange={(value) => {
+                                                    console.log('模型版本变更:', value);
+                                                    handleModelConfigFieldChange('modelVersion', value);
+                                                    // 同时更新表单字段值
+                                                    form.setFieldsValue({modelVersion: value});
+                                                }}
+                                                placeholder="请选择模型版本"
+                                                style={{width: '100%'}}
+                                                showSearch
+                                                notFoundContent="暂无推荐版本，请输入自定义版本"
+                                                optionFilterProp="label"
+                                                options={(modelVersions.get(form.getFieldValue('modelPlatform')) || []).map((version: string) => ({
+                                                    label: version,
+                                                    value: version
+                                                }))}
+                                            >
+                                            </Select>
                                         </Form.Item>
                                     </Col>
                                     <Col span={12}>

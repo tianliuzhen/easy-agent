@@ -216,7 +216,7 @@
                 <version>1.4.2</version>
                 <configuration>
                     <configurationFile>
-                        ../mbg/generatorConfig.xml
+                        ../ea-service/mbg/generatorConfig.xml
                     </configurationFile>
                     <overwrite>true</overwrite>
                     <verbose>true</verbose>

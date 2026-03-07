@@ -68,4 +68,5 @@ public class AgentContext {
      * 流式返回
      */
     private boolean withStream = true;
+
 }

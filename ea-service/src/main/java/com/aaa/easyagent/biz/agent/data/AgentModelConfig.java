@@ -37,4 +37,18 @@ public class AgentModelConfig {
      * 补全请求的API路径
      */
     private String completionsPath;
+
+
+    /**
+     * Top P 的取值范围通常是一个浮点数，在 0 到 1 之间。
+     * 代表的是概率累计和的阈值，所以它的最小值不能低于 0，最大值不能超过 1
+     * 通常的建议范围：0.8 到 0.95
+     */
+    private Double topP;
+    /**
+     * Top K 的取值范围通常是一个整数，表示候选词的数量。
+     * 它的最小值不能低于 1，最大值没有固定的限制，但通常不会超过 100
+     * 通常的建议范围：1 到 50
+     */
+    private int topK;
 }

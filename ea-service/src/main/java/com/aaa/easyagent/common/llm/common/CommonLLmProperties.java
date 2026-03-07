@@ -31,7 +31,7 @@ public class CommonLLmProperties {
 
         public static final String DEFAULT_COMPLETIONS_PATH = "/v1/chat/completions";
 
-        private static final Double DEFAULT_TEMPERATURE = 0.7;
+        public static final Double DEFAULT_TEMPERATURE = 0.7;
 
         /**
          * Enable OpenAI chat model.

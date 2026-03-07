@@ -2,7 +2,6 @@ package com.aaa.easyagent.web.biz.agent;
 
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
 import com.aaa.easyagent.core.domain.base.BaseResult;
-import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.request.EaAgentReq;
 import com.aaa.easyagent.core.service.AgentManagerService;
 import com.aaa.easyagent.web.example.sse.SseEmitterUTF8;
@@ -23,6 +22,7 @@ public class EaAgentController {
 
     private final AgentManagerService agentManagerService;
     private final AgentChatService agentChatService;
+    private final ModelPlatformController modelPlatformController;
 
     @PostMapping("/ai/saveAgent")
     public BaseResult saveAgent(@RequestBody EaAgentReq req) {
@@ -39,9 +39,22 @@ public class EaAgentController {
         return BaseResult.buildSuc(agentManagerService.delAgent(req));
     }
 
+    /**
+     * 提示词：
+     * 1.需要实现 查询模型平台类型 从枚举读，改为从 数据库读
+     * 2.需要新增一张表，参考 Config/initsql/下面的表结构
+     * 3.前端对接，需要安装当前对接的格式
+     * 4.前端需要在大模型配置的菜单中，实现crud功能
+     * 5.后端crud接口实现（需要执行mvn 动态生成代码）
+     * 6.需要表的字段：模型平台/模型icon/官网链接/基础url/模型版本[存数组]
+     *
+     * 你需要先生成表结构，然后告诉我去执行，生成代码，然后实现crud功能
+     * @return
+     */
     @PostMapping("/ai/queryChatModelTypeList")
     public BaseResult queryChatModelTypeList() {
-        return BaseResult.buildSuc(ModelTypeEnum.getAll());
+        // 从数据库读取模型平台类型 (直接调用 ModelPlatformController 的方法)
+        return modelPlatformController.queryChatModelTypeList();
     }
 
     /**

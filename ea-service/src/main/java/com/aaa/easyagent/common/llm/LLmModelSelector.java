@@ -8,6 +8,7 @@ import com.aaa.easyagent.common.util.SpringContextUtil;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import jakarta.annotation.PostConstruct;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.ollama.OllamaChatModel;
@@ -62,19 +63,16 @@ public class LLmModelSelector {
      * @return
      */
     public static ChatModel buildChatModel(AgentContext agentContext) {
-        /**
-         * 硅基流动 初始化
-         */
-        if (agentContext.getModelType() == ModelTypeEnum.siliconflow) {
-            CommonLlmApi commonLlmApi = SpringContextUtil.getBean(CommonLlmApi.class);
-            ToolCallingManager toolCallingManager = SpringContextUtil.getBean(ToolCallingManager.class);
+        // 模型调用参数配置：model topK topP temperature 等
+        CommonLLmProperties commonLLmProperties = buildCommonLLmProperties(agentContext);
 
-            CommonLLmProperties commonLLmProperties = buildCommonLLmProperties(agentContext);
+        // 大模型调用客户端
+        CommonLlmApi commonLlmApi = new CommonLlmApi(commonLLmProperties);
 
-            return new CommonLlmChatModel(commonLlmApi, commonLLmProperties, toolCallingManager);
-        }
+        // 工具管理器
+        ToolCallingManager toolCallingManager = SpringContextUtil.getBean(ToolCallingManager.class);
 
-        return chatModelMap.get(agentContext.getModelType());
+        return new CommonLlmChatModel(commonLlmApi, commonLLmProperties, toolCallingManager);
     }
 
     private static CommonLLmProperties buildCommonLLmProperties(AgentContext agentContext) {
@@ -83,11 +81,15 @@ public class LLmModelSelector {
         commonLLmProperties.setApiKey(agentContext.getAgentModelConfig().getApiKey());
 
         CommonLLmProperties.ChatProperties lLmProperties = new CommonLLmProperties.ChatProperties();
-        lLmProperties.setCompletionsPath(agentContext.getAgentModelConfig().getCompletionsPath());
+        lLmProperties.setCompletionsPath(StringUtils.defaultIfBlank(agentContext.getAgentModelConfig().getCompletionsPath(), CommonLLmProperties.ChatProperties.DEFAULT_COMPLETIONS_PATH));
+
         // todo 模型各项配置参数暂时不全
-        lLmProperties.setOptions(CommonLlmChatOptions.builder()
+        CommonLlmChatOptions options = CommonLlmChatOptions.builder()
                 .model(agentContext.getAgentModelConfig().getModelVersion())
-                .build());
+                .temperature(CommonLLmProperties.ChatProperties.DEFAULT_TEMPERATURE)
+                .topP(agentContext.getAgentModelConfig().getTopP())
+                .build();
+        lLmProperties.setOptions(options);
         commonLLmProperties.setChat(lLmProperties);
         return commonLLmProperties;
     }

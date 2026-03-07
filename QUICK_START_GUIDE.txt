@@ -1,0 +1,126 @@
+======================================
+快速操作指南
+======================================
+
+## 第一步：执行数据库脚本 (必须)
+
+1. 打开命令行，连接 MySQL:
+   mysql -h localhost -P 3301 -u root -p123456
+
+2. 选择数据库:
+   use easy-agent;
+
+3. 执行脚本:
+   source F:\WorkSpace\MyGithub\easy-agent\ea-service\config\initsql\model_platform_table.sql;
+
+4. 验证数据:
+   SELECT * FROM ea_model_platform;
+
+应该看到 4 条记录：deepseek, siliconflow, openai, ollama
+
+## 第二步：启动后端服务
+
+1. 进入服务目录:
+   cd F:\WorkSpace\MyGithub\easy-agent\ea-service
+
+2. 启动服务:
+   mvn spring-boot:run
+
+3. 测试接口 (新窗口):
+   curl -X POST http://localhost:8080/eaAgent/modelPlatform/list
+   
+   或
+   
+   curl -X POST http://localhost:8080/eaAgent/ai/queryChatModelTypeList
+
+## 第三步：前端集成 (可选)
+
+如果需要在 frontend 中访问模型平台配置页面:
+
+1. 在 App.tsx 中添加路由:
+   <Route path="/pageTool/ModelPlatformConfig" element={<ModelPlatformConfig />} />
+
+2. 或者在 AgentManager 中添加访问链接
+
+3. 启动前端:
+   cd ea-web
+   npm run dev
+
+## 第四步：功能验证
+
+### 后端测试
+使用 Postman 或 curl 测试以下接口:
+
+1. 查询列表:
+   POST http://localhost:8080/eaAgent/modelPlatform/list
+
+2. 新增:
+   POST http://localhost:8080/eaAgent/modelPlatform/save
+   Body: {
+     "modelPlatform": "test",
+     "modelDesc": "测试平台",
+     "icon": "https://example.com/icon.png",
+     "officialWebsite": "https://example.com",
+     "baseUrl": "https://api.example.com/v1",
+     "modelVersionArray": ["v1", "v2"],
+     "isActive": true,
+     "sortOrder": 0
+   }
+
+3. 更新:
+   POST http://localhost:8080/eaAgent/modelPlatform/save
+   Body: {
+     "id": 5,
+     "modelDesc": "更新的描述"
+   }
+
+4. 删除:
+   POST http://localhost:8080/eaAgent/modelPlatform/delete
+   Body: { "id": 5 }
+
+5. 更新状态:
+   POST http://localhost:8080/eaAgent/modelPlatform/updateActiveStatus
+   Body: { "id": 1, "isActive": false }
+
+### 前端测试
+访问 ModelPlatformConfig 页面，测试:
+- 列表显示
+- 新增、编辑、删除
+- 复制功能
+- 切换状态
+
+## 常见问题
+
+### Q1: 数据库连接失败？
+A: 检查 MySQL 是否运行，端口是否为 3301
+
+### Q2: Maven 构建失败？
+A: 检查 pom.xml 依赖是否正确，Maven 仓库配置
+
+### Q3: 接口返回空数据？
+A: 检查数据库表是否有初始化数据
+
+### Q4: 编译错误？
+A: 运行 mvn clean compile 重新编译
+
+## 回滚方案
+
+如果需要恢复到枚举版本:
+
+1. 删除表:
+   DROP TABLE IF EXISTS ea_model_platform;
+
+2. 恢复 EaAgentController.java:
+   将 queryChatModelTypeList 方法改回:
+   return BaseResult.buildSuc(ModelTypeEnum.getAll());
+
+3. 删除相关类:
+   - ModelPlatformService.java
+   - ModelPlatformServiceImpl.java
+   - ModelPlatformController.java
+   - EaModelPlatformReq.java
+   - EaModelPlatformResult.java
+
+---
+**提示:** 建议先测试后再部署到生产环境
+

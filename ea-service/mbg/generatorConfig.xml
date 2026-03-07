@@ -59,5 +59,9 @@
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
+        <table tableName="ea_model_platform" mapperName="EaModelPlatformDAO" domainObjectName="EaModelPlatformDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
     </context>
 </generatorConfiguration>

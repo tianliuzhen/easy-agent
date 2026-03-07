@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Table, Button, Space, Modal, Form, Input, InputNumber, Switch, 
-  message, Popconfirm, Tag, Tooltip, Divider, Typography, Input as AntInput
+  message, Popconfirm, Tag, Tooltip, Drawer 
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, EyeOutlined, CloseOutlined } from '@ant-design/icons';
-import { modelPlatformApi } from '../api/ModelPlatformApi';
-
-const { Title } = Typography;
+import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
+import { modelPlatformApi } from '../../api/ModelPlatformApi';
 
 interface ModelPlatform {
   id?: number;
@@ -20,14 +18,12 @@ interface ModelPlatform {
   sortOrder: number;
 }
 
-const ChatModelConfig: React.FC = () => {
+const ModelPlatformConfig: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ModelPlatform[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ModelPlatform | null>(null);
   const [form] = Form.useForm();
-  const [modelVersions, setModelVersions] = useState<string[]>([]);
-  const [versionInput, setVersionInput] = useState('');
 
   // 加载模型平台列表
   const loadData = async () => {
@@ -60,9 +56,9 @@ const ChatModelConfig: React.FC = () => {
   // 打开新增/编辑弹窗
   const showModal = (record?: ModelPlatform) => {
     setEditingRecord(record || null);
-    let versions: string[] = [];
     if (record) {
       // 编辑模式，解析 modelVersions
+      let versions: string[] = [];
       if (typeof record.modelVersions === 'string') {
         try {
           versions = JSON.parse(record.modelVersions);
@@ -75,6 +71,7 @@ const ChatModelConfig: React.FC = () => {
       
       form.setFieldsValue({
         ...record,
+        modelVersionArray: versions,
       });
     } else {
       // 新增模式
@@ -82,10 +79,9 @@ const ChatModelConfig: React.FC = () => {
       form.setFieldsValue({
         isActive: true,
         sortOrder: 0,
+        modelVersionArray: [],
       });
-      versions = [];
     }
-    setModelVersions(versions);
     setModalVisible(true);
   };
 
@@ -104,11 +100,9 @@ const ChatModelConfig: React.FC = () => {
         saveData.id = editingRecord.id;
       }
       
-      // 将模型版本数组设置为 JSON 字符串
-      if (modelVersions && modelVersions.length > 0) {
-        saveData.modelVersionArray = JSON.stringify(modelVersions);
-      } else {
-        saveData.modelVersionArray = '[]';
+      // 将数组转换为字符串存储
+      if (values.modelVersionArray && Array.isArray(values.modelVersionArray)) {
+        saveData.modelVersionArray = values.modelVersionArray;
       }
       
       const result = await modelPlatformApi.save(saveData);
@@ -123,29 +117,6 @@ const ChatModelConfig: React.FC = () => {
       if (error.message) {
         message.error(error.message);
       }
-    }
-  };
-
-  // 添加模型版本
-  const handleAddVersion = () => {
-    if (versionInput.trim() && !modelVersions.includes(versionInput.trim())) {
-      setModelVersions([...modelVersions, versionInput.trim()]);
-      setVersionInput('');
-    } else if (modelVersions.includes(versionInput.trim())) {
-      message.warning('该模型版本已存在');
-    }
-  };
-
-  // 删除模型版本
-  const handleRemoveVersion = (version: string) => {
-    setModelVersions(modelVersions.filter(v => v !== version));
-  };
-
-  // 处理回车键添加
-  const handleVersionKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddVersion();
     }
   };
 
@@ -216,9 +187,7 @@ const ChatModelConfig: React.FC = () => {
       key: 'icon',
       width: 100,
       render: (icon: string) => (
-        <img src={icon} alt="icon" style={{ width: 32, height: 32 }} onError={(e) => {
-          (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCI+PHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiBmaWxsPSIjZmZmIi8+PHRleHQgeD0iNTAlJSIgeT0iNTAlJSIgZm9udC1zaXplPSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5PPC90ZXh0Pjwvc3ZnPg==';
-        }} />
+        <img src={icon} alt="icon" style={{ width: 32, height: 32 }} />
       ),
     },
     {
@@ -227,11 +196,6 @@ const ChatModelConfig: React.FC = () => {
       key: 'officialWebsite',
       width: 200,
       ellipsis: true,
-      render: (text: string) => (
-        <Tooltip title={text}>
-          <a href={text} target="_blank" rel="noopener noreferrer">{text}</a>
-        </Tooltip>
-      ),
     },
     {
       title: '基础 URL',
@@ -259,11 +223,11 @@ const ChatModelConfig: React.FC = () => {
         return (
           <Space wrap>
             {versionArray.slice(0, 3).map((v, idx) => (
-              <Tag key={idx} color="blue">{v}</Tag>
+              <Tag key={idx}>{v}</Tag>
             ))}
             {versionArray.length > 3 && (
               <Tooltip title={versionArray.join(', ')}>
-                <Tag color="gray">+{versionArray.length - 3}</Tag>
+                <Tag>+{versionArray.length - 3}</Tag>
               </Tooltip>
             )}
           </Space>
@@ -290,17 +254,9 @@ const ChatModelConfig: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 220,
+      width: 200,
       render: (_: any, record: ModelPlatform) => (
         <Space size="small">
-          <Tooltip title="查看">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => showModal(record)}
-            />
-          </Tooltip>
           <Tooltip title="编辑">
             <Button
               type="link"
@@ -346,9 +302,8 @@ const ChatModelConfig: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: '24px', background: '#fff', borderRadius: '8px' }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={4} style={{ margin: 0 }}>大模型平台配置</Title>
+    <div style={{ padding: '24px' }}>
+      <div style={{ marginBottom: 16 }}>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -358,19 +313,12 @@ const ChatModelConfig: React.FC = () => {
         </Button>
       </div>
       
-      <Divider style={{ margin: '16px 0' }} />
-      
       <Table
         loading={loading}
         columns={columns}
         dataSource={data}
         rowKey="id"
-        pagination={{ 
-          pageSize: 10,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条`
-        }}
-        scroll={{ x: 1200 }}
+        pagination={{ pageSize: 10 }}
       />
 
       <Modal
@@ -378,10 +326,8 @@ const ChatModelConfig: React.FC = () => {
         open={modalVisible}
         onOk={handleSave}
         onCancel={() => setModalVisible(false)}
-        width={750}
+        width={700}
         destroyOnClose
-        okText="保存"
-        cancelText="取消"
       >
         <Form
           form={form}
@@ -395,10 +341,8 @@ const ChatModelConfig: React.FC = () => {
             name="modelPlatform"
             label="平台标识"
             rules={[{ required: true, message: '请输入平台标识' }]}
-            tooltip="唯一标识符，如：deepseek, siliconflow, openai, ollama"
-            extra={editingRecord ? "⚠️ 修改平台标识可能会影响已使用该平台的 Agent" : undefined}
           >
-            <Input placeholder="如：deepseek" />
+            <Input placeholder="如：deepseek, siliconflow, openai, ollama" disabled={!!editingRecord} />
           </Form.Item>
           
           <Form.Item
@@ -413,7 +357,6 @@ const ChatModelConfig: React.FC = () => {
             name="icon"
             label="图标 URL"
             rules={[{ required: true, message: '请输入图标 URL' }]}
-            extra="建议尺寸：32x32 像素的 PNG 或 ICO 格式"
           >
             <Input placeholder="https://..." />
           </Form.Item>
@@ -430,53 +373,24 @@ const ChatModelConfig: React.FC = () => {
             name="baseUrl"
             label="基础 API URL"
             rules={[{ required: true, message: '请输入基础 API URL' }]}
-            extra="API 请求的基础地址"
           >
             <Input placeholder="https://api.xxx.com/v1" />
           </Form.Item>
           
           <Form.Item
+            name="modelVersionArray"
             label="模型版本"
-            tooltip="按回车键或点击加号添加模型版本"
-            extra={`已添加 ${modelVersions.length} 个版本`}
+            tooltip="每行输入一个模型版本号"
           >
-            <Space wrap style={{ width: '100%', marginBottom: '8px' }}>
-              {modelVersions.map((version) => (
-                <Tag
-                  key={version}
-                  closable
-                  onClose={() => handleRemoveVersion(version)}
-                  color="blue"
-                  style={{ fontSize: '14px', padding: '4px 10px' }}
-                  icon={<CloseOutlined style={{ fontSize: '12px' }} />}
-                >
-                  {version}
-                </Tag>
-              ))}
-            </Space>
-            <AntInput.Group compact>
-              <Input
-                style={{ width: 'calc(100% - 100px)' }}
-                placeholder="输入模型版本号，按回车添加"
-                value={versionInput}
-                onChange={(e) => setVersionInput(e.target.value)}
-                onKeyPress={handleVersionKeyPress}
-              />
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddVersion}
-                style={{ width: '100px' }}
-              >
-                添加
-              </Button>
-            </AntInput.Group>
+            <Input.TextArea 
+              rows={4} 
+              placeholder="每行一个模型版本号，例如：&#10;gpt-3.5-turbo&#10;gpt-4"
+            />
           </Form.Item>
           
           <Form.Item
             name="sortOrder"
             label="排序顺序"
-            tooltip="数字越小越靠前"
             initialValue={0}
           >
             <InputNumber min={0} style={{ width: '100%' }} />
@@ -487,9 +401,8 @@ const ChatModelConfig: React.FC = () => {
             label="是否启用"
             valuePropName="checked"
             initialValue={true}
-            extra="禁用后该模型平台将不可用"
           >
-            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+            <Switch />
           </Form.Item>
         </Form>
       </Modal>
@@ -497,4 +410,4 @@ const ChatModelConfig: React.FC = () => {
   );
 };
 
-export default ChatModelConfig;
+export default ModelPlatformConfig;
