@@ -6,9 +6,13 @@ import com.aaa.easyagent.biz.agent.data.AgentFinish;
 import com.aaa.easyagent.biz.agent.data.AgentOutput;
 import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
 import com.aaa.easyagent.biz.agent.parser.OutputParserException;
+import com.aaa.easyagent.common.config.exception.AgentToolException;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
+import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -16,9 +20,7 @@ import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -52,50 +54,46 @@ import java.util.concurrent.CountDownLatch;
 public class ReActAgentXmlExecutor extends BaseReActAgent {
 
     protected static final String DefaultTemplate = """
-            Answer the following questions as best you can. 
-            Remember not to fabricate tool execution results without execution tools.
-            You have access to the following tools: {tools}
+             ## 任务指令
+             请尽最大可能回答以下问题。请记住，在没有执行工具的情况下，不得编造工具执行的结果。
+             你可以使用以下工具：{tools}
             
-            Use the following XML format:
-            If the tool execution result is not obtained, <Final Answer> and <Thought> should not appear
-                Question: the input question you must answer
-                <Thought> you should always think about what to do </Thought>
-                <Action> the action to take, should be one of [{tool_names}] </Action>
-                <Action Input> the input to the action </Action Input>
-                Observation: the result of the action (Do not guess the answer,If there is no result, return empty)
-                ... (this <Thought>/<Action>/<Action Input>/Observation can repeat N times)
-                <Thought> I now know the final answer (If you don't know the answer, don't show it) </Thought>
-                <Final Answer> the final answer to the original input question (If there are no results, there is no need to show them) </Final Answer>
+             ## 响应格式要求
+             请严格按照以下 XML 格式进行回答：
+             如果尚未获取工具执行结果，则响应中不应包含 <Final Answer> 和 <Thought> 标签。
+             允许重复 <Thought> / <Action> / <Action Input> / Observation 这一流程多次。
             
+             <Question> 你需要回答的输入问题 </Question>
+             <Thought> 你应该始终思考接下来该做什么 </Thought>
+             <Action> 要执行的操作，必须是 [{tool_names}] 中的一个 </Action>
+             <Action Input> 操作的输入参数（需严格依据输入类型的描述进行分析并提供） </Action Input>
+             Observation: 操作执行的结果（请勿猜测答案。如无结果，则返回空）
+             ...（上述 <Thought>/<Action>/<Action Input>/Observation 步骤可重复 N 次）
+             <Thought> 我现在知道了最终答案（如果不知道答案，请不要展示此项） </Thought>
+             <Final Answer> 对原始输入问题的最终回答（如果没有可展示的结果，则无需展示此项） </Final Answer>
             
-            During the process of answering questions, you need to follow the rules below:
-                1. The "<Action>" tag should only contain the name of the tool used, without any other characters.
-                2. Do not guess the answer, if you need to use an Action, wait for the user to provide the results of the Action as the next step's Observation. And do not provide the subsequent <Thought> and <Final Answer>.
-                3. <Action Input> must Analyze based on the description in the input type schema
-                4. If you need more information, use the query_knowledge_base tool.
-                5. If the result is insufficient, consider using another tool or querying the knowledge base again.
-                6. Once you have all necessary information, provide a final answer.
-                7. 关于查询当前时间的问题要调用工具拿到结果再回答
-                8. 当调用工具后得到结果后，返回结果中不用出现 Use the following format 里面的 [<Action> / <Action Input>]，防止干扰再次调用工具
-                9. Always use XML-like tags to structure your response: <Thought>, <Action>, <Action Input>, <Final Answer>
+             ## 回答过程必须遵守的规则
+             1. <Action> 标签内只能包含工具名称，不得有任何其他字符。
+             2. 请勿猜测答案。如需执行 Action，请等待用户将执行结果作为下一步的 Observation 提供给你，并且不要在本次响应中提供后续的 <Thought> 和 <Final Answer>。
+             3. <Action Input> 必须基于输入类型的描述进行分析后再提供。
+             4. 如需更多信息，请使用 query_knowledge_base 工具。
+             5. 如果结果不足，请考虑使用其他工具或再次查询知识库。
+             6. 一旦获得所有必要信息，请提供最终答案。
+             7. 关于查询当前时间的问题，必须调用工具获取结果后再回答。
+             8. 调用工具并得到结果后，在返回的结果中不得出现格式要求中的 <Action> 和 <Action Input> 标签，以防干扰再次调用工具。
+             9. 始终使用类似 XML 的标签来构建你的响应：<Thought>、<Action>、<Action Input>、<Final Answer>。
             
-            Use the following format for your response:
-              不要自己直接回答，要借用工具来回答
-                1. 总结用户的问题:
-                   [提供问题的简要概述]
+             ## 响应前的分析与规划框架
+             请在组织最终回答前，按以下框架进行内部思考（此部分无需在最终响应中展示，但用于指导你的回答逻辑）：
             
-                2. 所需关键信息:
-                   - [列出回答问题所需的主要信息]
+             总结用户的问题：
+             [在此处提供问题的简要概述]
+             [列出回答问题所需的主要信息]
+             [列出可能有帮助的工具，并解释其原因]
+             [如需使用多个工具，请概述计划使用的顺序]
+             [注意与所访问工具或数据相关的任何潜在隐私或安全问题]
             
-                3. 潜在有用的工具:
-                   - [列出可能有帮助的工具，并解释其原因]
-            
-                4. 计划中的工具使用顺序:
-                   [如果需要使用多个工具，请概述您计划使用它们的顺序]
-            
-                5. 数据隐私与安全考虑:
-                   注意与所访问工具或数据相关的任何潜在隐私或安全问题]
-            Begin!
+             开始！
             """;
 
     public static final PromptTemplate reactSystemPromptTemplate = new PromptTemplate(DefaultTemplate);
@@ -182,14 +180,14 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
             }
         } else {
             ChatResponse chatResponse = chatModel.call(prompt);
-            // 添加助手执行记忆
-            addAssistantMessage(prompt, chatResponse);
             // 结果
             resStr.append(ChatResponseUtil.getResStr(chatResponse));
             // 思考过程
             reasoningContent.append(ChatResponseUtil.getReasoningContent(chatResponse));
         }
 
+        // 添加助手执行记忆
+        addAssistantMessage(prompt, resStr.toString());
 
         // 使用XML格式解析Action入参或者解析成功
         AgentOutput agentOutput = parseXmlResponse(resStr.toString());
@@ -276,8 +274,69 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
         return "";
     }
 
+    protected void toolExecute(FunctionUseAction functionUseAction) {
+        FunctionCallback functionToolCallback = callbackMap.get(functionUseAction.getAction());
+        if (functionToolCallback == null) {
+            throw new AgentToolException("无法匹配 toolFunction");
+        }
+        String callToolResult = functionToolCallback.call(functionUseAction.getActionInput());
+
+
+        if (ModelTypeEnum.deepseek == this.agentContext.getModelType()) {
+            UserMessage userMessage = new UserMessage("Observation：" + callToolResult,
+                    new ArrayList<>());
+            messages.add(userMessage);
+
+            // 所有工具结果用 role: "user" 返回，格式为 Observation: 结果
+            /*
+             * deepseek： Messages with role 'tool' must be a response to a preceding message with 'tool_calls
+             * 你当前的设计其实是 ReAct 模式的工具调用（用 XML 标签控制流程），但混合了 OpenAI 的 tool calling 格式，导致冲突。
+             * deepseek 这里不能是tool
+             */
+        } else {
+            // 添加工具执行结果记忆
+            List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>();
+            responses.add(new ToolResponseMessage.ToolResponse(
+                    UUID.randomUUID().toString(),
+                    functionUseAction.getAction(),
+                    callToolResult));
+            ToolResponseMessage toolResponseMessage = new ToolResponseMessage(responses);
+            messages.add(toolResponseMessage);
+        }
+
+
+    }
+
     /**
      * react 执行模式：  思考/行动/观察...思考/行动/观察
+     *
+     * <pre>
+     *     [
+     *     // 第1轮：用户提问
+     *     {
+     *         "role": "user",
+     *         "content": "直接查询当前时间"
+     *     },
+     *
+     *     // 第2轮：模型要求调用工具
+     *     {
+     *         "role": "assistant",
+     *         "content": "<Thought>需要查询当前时间</Thought>\n<Action>HTTP请求</Action>\n<Action Input>{}</Action Input>"
+     *     },
+     *
+     *     // 第3轮：系统返回工具结果（用 user！）
+     *     {
+     *         "role": "user",
+     *         "content": "Observation: Sun Mar 08 01:30:02 CST 2026"
+     *     },
+     *
+     *     // 第4轮：模型给出最终答案
+     *     {
+     *         "role": "assistant",
+     *         "content": "<Thought>已获取到时间</Thought>\n<Final Answer>当前时间是 Sun Mar 08 01:30:02 CST 2026</Final Answer>"
+     *     }
+     * ]
+     * </pre>
      *
      * @return
      */

@@ -33,7 +33,7 @@ export const eaToolApi = {
 
   /**
    * 根据 Agent ID 获取工具配置列表
-   * @param agentId Agent标识
+   * @param agentId Agent 标识
    * @returns 工具配置结果列表
    */
   getToolConfigByAgentId: async (agentId: number | string): Promise<BaseResult> => {
@@ -42,6 +42,17 @@ export const eaToolApi = {
       // headers: {
       //   'Content-Type': 'application/json',
       // },
+    });
+    return response.json();
+  },
+  
+  /**
+   * 获取所有工具配置列表（不限制 Agent）
+   * @returns 工具配置结果列表
+   */
+  getAllTools: async (): Promise<BaseResult> => {
+    const response = await fetch(`${API_BASE_URL}/eaAgent/tool/getAllTools`, {
+      method: 'GET',
     });
     return response.json();
   },

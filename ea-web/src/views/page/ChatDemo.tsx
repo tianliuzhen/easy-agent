@@ -387,13 +387,13 @@ const ChatDemo: React.FC = () => {
         <div style={{
             display: 'flex',
             height: '100vh',
-            background: '#e1ecf7',
+            background: 'var(--ea-theme-background)',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         }}>
             {/* 左侧聊天历史栏 */}
             <div style={{
                 width: '300px',
-                background: '#e1ecf7',
+                background: 'var(--ea-theme-background)',
                 borderRight: '1px solid #d9e6f2',
                 display: 'flex',
                 flexDirection: 'column',
@@ -502,7 +502,7 @@ const ChatDemo: React.FC = () => {
                                 marginBottom: '12px',
                                 background: selectedChatIndex === index
                                     ? 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)'
-                                    : '#e1ecf7',
+                                    : 'var(--ea-theme-background)',
                                 border: selectedChatIndex === index
                                     ? '1px solid #5c74a8'
                                     : '1px solid #d9e6f2',
@@ -520,7 +520,7 @@ const ChatDemo: React.FC = () => {
                             }}
                             onMouseLeave={(e) => {
                                 if (selectedChatIndex !== index) {
-                                    e.currentTarget.style.background = '#e1ecf7';
+                                    e.currentTarget.style.background = 'var(--ea-theme-background)';
                                     e.currentTarget.style.borderColor = '#d9e6f2';
                                 }
                             }}
@@ -703,7 +703,7 @@ const ChatDemo: React.FC = () => {
                                                 {/* 消息气泡 */}
                                                 <div
                                                     style={{
-                                                        backgroundColor: msg.isUser ? '#e1ecf7' : '#e1ecf7',
+                                                        backgroundColor: msg.isUser ? 'var(--ea-theme-background)' : 'var(--ea-theme-background)',
                                                         color: '#000000',
                                                         padding: '16px 20px',
                                                         borderRadius: '18px',
@@ -749,7 +749,7 @@ const ChatDemo: React.FC = () => {
                                                                     position: 'absolute',
                                                                     top: '-10px',
                                                                     right: '-10px',
-                                                                    background: '#e1ecf7',
+                                                                    background: 'var(--ea-theme-background)',
                                                                     border: '1px solid #91caff',
                                                                     borderRadius: '16px',
                                                                     padding: '4px 8px',
@@ -804,7 +804,7 @@ const ChatDemo: React.FC = () => {
                                             }}>
                                                 <div
                                                     style={{
-                                                        background: '#e1ecf7',
+                                                        background: 'var(--ea-theme-background)',
                                                         borderRadius: '12px',
                                                         padding: '12px 16px',
                                                         border: '1px solid #91caff',
@@ -826,7 +826,7 @@ const ChatDemo: React.FC = () => {
                                                             <span>🤔 AI思考过程</span>
                                                             <span style={{
                                                                 fontSize: '11px',
-                                                                backgroundColor: '#e1ecf7',
+                                                                backgroundColor: 'var(--ea-theme-background)',
                                                                 padding: '2px 8px',
                                                                 borderRadius: '10px'
                                                             }}>
@@ -908,7 +908,7 @@ const ChatDemo: React.FC = () => {
                                                                 <EyeInvisibleOutlined/> : <EyeOutlined/>}
                                                             onClick={() => toggleThinkingLog(currentAnsweringMsgIdRef.current!)}
                                                             style={{
-                                                                background: '#e1ecf7',
+                                                                background: 'var(--ea-theme-background)',
                                                                 border: '1px solid #91caff',
                                                                 borderRadius: '16px',
                                                                 padding: '4px 12px',
@@ -942,7 +942,7 @@ const ChatDemo: React.FC = () => {
                                         }}>
                                             <div
                                                 style={{
-                                                    background: '#e1ecf7',
+                                                    background: 'var(--ea-theme-background)',
                                                     borderRadius: '12px',
                                                     padding: '12px 16px',
                                                     border: '1px solid #ffd591',
@@ -1000,7 +1000,7 @@ const ChatDemo: React.FC = () => {
                 {/* 错误提示 */}
                 {error && (
                     <div style={{
-                        background: '#e1ecf7',
+                        background: 'var(--ea-theme-background)',
                         color: '#ff4d4f',
                         padding: '12px 32px',
                         fontSize: '14px',
@@ -1039,7 +1039,7 @@ const ChatDemo: React.FC = () => {
                                 fontSize: '14px',
                                 padding: '14px 20px',
                                 resize: 'vertical',
-                                background: '#e1ecf7',
+                                background: 'var(--ea-theme-background)',
                                 transition: 'all 0.3s ease',
                                 minHeight: '60px',
                                 height: '60px'

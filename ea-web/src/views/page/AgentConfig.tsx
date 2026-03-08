@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { App, Layout, Menu, Typography, Breadcrumb, Button, Space, Tag, Popconfirm, ConfigProvider, Input, Modal, Tooltip, Tabs } from 'antd';
+import { App, Layout, Menu, Typography, Breadcrumb, Button, Space, Tag, Popconfirm, ConfigProvider, Input, Modal, Tooltip, Tabs, Select } from 'antd';
 import { 
   DatabaseOutlined, 
   ApiOutlined, 
@@ -168,6 +168,11 @@ const AgentConfig: React.FC = () => {
   const [selectedTool, setSelectedTool] = useState<string>('');
   const [availableTools, setAvailableTools] = useState<{ key: string; label: string; icon: React.ReactNode; disabled?: boolean }[]>([]);
   const [toolConfigs, setToolConfigs] = useState<any[]>([]);
+  
+  // 添加工具导入功能
+  const [isImportModalVisible, setIsImportModalVisible] = useState(false);
+  const [availableExternalTools, setAvailableExternalTools] = useState<any[]>([]);
+  const [selectedExternalTool, setSelectedExternalTool] = useState<string>('');
   
   // 获取agent的工具配置（用于设置toolConfigs和availableTools状态）
   const loadToolConfigs = () => {
@@ -371,6 +376,62 @@ const AgentConfig: React.FC = () => {
       default:
         break;
     }
+  };
+
+  // 显示导入工具对话框
+  const showImportToolModal = () => {
+    // 加载所有外部工具（从 agentId=0 获取默认工具）
+    eaToolApi.getToolConfigByAgentId(0)
+      .then((result) => {
+        if (result && (result.code === 200 || result.success === true)) {
+          const tools = result.data || [];
+          // 过滤掉已经在当前 agent 中使用的工具
+          const usedToolIds = toolConfigs.map((c: any) => c.id);
+          const availableTools = tools.filter((tool: any) => !usedToolIds.includes(tool.id));
+          setAvailableExternalTools(availableTools);
+          setIsImportModalVisible(true);
+        }
+      })
+      .catch((error) => {
+        console.error('加载外部工具失败:', error);
+      });
+  };
+  
+  // 处理工具导入
+  const handleImportTool = () => {
+    if (!selectedExternalTool) {
+      app.message.warning('请选择要导入的工具');
+      return;
+    }
+    
+    const toolToImport = availableExternalTools.find((tool: any) => tool.id === parseInt(selectedExternalTool));
+    if (!toolToImport) {
+      app.message.error('未找到选中的工具');
+      return;
+    }
+    
+    // 创建新的工具配置，关联到当前 agent
+    const newToolConfig = {
+      ...toolToImport,
+      id: undefined, // 删除 ID，创建新记录
+      agentId: parseInt(agentId || '0'),
+    };
+    
+    eaToolApi.addTool(newToolConfig)
+      .then((result) => {
+        if (result && (result.code === 200 || result.success === true)) {
+          app.message.success('工具导入成功');
+          setIsImportModalVisible(false);
+          setSelectedExternalTool('');
+          loadToolConfigs();
+        } else {
+          app.message.error(result?.message || '工具导入失败');
+        }
+      })
+      .catch((error) => {
+        console.error('导入工具失败:', error);
+        app.message.error('导入工具失败');
+      });
   };
 
   // 删除工具处理函数
@@ -824,22 +885,22 @@ const AgentConfig: React.FC = () => {
       </Sider>
       
       <Content style={{ padding: '24px', minHeight: 280 }}>
-        {/* 顶部工具按钮行 - 用于添加新工具 */}
-        <div style={{ marginBottom: '24px' }}>
+        {/* 顶部工具按钮行 - 用于添加新工具和导入工具 */}
+        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space size="middle">
             <Button
               type="default"
               icon={<AnimatedDatabaseIcon isActive={false} />}
               onClick={() => handleTopButtonClick('SQL')}
             >
-              添加SQL执行器
+              添加 SQL 执行器
             </Button>
             <Button
               type="default"
               icon={<AnimatedApiIcon isActive={false} />}
               onClick={() => handleTopButtonClick('HTTP')}
             >
-              添加HTTP请求
+              添加 HTTP 请求
             </Button>
             <Button
               type="default"
@@ -847,7 +908,7 @@ const AgentConfig: React.FC = () => {
               onClick={() => handleTopButtonClick('MCP')}
               disabled
             >
-              添加MCP服务器
+              添加 MCP 服务器
             </Button>
             <Button
               type="default"
@@ -855,9 +916,17 @@ const AgentConfig: React.FC = () => {
               onClick={() => handleTopButtonClick('GRPC')}
               disabled
             >
-              添加gRPC工具
+              添加 gRPC 工具
             </Button>
           </Space>
+                  
+          <Button
+            type="primary"
+            icon={<DatabaseOutlined />}
+            onClick={showImportToolModal}
+          >
+            导入工具
+          </Button>
         </div>
         {renderToolConfig()}
       </Content>
@@ -958,6 +1027,32 @@ const AgentConfig: React.FC = () => {
             />
           </div>
         </Layout>
+        
+        {/* 导入工具对话框 */}
+        <Modal
+          title="导入工具"
+          open={isImportModalVisible}
+          onOk={handleImportTool}
+          onCancel={() => {
+            setIsImportModalVisible(false);
+            setSelectedExternalTool('');
+          }}
+          width={600}
+        >
+          <div style={{ marginBottom: '16px' }}>
+            <p>从默认工具库中选择要导入的工具：</p>
+            <Select
+              placeholder="请选择工具"
+              value={selectedExternalTool}
+              onChange={(value) => setSelectedExternalTool(value)}
+              style={{ width: '100%', marginTop: '8px' }}
+              options={availableExternalTools.map((tool: any) => ({
+                label: `${tool.toolInstanceName || tool.toolType} (ID: ${tool.id})`,
+                value: String(tool.id),
+              }))}
+            />
+          </div>
+        </Modal>
       </App>
     </ConfigProvider>
   );

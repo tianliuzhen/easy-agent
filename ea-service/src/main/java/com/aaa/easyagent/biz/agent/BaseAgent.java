@@ -174,7 +174,7 @@ public abstract class BaseAgent {
     protected void toolExecute(FunctionUseAction functionUseAction) {
         FunctionCallback functionToolCallback = callbackMap.get(functionUseAction.getAction());
         if (functionToolCallback == null) {
-            throw new AgentToolException("无法匹配toolFunction");
+            throw new AgentToolException("无法匹配 toolFunction");
         }
         String callToolResult = functionToolCallback.call(functionUseAction.getActionInput());
 
@@ -185,6 +185,12 @@ public abstract class BaseAgent {
                 functionUseAction.getAction(),
                 callToolResult));
         ToolResponseMessage toolResponseMessage = new ToolResponseMessage(responses);
+
+        /*
+         * deepseek： Messages with role 'tool' must be a response to a preceding message with 'tool_calls
+         * 你当前的设计其实是 ReAct 模式的工具调用（用 XML 标签控制流程），但混合了 OpenAI 的 tool calling 格式，导致冲突。
+         * deepseek 这里不能是tool
+         */
         messages.add(toolResponseMessage);
     }
 
@@ -229,6 +235,11 @@ public abstract class BaseAgent {
 
     protected void addAssistantMessage(Prompt prompt, ChatResponse chatResponse) {
         AssistantMessage toolResponseMessage = new AssistantMessage(ChatResponseUtil.getResStr(chatResponse));
+        prompt.getInstructions().add(toolResponseMessage);
+    }
+
+    protected void addAssistantMessage(Prompt prompt, String chatResponse) {
+        AssistantMessage toolResponseMessage = new AssistantMessage(chatResponse);
         prompt.getInstructions().add(toolResponseMessage);
     }
 

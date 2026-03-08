@@ -8,6 +8,7 @@ import SQLConfig from './views/page/agent/tool/SQLConfig';
 import HTTPConfig from './views/page/agent/tool/HTTPConfig';
 import MCPConfig from './views/page/agent/tool/MCPConfig';
 import GRPCConfig from './views/page/agent/tool/GRPCConfig';
+import ToolManager from './views/page/ToolManager';
 import {App as AntdApp, Button, ConfigProvider, Flex} from 'antd';
 
 function App() {

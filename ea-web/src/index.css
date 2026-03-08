@@ -1,5 +1,16 @@
+/* 主题色变量定义 */
+:root {
+    --ea-theme-background: #e1ecf7;
+    --ea-theme-primary: #1890ff;
+}
+
+/* 全局背景色 */
+body {
+    background-color: var(--ea-theme-background);
+}
+
 /* 覆盖 Sider 折叠按钮背景色 */
 .ant-layout-sider-trigger {
-    background: #e1ecf7 !important;
+    background: var(--ea-theme-background) !important;
     color: #000 !important;
 }
