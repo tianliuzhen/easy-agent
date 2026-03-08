@@ -1,5 +1,12 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {sendMessage} from '..//api/ChatApi';
+import {
+    listConversationsByUserId,
+    startNewConversation,
+    updateConversation,
+    deleteConversation,
+    getFullChatHistory
+} from '..//api/ChatConversationApi';
 import {useLocation} from 'react-router-dom';
 import {
     SendOutlined,
@@ -38,6 +45,25 @@ interface ThinkingLogState {
     }
 }
 
+// 聊天会话数据结构
+interface ChatConversation {
+    id: number;
+    title: string;
+    agentId: number;
+    userId: string;
+    messageCount: number;
+    lastMessageTime: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+    agentName?: string;
+    agentAvatar?: string;
+    lastMessagePreview?: string;
+}
+
+// 当前登录用户 ID（暂时固定为 1，后续集成登录功能后再改为动态获取）
+const CURRENT_USER_ID = '1';
+
 const ChatDemo: React.FC = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [thinkingLog, setThinkingLog] = useState<string>('');
@@ -54,6 +80,10 @@ const ChatDemo: React.FC = () => {
     const [messageThinkingLogs, setMessageThinkingLogs] = useState<ThinkingLogState>({});
     const [selectedChatIndex, setSelectedChatIndex] = useState(0);
     const [chatHistory, setChatHistory] = useState<ChatMessage[][]>([[]]);
+    // 新增：会话列表状态
+    const [conversations, setConversations] = useState<ChatConversation[]>([]);
+    const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         chatMessagesEndRef.current?.scrollIntoView({behavior: 'smooth'});
@@ -95,7 +125,65 @@ const ChatDemo: React.FC = () => {
     useEffect(() => {
         const newUuid = crypto.randomUUID();
         setUuid(newUuid);
+        
+        // 加载用户的会话列表
+        loadConversations();
     }, []);
+
+    // 加载会话列表
+    const loadConversations = async () => {
+        try {
+            setLoading(true);
+            // 从路由参数获取 agentId
+            const urlParams = new URLSearchParams(location.search);
+            const agentId = urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : undefined;
+            
+            const conversationList = await listConversationsByUserId(CURRENT_USER_ID, agentId, 'active');
+            setConversations(conversationList);
+            
+            // 如果有会话，选中最后一个会话，但不加载其聊天记录
+            if (conversationList.length > 0) {
+                const lastConversation = conversationList[conversationList.length - 1];
+                setCurrentConversationId(lastConversation.id);
+                setSelectedChatIndex(conversationList.length - 1);
+                // 注释掉自动加载聊天记录的逻辑，只在用户点击时加载
+                // await loadConversation(lastConversation.id);
+            }
+        } catch (error) {
+            console.error('加载会话列表失败:', error);
+            message.error('加载会话列表失败');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 加载指定会话的聊天记录
+    const loadConversation = async (conversationId: number) => {
+        try {
+            const chatHistory = await getFullChatHistory(conversationId);
+            
+            // 将后端返回的聊天记录转换为前端格式
+            const convertedMessages: ChatMessage[] = chatHistory.map((msg: any) => ({
+                text: msg.content || '',
+                isUser: msg.messageType?.includes('user') || false,
+                type: 'data',
+                id: msg.id?.toString() || crypto.randomUUID(),
+                timestamp: new Date(msg.createdAt).getTime()
+            }));
+            
+            setMessages(convertedMessages);
+            setCurrentConversationId(conversationId);
+            
+            // 更新选中状态
+            const index = conversations.findIndex(c => c.id === conversationId);
+            if (index !== -1) {
+                setSelectedChatIndex(index);
+            }
+        } catch (error) {
+            console.error('加载聊天记录失败:', error);
+            message.error('加载聊天记录失败');
+        }
+    };
 
     const formatTime = (timestamp: number) => {
         return new Date(timestamp).toLocaleTimeString('zh-CN', {
@@ -139,12 +227,32 @@ const ChatDemo: React.FC = () => {
         }
 
         const urlParams = new URLSearchParams(location.search);
-        const agentId = urlParams.get('agentId') || '1'; // 默认agentId为1
+        const agentId = urlParams.get('agentId') || '1'; // 默认 agentId 为 1
+                
+        // 如果没有当前会话，创建一个新的会话
+        let activeConversationId = currentConversationId;
+        if (!activeConversationId) {
+            try {
+                activeConversationId = await startNewConversation(
+                    parseInt(agentId),
+                    CURRENT_USER_ID,
+                    input.substring(0, 50) // 用第一个问题前 50 个字符作为标题
+                );
+                setCurrentConversationId(activeConversationId);
+                // 刷新会话列表
+                await loadConversations();
+            } catch (error) {
+                console.error('创建会话失败:', error);
+                setError('创建会话失败：' + (error as Error).message);
+                setIsThinking(false);
+                return;
+            }
+        }
 
         const eventSource = sendMessage(
             input,
-            uuid,
-            agentId, // 传递agentId参数
+            activeConversationId.toString(), // 使用会话 ID
+            agentId, // 传递 agentId 参数
             (log: string) => {
                 // 处理 log 类型数据 - 添加到思考过程
                 console.log('Received log:', log); // 调试日志
@@ -234,6 +342,18 @@ const ChatDemo: React.FC = () => {
             () => {
                 setIsThinking(false);
                 currentAnsweringMsgIdRef.current = null;
+                
+                // 消息发送成功后，更新会话的最后消息时间和消息数量
+                if (activeConversationId) {
+                    updateConversation({
+                        id: activeConversationId,
+                        lastMessageTime: new Date().toISOString(),
+                        messageCount: messages.length + 2 // 用户消息 + AI 消息
+                    }).catch(err => console.error('更新会话失败:', err));
+                    
+                    // 刷新会话列表以显示最新状态
+                    loadConversations().catch(err => console.error('刷新会话列表失败:', err));
+                }
             },
             (errorMessage: string) => {
                 const currentAiMessageId = currentAnsweringMsgIdRef.current;
@@ -280,34 +400,71 @@ const ChatDemo: React.FC = () => {
         });
     };
 
-    const startNewChat = () => {
-        setChatHistory(prev => [...prev, []]);
-        setSelectedChatIndex(chatHistory.length);
-        setMessages([]);
+    const startNewChat = async () => {
+        try {
+            // 先创建一个新会话
+            const newConversationId = await startNewConversation(
+                1, // 默认 Agent ID 为 1，可以从路由参数获取
+                CURRENT_USER_ID,
+                '新对话'
+            );
+            
+            // 刷新会话列表
+            await loadConversations();
+            
+            // 选中新创建的会话
+            const newIndex = conversations.length; // 因为刚刷新，所以是 length
+            setSelectedChatIndex(newIndex);
+            setMessages([]);
+            setCurrentConversationId(newConversationId);
+        } catch (error) {
+            console.error('创建新会话失败:', error);
+            message.error('创建新会话失败');
+        }
     };
 
-    const deleteChat = (index: number) => {
-        if (chatHistory.length <= 1) return;
-        const newHistory = chatHistory.filter((_, i) => i !== index);
-        setChatHistory(newHistory);
-        setSelectedChatIndex(Math.max(0, index - 1));
-        setMessages(newHistory[Math.max(0, index - 1)] || []);
+    const deleteChat = async (index: number) => {
+        if (conversations.length <= 1) return;
+        
+        try {
+            const conversationToDelete = conversations[index];
+            await deleteConversation(conversationToDelete.id);
+            
+            // 刷新会话列表
+            await loadConversations();
+            
+            // 如果删除的是当前会话，切换到第一个会话
+            if (conversationToDelete.id === currentConversationId) {
+                if (conversations.length > 1) {
+                    const newConversations = conversations.filter((_, i) => i !== index);
+                    if (newConversations.length > 0) {
+                        await loadConversation(newConversations[0].id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('删除会话失败:', error);
+            message.error('删除会话失败');
+        }
     };
 
     const selectChat = (index: number) => {
-        setSelectedChatIndex(index);
-        setMessages(chatHistory[index] || []);
+        const conversation = conversations[index];
+        if (conversation) {
+            setSelectedChatIndex(index);
+            loadConversation(conversation.id);
+        }
     };
 
-    const getChatPreview = (chat: ChatMessage[], fullText = false) => {
-        const lastMessage = chat[chat.length - 1];
-        if (!lastMessage) return '新对话';
-
+    const getChatPreview = (conversation: ChatConversation | null, fullText = false) => {
+        if (!conversation) return '新对话';
+        
         if (fullText) {
-            return lastMessage.text;
+            return conversation.title || '新对话';
         }
-
-        return lastMessage.text.substring(0, 30) + (lastMessage.text.length > 30 ? '...' : '');
+        
+        const title = conversation.title || '新对话';
+        return title.substring(0, 30) + (title.length > 30 ? '...' : '');
     };
 
     // 渲染思考内容，区分不同类型
@@ -494,85 +651,106 @@ const ChatDemo: React.FC = () => {
                         </div>
                     </Tooltip>
 
-                    {chatHistory.map((chat, index) => (
+                    {loading ? (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '20px',
+                            color: '#999'
+                        }}>
+                            <Spin size="small" /> 加载会话中...
+                        </div>
+                    ) : conversations.length === 0 ? (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '40px 20px',
+                            color: '#999'
+                        }}>
+                            <MessageOutlined style={{fontSize: '48px', marginBottom: '16px', opacity: 0.3}} />
+                            <div style={{fontSize: '14px'}}>暂无会话记录</div>
+                        </div>
+                    ) : conversations.map((conversation, index) => (
                         <Card
-                            key={index}
+                            key={conversation.id}
                             onClick={() => selectChat(index)}
                             style={{
                                 marginBottom: '12px',
-                                background: selectedChatIndex === index
+                                background: currentConversationId === conversation.id
                                     ? 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)'
                                     : 'var(--ea-theme-background)',
-                                border: selectedChatIndex === index
+                                border: currentConversationId === conversation.id
                                     ? '1px solid #5c74a8'
                                     : '1px solid #d9e6f2',
                                 borderRadius: '12px',
                                 cursor: 'pointer',
                                 transition: 'all 0.3s ease',
-                                color: selectedChatIndex === index ? 'white' : '#333',
+                                color: currentConversationId === conversation.id ? 'white' : '#333',
                                 overflow: 'hidden'
                             }}
                             onMouseEnter={(e) => {
-                                if (selectedChatIndex !== index) {
+                                if (currentConversationId !== conversation.id) {
                                     e.currentTarget.style.background = '#d1e4f4';
                                     e.currentTarget.style.borderColor = '#c2d6ee';
                                 }
                             }}
                             onMouseLeave={(e) => {
-                                if (selectedChatIndex !== index) {
+                                if (currentConversationId !== conversation.id) {
                                     e.currentTarget.style.background = 'var(--ea-theme-background)';
                                     e.currentTarget.style.borderColor = '#d9e6f2';
                                 }
                             }}
-                            bodyStyle={{
-                                padding: '12px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between'
+                            styles={{
+                                body: {
+                                    padding: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between'
+                                }
                             }}
                         >
                             <div style={{display: 'flex', alignItems: 'center', flex: 1}}>
                                 <div style={{flex: 1, minWidth: 0}}>
-                                    <Tooltip title={getChatPreview(chat, true)}>
+                                    <Tooltip title={getChatPreview(conversation, true)}>
                                         <div style={{
                                             fontSize: '14px',
-                                            color: selectedChatIndex === index ? 'white' : '#333',
+                                            color: currentConversationId === conversation.id ? 'white' : '#333',
                                             marginBottom: '4px',
                                             overflow: 'hidden',
                                             textOverflow: 'ellipsis',
                                             whiteSpace: 'nowrap',
                                             maxWidth: '100%'
                                         }}>
-                                            {getChatPreview(chat)}
+                                            {getChatPreview(conversation)}
                                         </div>
                                     </Tooltip>
                                     <div style={{
                                         fontSize: '11px',
-                                        color: selectedChatIndex === index ? 'rgba(255, 255, 255, 0.8)' : '#999',
+                                        color: currentConversationId === conversation.id ? 'rgba(255, 255, 255, 0.8)' : '#999',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '4px'
                                     }}>
                                         <ClockCircleOutlined/>
-                                        {chat.length > 0 ? formatTime(chat[chat.length - 1].timestamp) : '--:--'}
+                                        {conversation.lastMessageTime ? formatTime(new Date(conversation.lastMessageTime).getTime()) : '--:--'}
                                     </div>
                                 </div>
                             </div>
 
-                            {chatHistory.length > 1 && (
+                            {conversations.length > 1 && (
                                 <Tooltip title="删除对话">
                                     <Button
                                         type="text"
                                         icon={<DeleteOutlined style={{
-                                            color: selectedChatIndex === index ? 'rgba(255, 255, 255, 0.7)' : '#999'
-                                        }}/>}
+                                            color: currentConversationId === conversation.id ? 'rgba(255, 255, 255, 0.7)' : '#999'
+                                        }} />}
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             deleteChat(index);
                                         }}
                                         style={{
                                             marginLeft: '8px',
-                                            color: selectedChatIndex === index ? 'white' : '#999'
+                                            color: currentConversationId === conversation.id ? 'white' : '#999'
                                         }}
                                     />
                                 </Tooltip>

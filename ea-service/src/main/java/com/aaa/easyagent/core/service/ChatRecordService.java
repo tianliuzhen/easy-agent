@@ -1,7 +1,5 @@
 package com.aaa.easyagent.core.service;
 
-import com.aaa.easyagent.core.domain.DO.EaChatConversationDO;
-import com.aaa.easyagent.core.domain.DO.EaChatMessageDO;
 import com.aaa.easyagent.core.domain.request.ChatConversationReq;
 import com.aaa.easyagent.core.domain.request.ChatMessageReq;
 import com.aaa.easyagent.core.domain.result.ChatConversationResult;
@@ -75,7 +73,7 @@ public interface ChatRecordService {
      * @param status 会话状态（可选）
      * @return 会话结果列表
      */
-    List<ChatConversationResult> listConversationsByUserId(String userId, String status);
+    List<ChatConversationResult> listConversationsByUserId(String userId, Long agentId, String status);
 
     // ==================== 消息管理 ====================
 

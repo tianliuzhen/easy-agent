@@ -114,7 +114,7 @@ public class ChatRecordController {
      * 根据Agent ID查询会话列表
      *
      * @param agentId Agent ID
-     * @param status 会话状态（可选）
+     * @param status  会话状态（可选）
      * @return 会话列表
      */
     @GetMapping("/conversation/listByAgent/{agentId}")
@@ -139,9 +139,10 @@ public class ChatRecordController {
     @GetMapping("/conversation/listByUser/{userId}")
     public BaseResult listConversationsByUserId(
             @PathVariable String userId,
+            @RequestParam(required = false) Long agentId,
             @RequestParam(required = false) String status) {
         try {
-            return BaseResult.buildSuc(chatRecordService.listConversationsByUserId(userId, status));
+            return BaseResult.buildSuc(chatRecordService.listConversationsByUserId(userId, agentId, status));
         } catch (Exception e) {
             log.error("查询用户会话列表失败", e);
             return BaseResult.buildFail("查询用户会话列表失败: " + e.getMessage());
@@ -238,8 +239,8 @@ public class ChatRecordController {
     /**
      * 开始新的聊天会话
      *
-     * @param agentId Agent ID
-     * @param userId 用户ID
+     * @param agentId       Agent ID
+     * @param userId        用户ID
      * @param firstQuestion 第一个问题
      * @return 创建的会话ID
      */
@@ -261,13 +262,13 @@ public class ChatRecordController {
      * 保存完整的聊天交互
      *
      * @param conversationId 会话ID
-     * @param userQuestion 用户提问
-     * @param aiAnswer AI回答
-     * @param thinkingLog 思考过程（可选）
-     * @param toolCalls 工具调用信息（可选）
-     * @param modelUsed 使用的模型
-     * @param tokensUsed 消耗的token数
-     * @param responseTime 响应时间（毫秒）
+     * @param userQuestion   用户提问
+     * @param aiAnswer       AI回答
+     * @param thinkingLog    思考过程（可选）
+     * @param toolCalls      工具调用信息（可选）
+     * @param modelUsed      使用的模型
+     * @param tokensUsed     消耗的token数
+     * @param responseTime   响应时间（毫秒）
      * @return 保存的消息ID列表
      */
     @PostMapping("/business/saveChatInteraction")
