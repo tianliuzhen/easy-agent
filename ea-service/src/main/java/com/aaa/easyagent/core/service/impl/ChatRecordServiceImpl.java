@@ -8,6 +8,7 @@ import com.aaa.easyagent.core.domain.request.ChatConversationReq;
 import com.aaa.easyagent.core.domain.request.ChatMessageReq;
 import com.aaa.easyagent.core.domain.result.ChatConversationResult;
 import com.aaa.easyagent.core.domain.result.ChatMessageResult;
+import com.aaa.easyagent.core.domain.result.StartNewConversationResp;
 import com.aaa.easyagent.core.mapper.EaChatConversationDAO;
 import com.aaa.easyagent.core.mapper.EaChatMessageDAO;
 import com.aaa.easyagent.core.service.ChatRecordService;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tk.mybatis.mapper.entity.Example;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -53,12 +55,20 @@ public class ChatRecordServiceImpl implements ChatRecordService {
         req.setCreatedAt(now);
         req.setUpdatedAt(now);
 
+        if (req.getId() != null) {
+            EaChatConversationDO eaChatConversationDO = eaChatConversationDAO.selectByPrimaryKey(req.getId());
+            if (eaChatConversationDO != null) {
+                return eaChatConversationDO.getId();
+            }
+        }
+
+
         // 插入数据库
         int result = eaChatConversationDAO.insertSelective(req);
         if (result > 0) {
             return req.getId();
         }
-        return null;
+        throw new IllegalArgumentException("创建会话失败");
     }
 
     @Override
@@ -156,12 +166,14 @@ public class ChatRecordServiceImpl implements ChatRecordService {
         // 设置创建时间
         req.setCreatedAt(new Date());
 
-        // 插入数据库
-        int result = eaChatMessageDAO.insertSelective(req);
-        if (result > 0) {
+        if (req.getId() != null) {
+            // 插入数据库
+            eaChatMessageDAO.updateByPrimaryKeySelective(req);
+            return req.getId();
+        } else {
+            eaChatMessageDAO.insertSelective(req);
             return req.getId();
         }
-        return null;
     }
 
     @Override
@@ -209,10 +221,9 @@ public class ChatRecordServiceImpl implements ChatRecordService {
         Example example = new Example(EaChatMessageDO.class);
         Example.Criteria criteria = example.createCriteria();
         criteria.andEqualTo("conversationId", conversationId);
-        criteria.andEqualTo("messageType", ChatMessageReq.TYPE_USER_QUESTION);
 
         // 按消息序号正序排列
-        example.orderBy("sequence").asc();
+        example.orderBy("id").asc();
 
         List<EaChatMessageDO> messageDOs = eaChatMessageDAO.selectByExample(example);
         return BeanConvertUtil.beanTo(messageDOs, ChatMessageResult.class);
@@ -223,10 +234,9 @@ public class ChatRecordServiceImpl implements ChatRecordService {
         Example example = new Example(EaChatMessageDO.class);
         Example.Criteria criteria = example.createCriteria();
         criteria.andEqualTo("conversationId", conversationId);
-        criteria.andEqualTo("messageType", ChatMessageReq.TYPE_AI_ANSWER);
 
         // 按消息序号正序排列
-        example.orderBy("sequence").asc();
+        example.orderBy("id").asc();
 
         List<EaChatMessageDO> messageDOs = eaChatMessageDAO.selectByExample(example);
         return BeanConvertUtil.beanTo(messageDOs, ChatMessageResult.class);
@@ -255,13 +265,13 @@ public class ChatRecordServiceImpl implements ChatRecordService {
 
     @Override
     @Transactional
-    public Long startNewConversation(Long agentId, String userId, String firstQuestion) {
+    public StartNewConversationResp startNewConversation(Long agentId, String sessionId, String userId, String firstQuestion) {
         // 创建会话
         ChatConversationReq conversationReq = new ChatConversationReq();
         conversationReq.setAgentId(agentId);
         conversationReq.setUserId(userId);
         conversationReq.setTitle(conversationReq.generateTitleIfEmpty(firstQuestion));
-
+        conversationReq.setId(Long.valueOf(sessionId));
         Long conversationId = createConversation(conversationReq);
 
         if (conversationId != null && firstQuestion != null && !firstQuestion.isEmpty()) {
@@ -269,69 +279,40 @@ public class ChatRecordServiceImpl implements ChatRecordService {
             ChatMessageReq messageReq = ChatMessageReq.createUserQuestion(
                     conversationId, firstQuestion, 1
             );
-            saveMessage(messageReq);
+            Long messageId = saveMessage(messageReq);
+            return new StartNewConversationResp(conversationId, messageId);
         }
 
-        return conversationId;
+        throw new RuntimeException("开启会话创建失败");
     }
+
 
     @Override
     @Transactional
-    public List<Long> saveChatInteraction(Long conversationId, String userQuestion, String aiAnswer,
-                                          String thinkingLog, String toolCalls, String modelUsed,
-                                          Integer tokensUsed, Integer responseTime) {
-        List<Long> messageIds = new ArrayList<>();
-
+    public List<Long> saveChatInteraction(Long conversationId, Long msgId, String question, String aiAnswer,
+                                          String messageContext, String modelUsed,
+                                          Integer tokensUsed, BigDecimal responseTime) {
         // 获取当前消息序号
         int currentCount = countMessagesByConversationId(conversationId);
         int nextSequence = currentCount + 1;
 
-        // 保存用户提问
-        if (userQuestion != null && !userQuestion.isEmpty()) {
-            ChatMessageReq userMessage = ChatMessageReq.createUserQuestion(
-                    conversationId, userQuestion, nextSequence
-            );
-            Long userMessageId = saveMessage(userMessage);
-            if (userMessageId != null) {
-                messageIds.add(userMessageId);
-                nextSequence++;
-            }
-        }
+        // 创建一条完整的消息记录（包含问题和回答）
+        ChatMessageReq messageReq = ChatMessageReq.createFullAiAnswer(
+                conversationId, msgId,
+                question,
+                aiAnswer,
+                messageContext,
+                nextSequence,
+                modelUsed,
+                tokensUsed,
+                responseTime
+        );
 
-        // 保存思考过程（如果有）
-        if (thinkingLog != null && !thinkingLog.isEmpty()) {
-            ChatMessageReq thinkingMessage = ChatMessageReq.createSystemThinking(
-                    conversationId, thinkingLog, nextSequence
-            );
-            Long thinkingMessageId = saveMessage(thinkingMessage);
-            if (thinkingMessageId != null) {
-                messageIds.add(thinkingMessageId);
-                nextSequence++;
-            }
-        }
-
-        // 保存工具调用（如果有）
-        if (toolCalls != null && !toolCalls.isEmpty()) {
-            ChatMessageReq toolCallMessage = ChatMessageReq.createSystemToolCall(
-                    conversationId, toolCalls, nextSequence
-            );
-            Long toolCallMessageId = saveMessage(toolCallMessage);
-            if (toolCallMessageId != null) {
-                messageIds.add(toolCallMessageId);
-                nextSequence++;
-            }
-        }
-
-        // 保存AI回答
-        if (aiAnswer != null && !aiAnswer.isEmpty()) {
-            ChatMessageReq aiMessage = ChatMessageReq.createAiAnswer(
-                    conversationId, aiAnswer, nextSequence,
-                    modelUsed, tokensUsed, responseTime
-            );
-            Long aiMessageId = saveMessage(aiMessage);
-            if (aiMessageId != null) {
-                messageIds.add(aiMessageId);
-            }
+        // 保存消息
+        List<Long> messageIds = new ArrayList<>();
+        Long messageId = saveMessage(messageReq);
+        if (messageId != null) {
+            messageIds.add(messageId);
         }
 
         return messageIds;
@@ -359,12 +340,16 @@ public class ChatRecordServiceImpl implements ChatRecordService {
             sb.append("[").append(message.getFormattedTime()).append("] ");
             sb.append(message.getSenderName()).append(": ");
 
-            if (message.isSystemMessage() && message.hasThinkingLog()) {
-                sb.append("[思考过程] ").append(message.getThinkingLogSummary());
-            } else if (message.isSystemMessage() && message.hasToolCalls()) {
-                sb.append("[工具调用] ").append(message.getToolCallCount()).append("个工具");
+            // 优先显示回答
+            String answer = message.getAnswer();
+            if (answer != null && !answer.isEmpty()) {
+                sb.append(answer);
             } else {
-                sb.append(message.getContent());
+                // 其次显示问题
+                String question = message.getQuestion();
+                if (question != null && !question.isEmpty()) {
+                    sb.append(question);
+                }
             }
 
             // 添加性能指标

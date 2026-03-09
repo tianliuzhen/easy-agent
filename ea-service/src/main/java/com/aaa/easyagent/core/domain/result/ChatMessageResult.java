@@ -13,62 +13,68 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class ChatMessageResult extends EaChatMessageDO {
-    
+
     // 扩展字段：发送者名称
     private String senderName;
-    
+
     // 扩展字段：发送者头像
     private String senderAvatar;
-    
+
     // 扩展字段：发送者类型（user/ai/system）
     private String senderType;
-    
+
     // 扩展字段：格式化后的时间
     private String formattedTime;
-    
+
     // 扩展字段：是否显示思考过程
     private Boolean showThinkingLog = false;
-    
+
     // 扩展字段：思考过程摘要（前100字符）
     private String thinkingLogSummary;
-    
+
     // 扩展字段：工具调用数量
     private Integer toolCallCount;
-    
+
     /**
      * 获取发送者类型
-     * 
+     *
      * @return 发送者类型
      */
     public String getSenderType() {
         if (senderType != null) {
-            return senderType;
+           return senderType;
         }
-        
-        // 根据消息类型推断发送者类型
-        String messageType = this.getMessageType();
-        if (messageType != null) {
-            if (messageType.contains("user")) {
-                return "user";
-            } else if (messageType.contains("ai")) {
-                return "ai";
-            } else if (messageType.contains("system")) {
-                return "system";
-            }
+
+        // 根据问题和回答判断发送者类型
+        String question = this.getQuestion();
+        String answer = this.getAnswer();
+
+        // 如果有问题且有回答，说明是 AI 响应消息
+        if (question != null && !question.isEmpty() && answer != null && !answer.isEmpty()) {
+           return "ai";
         }
-        return "unknown";
+        // 如果只有问题没有回答，说明是用户消息（历史数据兼容）
+        else if (question != null && !question.isEmpty()) {
+           return "user";
+        }
+        // 如果有思考过程或工具调用，说明是系统消息
+        else if (hasThinkingLog() || hasToolCalls()) {
+           return "system";
+        }
+
+       return "unknown";
     }
-    
+
     /**
      * 获取发送者名称
-     * 
+     *
      * @return 发送者名称
      */
     public String getSenderName() {
         if (senderName != null) {
             return senderName;
         }
-        
+
         // 根据发送者类型返回默认名称
         String type = getSenderType();
         switch (type) {
@@ -82,17 +88,17 @@ public class ChatMessageResult extends EaChatMessageDO {
                 return "未知";
         }
     }
-    
+
     /**
      * 获取发送者头像
-     * 
+     *
      * @return 发送者头像
      */
     public String getSenderAvatar() {
         if (senderAvatar != null) {
             return senderAvatar;
         }
-        
+
         // 根据发送者类型返回默认头像
         String type = getSenderType();
         switch (type) {
@@ -106,44 +112,44 @@ public class ChatMessageResult extends EaChatMessageDO {
                 return "/avatars/default.png";
         }
     }
-    
+
     /**
      * 是否是用户消息
-     * 
+     *
      * @return 是否是用户消息
      */
     public boolean isUserMessage() {
         return "user".equals(getSenderType());
     }
-    
+
     /**
      * 是否是AI消息
-     * 
+     *
      * @return 是否是AI消息
      */
     public boolean isAiMessage() {
         return "ai".equals(getSenderType());
     }
-    
+
     /**
      * 是否是系统消息
-     * 
+     *
      * @return 是否是系统消息
      */
     public boolean isSystemMessage() {
         return "system".equals(getSenderType());
     }
-    
+
     /**
      * 获取格式化后的时间
-     * 
+     *
      * @return 格式化后的时间
      */
     public String getFormattedTime() {
         if (formattedTime != null) {
             return formattedTime;
         }
-        
+
         if (this.getCreatedAt() != null) {
             // 这里可以添加时间格式化逻辑
             // 例如：HH:mm 或 yyyy-MM-dd HH:mm:ss
@@ -151,17 +157,17 @@ public class ChatMessageResult extends EaChatMessageDO {
         }
         return "";
     }
-    
+
     /**
      * 获取思考过程摘要
-     * 
+     *
      * @return 思考过程摘要
      */
     public String getThinkingLogSummary() {
         if (thinkingLogSummary != null) {
             return thinkingLogSummary;
         }
-        
+
         String log = this.getThinkingLog();
         if (log != null && !log.isEmpty()) {
             if (log.length() > 100) {
@@ -171,17 +177,17 @@ public class ChatMessageResult extends EaChatMessageDO {
         }
         return "";
     }
-    
+
     /**
      * 获取工具调用数量
-     * 
+     *
      * @return 工具调用数量
      */
     public Integer getToolCallCount() {
         if (toolCallCount != null) {
             return toolCallCount;
         }
-        
+
         String toolCalls = this.getToolCalls();
         if (toolCalls != null && !toolCalls.isEmpty() && !toolCalls.equals("[]")) {
             // 简单的JSON数组计数
@@ -190,7 +196,7 @@ public class ChatMessageResult extends EaChatMessageDO {
                 int count = 0;
                 int depth = 0;
                 boolean inObject = false;
-                
+
                 for (char c : toolCalls.toCharArray()) {
                     if (c == '{' && depth == 0) {
                         inObject = true;
@@ -213,97 +219,106 @@ public class ChatMessageResult extends EaChatMessageDO {
         }
         return 0;
     }
-    
+
     /**
-     * 获取消息内容预览
-     * 
+     * 获取消息内容预览（优先返回回答，其次返回问题）
+     *
      * @param maxLength 最大长度
      * @return 消息内容预览
      */
     public String getContentPreview(int maxLength) {
-        String content = this.getContent();
-        if (content == null) {
-            return "";
+        // 优先返回回答
+        String answer = this.getAnswer();
+        if (answer != null && !answer.isEmpty()) {
+            if (answer.length() <= maxLength) {
+               return answer;
+            }
+           return answer.substring(0, maxLength - 3) + "...";
         }
-        
-        if (content.length() <= maxLength) {
-            return content;
+
+        // 其次返回问题
+        String question = this.getQuestion();
+        if (question != null && !question.isEmpty()) {
+            if (question.length() <= maxLength) {
+               return question;
+            }
+           return question.substring(0, maxLength - 3) + "...";
         }
-        
-        return content.substring(0, maxLength - 3) + "...";
+
+       return "";
     }
-    
+
     /**
      * 获取消息类型显示文本
-     * 
+     *
      * @return 消息类型显示文本
      */
     public String getMessageTypeText() {
-        String type = this.getMessageType();
-        if (type == null) {
-            return "未知";
+        String question = this.getQuestion();
+        String answer = this.getAnswer();
+
+        // 如果有问题且有回答，说明是 AI 响应
+        if (question != null && !question.isEmpty() && answer != null && !answer.isEmpty()) {
+           return "AI 响应";
         }
-        
-        switch (type) {
-            case "user_question":
-                return "用户提问";
-            case "ai_answer":
-                return "AI回答";
-            case "system_thinking":
-                return "系统思考";
-            case "system_tool_call":
-                return "工具调用";
-            default:
-                return type;
+        // 如果只有问题没有回答，说明是用户消息
+        else if (question != null && !question.isEmpty()) {
+           return "用户提问";
         }
+        // 如果有思考过程或工具调用，说明是系统消息
+        else if (hasThinkingLog() || hasToolCalls()) {
+           return "系统记录";
+        }
+
+       return "未知";
     }
-    
+
     /**
      * 是否有思考过程
-     * 
+     *
      * @return 是否有思考过程
      */
     public boolean hasThinkingLog() {
         String log = this.getThinkingLog();
         return log != null && !log.isEmpty();
     }
-    
+
     /**
      * 是否有工具调用
-     * 
+     *
      * @return 是否有工具调用
      */
     public boolean hasToolCalls() {
         String toolCalls = this.getToolCalls();
         return toolCalls != null && !toolCalls.isEmpty() && !toolCalls.equals("[]");
     }
-    
+
     /**
      * 获取性能指标文本
-     * 
+     *
      * @return 性能指标文本
      */
     public String getPerformanceMetrics() {
         StringBuilder sb = new StringBuilder();
-        
+
         if (this.getTokensUsed() != null && this.getTokensUsed() > 0) {
             sb.append("Tokens: ").append(this.getTokensUsed());
         }
-        
-        if (this.getResponseTime() != null && this.getResponseTime() > 0) {
-            if (sb.length() > 0) {
+
+        if (this.getResponseTime() != null) {
+            if (!sb.isEmpty()) {
                 sb.append(" | ");
             }
-            sb.append("响应: ").append(this.getResponseTime()).append("ms");
+            sb.append("响应: ").append(this.getResponseTime()).append("s");
         }
-        
+
         if (this.getModelUsed() != null && !this.getModelUsed().isEmpty()) {
-            if (sb.length() > 0) {
+            if (!sb.isEmpty()) {
                 sb.append(" | ");
             }
             sb.append("模型: ").append(this.getModelUsed());
         }
-        
+
         return sb.toString();
     }
 }

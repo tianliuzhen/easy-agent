@@ -3,6 +3,7 @@ package com.aaa.easyagent.web.biz.chat;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.ChatConversationReq;
 import com.aaa.easyagent.core.domain.request.ChatMessageReq;
+import com.aaa.easyagent.core.domain.result.StartNewConversationResp;
 import com.aaa.easyagent.core.service.ChatRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -245,52 +246,20 @@ public class ChatRecordController {
      * @return 创建的会话ID
      */
     @PostMapping("/business/startNewConversation")
-    public BaseResult<Long> startNewConversation(
+    public BaseResult startNewConversation(
             @RequestParam Long agentId,
             @RequestParam String userId,
+            @RequestParam String sessionId,
             @RequestParam String firstQuestion) {
         try {
-            Long conversationId = chatRecordService.startNewConversation(agentId, userId, firstQuestion);
-            return BaseResult.buildSuc(conversationId);
+            StartNewConversationResp resp = chatRecordService.startNewConversation(agentId, sessionId, userId, firstQuestion);
+            return BaseResult.buildSuc(resp);
         } catch (Exception e) {
             log.error("开始新会话失败", e);
             return BaseResult.buildFail("开始新会话失败: " + e.getMessage());
         }
     }
 
-    /**
-     * 保存完整的聊天交互
-     *
-     * @param conversationId 会话ID
-     * @param userQuestion   用户提问
-     * @param aiAnswer       AI回答
-     * @param thinkingLog    思考过程（可选）
-     * @param toolCalls      工具调用信息（可选）
-     * @param modelUsed      使用的模型
-     * @param tokensUsed     消耗的token数
-     * @param responseTime   响应时间（毫秒）
-     * @return 保存的消息ID列表
-     */
-    @PostMapping("/business/saveChatInteraction")
-    public BaseResult<List<Long>> saveChatInteraction(
-            @RequestParam Long conversationId,
-            @RequestParam String userQuestion,
-            @RequestParam String aiAnswer,
-            @RequestParam(required = false) String thinkingLog,
-            @RequestParam(required = false) String toolCalls,
-            @RequestParam String modelUsed,
-            @RequestParam Integer tokensUsed,
-            @RequestParam Integer responseTime) {
-        try {
-            List<Long> messageIds = chatRecordService.saveChatInteraction(
-                    conversationId, userQuestion, aiAnswer, thinkingLog,
-                    toolCalls, modelUsed, tokensUsed, responseTime);
-            return BaseResult.buildSuc(messageIds);
-        } catch (Exception e) {
-            log.error("保存聊天交互失败", e);
-            return BaseResult.buildFail("保存聊天交互失败: " + e.getMessage());
-        }
-    }
 
     /**
      * 获取会话的完整聊天记录

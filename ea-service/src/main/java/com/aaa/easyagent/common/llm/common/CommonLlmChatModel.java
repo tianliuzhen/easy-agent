@@ -321,7 +321,7 @@ public class CommonLlmChatModel implements ChatModel {
                 return new Generation(assistantMessage, builder.build());
             }).collect(Collectors.toList());
         } catch (Exception e) {
-            log.warn("Failed to convertResponse:{}", JacksonUtil.toStr(response));
+            log.warn("Failed to convertResponse:{}", JacksonUtil.beanToStr(response));
             return new ChatResponse(generations);
         }
 

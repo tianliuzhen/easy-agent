@@ -29,13 +29,24 @@ public class ExampleController {
         if ("silver".equals(type)) {
             return "白银目前20元每克";
         }
-        return type+"：类型输入有误无法查询" ;
+        return type + "：类型输入有误无法查询";
+    }
+
+    @GetMapping(value = "/queryPreciousMetalsPriceByDate")
+    public String queryPreciousMetalsPrice(String type, String date) {
+        if ("gold".equals(type)) {
+            return "黄金目前1050元每克";
+        }
+        if ("silver".equals(type)) {
+            return "白银目前20元每克";
+        }
+        return type + "：类型输入有误无法查询";
     }
 
 
     @PostMapping(value = "/testRequestBody")
     public String testRequestBody(@RequestBody Object map) {
-        return JacksonUtil.toStr(map);
+        return JacksonUtil.beanToStr(map);
     }
 
     @PostMapping(value = "/getMap")

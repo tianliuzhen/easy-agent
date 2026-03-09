@@ -7,14 +7,15 @@
     -->
     <id column="id" jdbcType="BIGINT" property="id" />
     <result column="conversation_id" jdbcType="BIGINT" property="conversationId" />
-    <result column="message_type" jdbcType="VARCHAR" property="messageType" />
     <result column="model_used" jdbcType="VARCHAR" property="modelUsed" />
     <result column="tokens_used" jdbcType="INTEGER" property="tokensUsed" />
-    <result column="response_time" jdbcType="INTEGER" property="responseTime" />
+    <result column="response_time" jdbcType="DECIMAL" property="responseTime" />
     <result column="sequence" jdbcType="INTEGER" property="sequence" />
     <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
-    <result column="content" jdbcType="LONGVARCHAR" property="content" />
+    <result column="question" jdbcType="LONGVARCHAR" property="question" />
+    <result column="answer" jdbcType="LONGVARCHAR" property="answer" />
     <result column="thinking_log" jdbcType="LONGVARCHAR" property="thinkingLog" />
     <result column="tool_calls" jdbcType="LONGVARCHAR" property="toolCalls" />
+    <result column="message_context" jdbcType="LONGVARCHAR" property="messageContext" />
   </resultMap>
 </mapper>

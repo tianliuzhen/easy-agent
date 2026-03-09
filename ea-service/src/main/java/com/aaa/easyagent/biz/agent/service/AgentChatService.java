@@ -12,8 +12,8 @@ public interface AgentChatService {
     /**
      * 智能体聊天
      *
-     * @param conversationId
-     * @param question
+     * @param sessionId 会话 ID
+     * @param question 问题
      */
-    void streamChatWith(String conversationId, String question, String agentId, SseEmitter sseEmitter);
+    void streamChatWith(String sessionId, String question, String agentId, SseEmitter sseEmitter);
 }

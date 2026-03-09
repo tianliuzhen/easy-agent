@@ -2,6 +2,7 @@ package com.aaa.easyagent.biz.agent;
 
 import com.aaa.easyagent.biz.agent.context.SseHelper;
 import com.aaa.easyagent.biz.agent.data.*;
+import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
 import com.aaa.easyagent.biz.function.FunctionToolManager;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
@@ -18,8 +19,10 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.function.FunctionCallback;
+import org.springframework.util.StopWatch;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
@@ -44,7 +47,7 @@ public abstract class BaseAgent {
 
     protected Prompt prompt;
 
-    protected SseEmitter sseEmitter;
+    protected SseEmitter sse;
 
     /**
      * 决策轮数限制
@@ -76,7 +79,7 @@ public abstract class BaseAgent {
 
         messages = new ArrayList<>();
 
-        sseEmitter = agentContext.getSseEmitter();
+        sse = agentContext.getSseEmitter();
     }
 
 
@@ -114,7 +117,7 @@ public abstract class BaseAgent {
             throw new AgentException(agentContext.getModelType() + "无法匹配大模型");
         }
 
-        SseHelper.sendLog(sseEmitter, "使用【{}】{}大模型开始决策...", agentContext.getModelType(), agentContext.getAgentModelConfig().getModelVersion());
+        SseHelper.sendLog(sse, "使用【{}】{}大模型开始决策...", agentContext.getModelType(), agentContext.getAgentModelConfig().getModelVersion());
 
         // 提示词构建
         prompt = this.buildPrompt();
@@ -124,8 +127,10 @@ public abstract class BaseAgent {
 
         // 限制决策轮数，防止无限调用
         int decisionCnt = 1;
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
         while (decisionCnt < DECISION_CNT_LIMIT) {
-            SseHelper.sendLog(sseEmitter, "第{}次大模型决策开始执行...", decisionCnt);
+            SseHelper.sendLog(sse, "第{}次大模型决策开始执行...", decisionCnt);
             AgentOutput agentOutput = null;
 
 
@@ -134,29 +139,37 @@ public abstract class BaseAgent {
                 agentOutput = this.run();
 
                 // 思考完成
-                if (agentOutput instanceof AgentFinish) {
-                    SseHelper.sendLog(sseEmitter, "第{}次大模型决策结束...：", decisionCnt);
-                    String llmResponse = ((AgentFinish) agentOutput).getResult();
-                    SseHelper.sendLog(sseEmitter, "第{}次大模型决策结果...：{}", decisionCnt, llmResponse);
+                if (agentOutput instanceof AgentFinish agentFinish) {
+                    SseHelper.sendLog(sse, "第{}次大模型决策结束...：", decisionCnt);
+                    String llmResponse = agentFinish.getResult();
+                    SseHelper.sendLog(sse, "第{}次大模型决策结果...：{}", decisionCnt, llmResponse);
 
-                    SseHelper.sendThink(sseEmitter, agentOutput.getReasoningContent());
-                    SseHelper.sendFinalAnswer(sseEmitter, ((AgentFinish) agentOutput).getResult());
+                    SseHelper.sendThink(sse, agentOutput.getReasoningContent());
+                    ChatRecordSaver.addThinking(agentFinish.getReasoningContent());
 
+                    SseHelper.sendFinalAnswer(sse, agentFinish.getResult());
+                    ChatRecordSaver.addFinalAnswer(agentFinish.getResult());
 
-                    if (sseEmitter != null) {
-                        sseEmitter.complete();
+                    stopWatch.stop();
+                    ChatRecordSaver.saveAgentFinish(
+                            agentFinish, agentContext.getAgentModelConfig().getModelVersion(),
+                            null,
+                            BigDecimal.valueOf(stopWatch.getTotalTimeSeconds()));
+
+                    if (sse != null) {
+                        sse.complete();
                     }
                     return llmResponse;
                 }
             } catch (Exception e) {
                 log.error("大模型执行异常:", e);
-                SseHelper.sendData(sseEmitter, "第{}次大模型决策异常：{}", decisionCnt, e.getMessage());
+                SseHelper.sendData(sse, "第{}次大模型决策异常：{}", decisionCnt, e.getMessage());
                 return null;
             }
 
-            SseHelper.sendThink(sseEmitter, agentOutput.getReasoningContent());
+            SseHelper.sendThink(sse, agentOutput.getReasoningContent());
 
-            SseHelper.sendData(sseEmitter, "第{}次大模型决策：{}", decisionCnt, agentOutput);
+            SseHelper.sendData(sse, "第{}次大模型决策：{}", decisionCnt, agentOutput);
 
             // todo 检查是否卡住
             // if (isStuck()) {

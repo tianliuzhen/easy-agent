@@ -4,7 +4,9 @@ import com.aaa.easyagent.core.domain.request.ChatConversationReq;
 import com.aaa.easyagent.core.domain.request.ChatMessageReq;
 import com.aaa.easyagent.core.domain.result.ChatConversationResult;
 import com.aaa.easyagent.core.domain.result.ChatMessageResult;
+import com.aaa.easyagent.core.domain.result.StartNewConversationResp;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -61,7 +63,7 @@ public interface ChatRecordService {
      * 根据Agent ID查询会话列表
      *
      * @param agentId Agent ID
-     * @param status 会话状态（可选）
+     * @param status  会话状态（可选）
      * @return 会话结果列表
      */
     List<ChatConversationResult> listConversationsByAgentId(Long agentId, String status);
@@ -146,29 +148,28 @@ public interface ChatRecordService {
     /**
      * 开始新的聊天会话（创建会话并保存第一条消息）
      *
-     * @param agentId Agent ID
-     * @param userId 用户ID
+     * @param agentId       Agent ID
+     * @param userId        用户ID
      * @param firstQuestion 第一个问题（用于生成标题）
      * @return 创建的会话ID
      */
-    Long startNewConversation(Long agentId, String userId, String firstQuestion);
+   StartNewConversationResp startNewConversation(Long agentId, String sessionId, String userId, String firstQuestion);
 
     /**
      * 保存完整的聊天交互（用户提问 + AI回答）
      *
-     * @param conversationId 会话ID
-     * @param userQuestion 用户提问
-     * @param aiAnswer AI回答
-     * @param thinkingLog 思考过程（可选）
-     * @param toolCalls 工具调用信息（可选）
-     * @param modelUsed 使用的模型
-     * @param tokensUsed 消耗的token数
-     * @param responseTime 响应时间（毫秒）
-     * @return 保存的消息ID列表
+     * @param conversationId 会话 ID
+     * @param question       用户问题
+     * @param aiAnswer       AI 回答
+     * @param messageContext 上下文消息
+     * @param modelUsed      使用的模型
+     * @param tokensUsed     消耗的 token 数
+     * @param responseTime   响应时间（毫秒）
+     * @return 保存的消息 ID 列表
      */
-    List<Long> saveChatInteraction(Long conversationId, String userQuestion, String aiAnswer,
-                                   String thinkingLog, String toolCalls, String modelUsed,
-                                   Integer tokensUsed, Integer responseTime);
+    public List<Long> saveChatInteraction(Long conversationId,Long messageId, String question, String aiAnswer,
+                                          String messageContext, String modelUsed,
+                                          Integer tokensUsed, BigDecimal responseTime);
 
     /**
      * 获取会话的完整聊天记录

@@ -91,7 +91,7 @@ public class SqlExecutor implements ToolExecutor<SqlParamsTemplate> {
                         List<Map<String, Object>> result = convertResultSetToList(resultSet);
 
                         // 将结果转换为JSON字符串返回
-                        return JacksonUtil.toStr(result);
+                        return JacksonUtil.beanToStr(result);
                     } finally {
                         resultSet.close();
                     }

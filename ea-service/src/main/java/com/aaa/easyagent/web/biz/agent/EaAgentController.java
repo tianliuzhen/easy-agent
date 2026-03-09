@@ -34,6 +34,15 @@ public class EaAgentController {
         return BaseResult.buildSuc(agentManagerService.listAgent(req));
     }
 
+
+    /**
+     * 根据id查询
+     */
+    @PostMapping("/ai/queryAgent")
+    public BaseResult queryAgent(@RequestBody EaAgentReq req) {
+        return BaseResult.buildSuc(agentManagerService.queryAgent(req));
+    }
+
     @PostMapping("/ai/delAgent")
     public BaseResult delAgent(@RequestBody EaAgentReq req) {
         return BaseResult.buildSuc(agentManagerService.delAgent(req));
@@ -47,8 +56,9 @@ public class EaAgentController {
      * 4.前端需要在大模型配置的菜单中，实现crud功能
      * 5.后端crud接口实现（需要执行mvn 动态生成代码）
      * 6.需要表的字段：模型平台/模型icon/官网链接/基础url/模型版本[存数组]
-     *
+     * <p>
      * 你需要先生成表结构，然后告诉我去执行，生成代码，然后实现crud功能
+     *
      * @return
      */
     @PostMapping("/ai/queryChatModelTypeList")
@@ -60,13 +70,13 @@ public class EaAgentController {
     /**
      * 对话
      *
-     * @param conversationId
-     * @param msg
-     * @return
+     * @param sessionId 会话 ID
+     * @param msg       消息
+     * @return SSE Emitter
      */
     @GetMapping("/ai/streamChatWith")
     public SseEmitter streamChatWith(
-            @RequestParam(defaultValue = "110") String conversationId,
+            @RequestParam(defaultValue = "110") String sessionId,
             @RequestParam(defaultValue = "你好") String msg,
             @RequestParam(defaultValue = "1", required = false) String agentId) {
         // 默认设置5分钟
@@ -76,7 +86,7 @@ public class EaAgentController {
         // todo 改为线程池
         new Thread(() -> {
             try {
-                agentChatService.streamChatWith(conversationId, msg, agentId, sseEmitter);
+                agentChatService.streamChatWith(sessionId, msg, agentId, sseEmitter);
             } catch (Throwable e) {
                 log.error("streamChatWith:{}", e.getMessage(), e);
             }

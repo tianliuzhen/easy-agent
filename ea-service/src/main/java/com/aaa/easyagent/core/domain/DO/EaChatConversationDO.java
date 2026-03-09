@@ -31,6 +31,9 @@ public class EaChatConversationDO {
     @Column(name = "title")
     private String title;
 
+    @Column(name = "session_id")
+    private String sessionId;
+
     /**
      * 关联的Agent ID
      */

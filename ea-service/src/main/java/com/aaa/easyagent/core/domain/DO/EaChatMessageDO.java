@@ -1,6 +1,7 @@
 package com.aaa.easyagent.core.domain.DO;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.util.Date;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,12 +33,6 @@ public class EaChatMessageDO {
     private Long conversationId;
 
     /**
-     * 消息类型：user_question-用户提问, ai_answer-AI回答, system_thinking-系统思考, system_tool_call-系统工具调用
-     */
-    @Column(name = "message_type")
-    private String messageType;
-
-    /**
      * 使用的模型
      */
     @Column(name = "model_used")
@@ -53,7 +48,7 @@ public class EaChatMessageDO {
      * 响应时间（毫秒）
      */
     @Column(name = "response_time")
-    private Integer responseTime;
+    private BigDecimal responseTime;
 
     /**
      * 消息序号（用于排序，从1开始）
@@ -68,10 +63,16 @@ public class EaChatMessageDO {
     private Date createdAt;
 
     /**
-     * 消息内容
+     * 问题
      */
-    @Column(name = "content")
-    private String content;
+    @Column(name = "question")
+    private String question;
+
+    /**
+     * 回答
+     */
+    @Column(name = "answer")
+    private String answer;
 
     /**
      * 思考过程日志（单独存储）
@@ -84,4 +85,10 @@ public class EaChatMessageDO {
      */
     @Column(name = "tool_calls")
     private String toolCalls;
+
+    /**
+     * 聊天上下文
+     */
+    @Column(name = "message_context")
+    private String messageContext;
 }

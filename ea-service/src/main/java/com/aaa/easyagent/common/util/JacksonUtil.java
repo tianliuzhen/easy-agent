@@ -25,7 +25,7 @@ public class JacksonUtil {
      * @param object 要转换的对象
      * @return JSON 字符串，如果转换失败则返回 null
      */
-    public static String toStr(Object object) {
+    public static String beanToStr(Object object) {
         if (object == null) {
             return null;
         }

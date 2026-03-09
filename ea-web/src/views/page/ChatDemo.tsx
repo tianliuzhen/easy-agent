@@ -1,12 +1,13 @@
 import React, {useState, useEffect, useRef} from 'react';
-import {sendMessage} from '..//api/ChatApi';
+import {sendMessage} from '../api/ChatApi';
 import {
     listConversationsByUserId,
-    startNewConversation,
-    updateConversation,
     deleteConversation,
-    getFullChatHistory
-} from '..//api/ChatConversationApi';
+    getFullChatHistory,
+    queryAgent,
+    createConversation,
+    type AgentDetail
+} from '../api/ChatConversationApi';
 import {useLocation} from 'react-router-dom';
 import {
     SendOutlined,
@@ -20,7 +21,7 @@ import {
     DeleteOutlined,
     PlusCircleOutlined
 } from '@ant-design/icons';
-import {Button, Input, Spin, Card, Badge, Tooltip, Divider, Tag} from 'antd';
+import {Button, Input, Spin, Card, Badge, Tooltip, Divider, Tag, message} from 'antd';
 
 const {TextArea} = Input;
 
@@ -33,7 +34,7 @@ interface ChatMessage {
 }
 
 interface ThinkingLogEntry {
-    type: 'log' | 'think' | 'data' | 'error';
+    type: 'log' | 'think' | 'data' | 'error' | 'tool';
     content: string;
     timestamp?: number;
 }
@@ -59,6 +60,7 @@ interface ChatConversation {
     agentName?: string;
     agentAvatar?: string;
     lastMessagePreview?: string;
+    formattedCreatedAt?: string;
 }
 
 // 当前登录用户 ID（暂时固定为 1，后续集成登录功能后再改为动态获取）
@@ -78,12 +80,15 @@ const ChatDemo: React.FC = () => {
     const location = useLocation();
     const currentAnsweringMsgIdRef = useRef<string | null>(null);
     const [messageThinkingLogs, setMessageThinkingLogs] = useState<ThinkingLogState>({});
-    const [selectedChatIndex, setSelectedChatIndex] = useState(0);
+    const [selectedChatIndex, setSelectedChatIndex] = useState(-1);
     const [chatHistory, setChatHistory] = useState<ChatMessage[][]>([[]]);
     // 新增：会话列表状态
     const [conversations, setConversations] = useState<ChatConversation[]>([]);
-    const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
+    // Agent详情状态
+    const [agentDetail, setAgentDetail] = useState<AgentDetail | null>(null);
+    // 当前会话 ID（每次新开对话时从后端获取）
+    const [conversationId, setConversationId] = useState<number | null>(null);
 
     useEffect(() => {
         chatMessagesEndRef.current?.scrollIntoView({behavior: 'smooth'});
@@ -125,35 +130,104 @@ const ChatDemo: React.FC = () => {
     useEffect(() => {
         const newUuid = crypto.randomUUID();
         setUuid(newUuid);
-        
+
         // 加载用户的会话列表
         loadConversations();
+        // 加载Agent详情
+        loadAgentDetail();
     }, []);
 
+    // 监听agentId变化，重新加载Agent详情
+    useEffect(() => {
+        loadAgentDetail();
+    }, [location.search]);
+
     // 加载会话列表
-    const loadConversations = async () => {
+    const loadConversations = async (): Promise<ChatConversation[]> => {
         try {
             setLoading(true);
             // 从路由参数获取 agentId
             const urlParams = new URLSearchParams(location.search);
             const agentId = urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : undefined;
-            
+
             const conversationList = await listConversationsByUserId(CURRENT_USER_ID, agentId, 'active');
             setConversations(conversationList);
-            
-            // 如果有会话，选中最后一个会话，但不加载其聊天记录
+
+            // 如果有会话，显示会话列表但不自动选中任何会话
+            // 等待用户发送第一条消息时再创建新会话，或点击会话时加载历史记录
             if (conversationList.length > 0) {
-                const lastConversation = conversationList[conversationList.length - 1];
-                setCurrentConversationId(lastConversation.id);
-                setSelectedChatIndex(conversationList.length - 1);
+                // 不设置当前会话ID，等待用户发送消息时创建新会话
+                // 也不设置选中索引，让用户手动点击选择
+                // setCurrentConversationId(lastConversation.id);
+                // setSelectedChatIndex(conversationList.length - 1);
                 // 注释掉自动加载聊天记录的逻辑，只在用户点击时加载
                 // await loadConversation(lastConversation.id);
             }
+            return conversationList;
         } catch (error) {
             console.error('加载会话列表失败:', error);
             message.error('加载会话列表失败');
+            return [];
         } finally {
             setLoading(false);
+        }
+    };
+
+    // 加载Agent详情
+    const loadAgentDetail = async (): Promise<void> => {
+        try {
+            const urlParams = new URLSearchParams(location.search);
+            const agentId = urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : 1;
+
+            const detail = await queryAgent(agentId);
+            setAgentDetail(detail);
+        } catch (error) {
+            console.error('加载Agent详情失败:', error);
+            // 不显示错误提示，使用默认值
+        }
+    };
+
+    // 获取模型版本号
+    const getModelVersion = (): string | null => {
+        if (!agentDetail?.modelConfig) {
+            return null;
+        }
+        try {
+            const config = JSON.parse(agentDetail.modelConfig);
+            return config.modelVersion || config.version || null;
+        } catch (error) {
+            console.error('解析modelConfig失败:', error);
+            return null;
+        }
+    };
+
+    // 更新 URL 中的会话 ID
+    const updateUrlWithSessionId = (sessionId: number) => {
+        const urlParams = new URLSearchParams(location.search);
+        urlParams.set('sessionId', sessionId.toString());
+        const newUrl = `${location.pathname}?${urlParams.toString()}`;
+        window.history.replaceState({}, '', newUrl);
+    };
+
+    // 创建新会话
+    const createNewConversation = async (): Promise<number> => {
+        try {
+            const urlParams = new URLSearchParams(location.search);
+            const agentId = urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : 1;
+
+            const newConversationId = await createConversation({
+                agentId,
+                userId: CURRENT_USER_ID,
+                title: '新对话',
+                status: 'active'
+            });
+
+            console.log('创建新会话成功，会话ID:', newConversationId);
+            return newConversationId;
+        } catch (error) {
+            console.error('创建会话失败:', error);
+            message.error('创建会话失败');
+            throw error;
         }
     };
 
@@ -161,7 +235,7 @@ const ChatDemo: React.FC = () => {
     const loadConversation = async (conversationId: number) => {
         try {
             const chatHistory = await getFullChatHistory(conversationId);
-            
+
             // 将后端返回的聊天记录转换为前端格式
             const convertedMessages: ChatMessage[] = chatHistory.map((msg: any) => ({
                 text: msg.content || '',
@@ -170,10 +244,9 @@ const ChatDemo: React.FC = () => {
                 id: msg.id?.toString() || crypto.randomUUID(),
                 timestamp: new Date(msg.createdAt).getTime()
             }));
-            
+
             setMessages(convertedMessages);
-            setCurrentConversationId(conversationId);
-            
+
             // 更新选中状态
             const index = conversations.findIndex(c => c.id === conversationId);
             if (index !== -1) {
@@ -185,15 +258,44 @@ const ChatDemo: React.FC = () => {
         }
     };
 
-    const formatTime = (timestamp: number) => {
-        return new Date(timestamp).toLocaleTimeString('zh-CN', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+    const formatTime = (timestamp: number | string) => {
+        const date = typeof timestamp === 'string' ? new Date(timestamp) : new Date(timestamp);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
 
     const handleSendMessage = async () => {
         if (input.trim() === '') return;
+
+        // 检查会话ID是否存在，如果不存在则创建新会话
+        let activeConversationId = conversationId;
+        if (!activeConversationId) {
+            try {
+                const urlParams = new URLSearchParams(location.search);
+                const agentId = urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : 1;
+
+                activeConversationId = await createConversation({
+                    agentId,
+                    userId: CURRENT_USER_ID,
+                    status: 'active'
+                });
+
+                setConversationId(activeConversationId);
+                updateUrlWithSessionId(activeConversationId);
+
+                console.log('创建新会话成功，会话ID:', activeConversationId);
+            } catch (error) {
+                console.error('创建会话失败:', error);
+                message.error('创建会话失败');
+                return;
+            }
+        }
 
         setError(null);
         const userMessageId = crypto.randomUUID();
@@ -228,26 +330,6 @@ const ChatDemo: React.FC = () => {
 
         const urlParams = new URLSearchParams(location.search);
         const agentId = urlParams.get('agentId') || '1'; // 默认 agentId 为 1
-                
-        // 如果没有当前会话，创建一个新的会话
-        let activeConversationId = currentConversationId;
-        if (!activeConversationId) {
-            try {
-                activeConversationId = await startNewConversation(
-                    parseInt(agentId),
-                    CURRENT_USER_ID,
-                    input.substring(0, 50) // 用第一个问题前 50 个字符作为标题
-                );
-                setCurrentConversationId(activeConversationId);
-                // 刷新会话列表
-                await loadConversations();
-            } catch (error) {
-                console.error('创建会话失败:', error);
-                setError('创建会话失败：' + (error as Error).message);
-                setIsThinking(false);
-                return;
-            }
-        }
 
         const eventSource = sendMessage(
             input,
@@ -263,7 +345,7 @@ const ChatDemo: React.FC = () => {
                         return {
                             ...prev,
                             [currentAiMessageId]: {
-                                content: [...currentEntries, { type: 'log' as const, content: log }],
+                                content: [...currentEntries, {type: 'log' as const, content: log}],
                                 isVisible: prev[currentAiMessageId]?.isVisible || true
                             }
                         };
@@ -313,7 +395,7 @@ const ChatDemo: React.FC = () => {
                         return {
                             ...prev,
                             [currentAiMessageId]: {
-                                content: [...currentEntries, { type: 'think' as const, content }],
+                                content: [...currentEntries, {type: 'think' as const, content}],
                                 isVisible: prev[currentAiMessageId]?.isVisible || true
                             }
                         };
@@ -332,7 +414,24 @@ const ChatDemo: React.FC = () => {
                         return {
                             ...prev,
                             [currentAiMessageId]: {
-                                content: [...currentEntries, { type: 'data' as const, content }],
+                                content: [...currentEntries, {type: 'data' as const, content}],
+                                isVisible: prev[currentAiMessageId]?.isVisible || true
+                            }
+                        };
+                    });
+                }
+            },
+            (tool: string) => {
+                // 处理 tool 类型数据 - 添加到思考过程
+                console.log('Received tool:', tool); // 调试日志
+                const currentAiMessageId = currentAnsweringMsgIdRef.current;
+                if (currentAiMessageId) {
+                    setMessageThinkingLogs(prev => {
+                        const currentEntries = prev[currentAiMessageId]?.content || [];
+                        return {
+                            ...prev,
+                            [currentAiMessageId]: {
+                                content: [...currentEntries, {type: 'tool' as const, content: tool}],
                                 isVisible: prev[currentAiMessageId]?.isVisible || true
                             }
                         };
@@ -342,18 +441,9 @@ const ChatDemo: React.FC = () => {
             () => {
                 setIsThinking(false);
                 currentAnsweringMsgIdRef.current = null;
-                
-                // 消息发送成功后，更新会话的最后消息时间和消息数量
-                if (activeConversationId) {
-                    updateConversation({
-                        id: activeConversationId,
-                        lastMessageTime: new Date().toISOString(),
-                        messageCount: messages.length + 2 // 用户消息 + AI 消息
-                    }).catch(err => console.error('更新会话失败:', err));
-                    
-                    // 刷新会话列表以显示最新状态
-                    loadConversations().catch(err => console.error('刷新会话列表失败:', err));
-                }
+
+                // 刷新会话列表以显示最新状态
+                loadConversations().catch(err => console.error('刷新会话列表失败:', err));
             },
             (errorMessage: string) => {
                 const currentAiMessageId = currentAnsweringMsgIdRef.current;
@@ -363,7 +453,10 @@ const ChatDemo: React.FC = () => {
                         return {
                             ...prev,
                             [currentAiMessageId]: {
-                                content: [...currentEntries, { type: 'error' as const, content: `思考过程中出现错误: ${errorMessage}` }],
+                                content: [...currentEntries, {
+                                    type: 'error' as const,
+                                    content: `思考过程中出现错误: ${errorMessage}`
+                                }],
                                 isVisible: prev[currentAiMessageId]?.isVisible || true
                             }
                         };
@@ -401,40 +494,35 @@ const ChatDemo: React.FC = () => {
     };
 
     const startNewChat = async () => {
-        try {
-            // 先创建一个新会话
-            const newConversationId = await startNewConversation(
-                1, // 默认 Agent ID 为 1，可以从路由参数获取
-                CURRENT_USER_ID,
-                '新对话'
-            );
-            
-            // 刷新会话列表
-            await loadConversations();
-            
-            // 选中新创建的会话
-            const newIndex = conversations.length; // 因为刚刷新，所以是 length
-            setSelectedChatIndex(newIndex);
-            setMessages([]);
-            setCurrentConversationId(newConversationId);
-        } catch (error) {
-            console.error('创建新会话失败:', error);
-            message.error('创建新会话失败');
-        }
+        // 重置会话 ID，在发送消息时再创建新会话
+        setConversationId(null);
+
+        // 更新 URL，移除 sessionId 参数
+        const urlParams = new URLSearchParams(location.search);
+        urlParams.delete('sessionId');
+        const newUrl = `${location.pathname}?${urlParams.toString()}`;
+        window.history.replaceState({}, '', newUrl);
+
+        // 清空消息列表和选中状态
+        setMessages([]);
+        setSelectedChatIndex(-1);
+        setMessageThinkingLogs({});
+
+        console.log('开始新对话，会话ID已重置');
     };
 
     const deleteChat = async (index: number) => {
         if (conversations.length <= 1) return;
-        
+
         try {
             const conversationToDelete = conversations[index];
             await deleteConversation(conversationToDelete.id);
-            
+
             // 刷新会话列表
             await loadConversations();
-            
+
             // 如果删除的是当前会话，切换到第一个会话
-            if (conversationToDelete.id === currentConversationId) {
+            if (index === selectedChatIndex) {
                 if (conversations.length > 1) {
                     const newConversations = conversations.filter((_, i) => i !== index);
                     if (newConversations.length > 0) {
@@ -458,84 +546,146 @@ const ChatDemo: React.FC = () => {
 
     const getChatPreview = (conversation: ChatConversation | null, fullText = false) => {
         if (!conversation) return '新对话';
-        
+
         if (fullText) {
             return conversation.title || '新对话';
         }
-        
+
         const title = conversation.title || '新对话';
         return title.substring(0, 30) + (title.length > 30 ? '...' : '');
     };
 
-    // 渲染思考内容，区分不同类型
+    // 渲染思考内容，区分不同类型，按顺序分组显示
     const renderThinkingContent = (entries: ThinkingLogEntry[]) => {
         if (!entries || entries.length === 0) return null;
 
-        // 分离不同类型的数据
-        const thinkEntries = entries.filter(entry => entry.type === 'think');
-        const dataEntries = entries.filter(entry => entry.type === 'data');
-        const restEntries = entries.filter(entry => entry.type !== 'think' && entry.type !== 'data');
+        // 定义类型配置
+        const typeConfig = {
+            think: {
+                title: '🤔 思考过程',
+                color: '#1890ff',
+                background: '#ffffff',
+                border: '#91caff',
+                hasContainer: true
+            },
+            data: {
+                title: '💬 开始回答',
+                color: '#52c41a',
+                background: '#f6ffed',
+                border: '#b7eb8f',
+                hasContainer: true
+            },
+            tool: {
+                title: '🔧 工具执行',
+                color: '#666666',
+                background: '#fafafa',
+                border: '#d9d9d9',
+                hasContainer: true
+            },
+            log: {
+                title: '',
+                color: '#999999',
+                background: 'transparent',
+                border: 'transparent',
+                hasContainer: false,
+                style: {color: '#999999', fontStyle: 'italic'}
+            },
+            error: {
+                title: '',
+                color: '#ff4d4f',
+                background: 'transparent',
+                border: 'transparent',
+                hasContainer: false,
+                style: {color: '#ff4d4f', fontWeight: 500}
+            }
+        };
 
+        // 分组连续的同类型条目
+        const groups: Array<{ type: ThinkingLogEntry['type'], entries: ThinkingLogEntry[] }> = [];
+        let currentGroup: { type: ThinkingLogEntry['type'], entries: ThinkingLogEntry[] } | null = null;
+
+        entries.forEach(entry => {
+            if (!currentGroup || currentGroup.type !== entry.type) {
+                // 开始新组
+                if (currentGroup) {
+                    groups.push(currentGroup);
+                }
+                currentGroup = {
+                    type: entry.type,
+                    entries: [entry]
+                };
+            } else {
+                // 添加到当前组
+                currentGroup.entries.push(entry);
+            }
+        });
+
+        // 添加最后一组
+        if (currentGroup) {
+            groups.push(currentGroup);
+        }
+
+        // 渲染分组
         return (
             <>
-                {/* log和error类型的内容 - 单独显示 */}
-                {restEntries.map((entry, index) => {
-                    // 根据条目类型应用样式
-                    let lineStyle = {};
-                    let lineContent = entry.content;
+                {groups.map((group, groupIndex) => {
+                    const config = typeConfig[group.type];
+                    const content = group.entries.map(entry => entry.content).join(
+                        group.type === 'tool' ? '\n' : ''
+                    );
 
-                    if (entry.type === 'log') {
-                        // log类型：浅灰色
-                        lineStyle = {color: '#999999', fontStyle: 'italic'};
-                    } else if (entry.type === 'error') {
-                        // 错误类型：红色
-                        lineStyle = {color: '#ff4d4f', fontWeight: 500};
+                    if (!config.hasContainer) {
+                        // log和error类型：单独显示每个条目
+                        return (
+                            <React.Fragment key={`group-${groupIndex}`}>
+                                {group.entries.map((entry, entryIndex) => (
+                                    <div
+                                        key={`entry-${groupIndex}-${entryIndex}`}
+                                        style={config.style}
+                                    >
+                                        {entry.content}
+                                    </div>
+                                ))}
+                            </React.Fragment>
+                        );
                     }
 
+                    // think、data、tool类型：显示带标题的容器
                     return (
-                        <div key={`rest-${index}`} style={lineStyle}>
-                            {lineContent}
+                        <div
+                            key={`group-${groupIndex}`}
+                            style={{
+                                background: config.background,
+                                border: `1px solid ${config.border}`,
+                                borderRadius: '8px',
+                                padding: '12px',
+                                marginTop: groupIndex > 0 ? '12px' : '0',
+                                color: '#000000',
+                                whiteSpace: 'pre-wrap',
+                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+                            }}
+                        >
+                            <div style={{
+                                fontSize: '11px',
+                                color: config.color,
+                                fontWeight: 600,
+                                marginBottom: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}>
+                                <span>{config.title}</span>
+                            </div>
+                            <div style={{
+                                fontSize: '12px',
+                                lineHeight: 1.6,
+                                whiteSpace: 'pre-wrap'
+                            }}>
+                                {content}
+                            </div>
                         </div>
                     );
                 })}
-
-                {/* think类型的内容，放入带边框的独立div中 - 显示在最上方 */}
-                {thinkEntries.length > 0 && (
-                    <div style={{
-                        background: '#ffffff',
-                        border: '1px solid #91caff',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        marginTop: restEntries.length > 0 ? '12px' : '0',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
-                    }}>
-                        <div
-                            style={{
-                                color: '#666666',
-                                fontWeight: 500,
-                                whiteSpace: 'pre-wrap'
-                            }}
-                        >
-                            {thinkEntries.map(entry => entry.content).join('')}
-                        </div>
-                    </div>
-                )}
-
-                {/* data类型的内容，连续显示 - 在think之后显示 */}
-                {dataEntries.length > 0 && (
-                    <div style={{
-                        background: '#f6ffed',
-                        border: '1px solid #b7eb8f',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        marginTop: (restEntries.length > 0 || thinkEntries.length > 0) ? '12px' : '0',
-                        color: '#000000',
-                        whiteSpace: 'pre-wrap',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
-                    }}>
-                        {dataEntries.map(entry => entry.content).join('')}
-                    </div>
-                )}
             </>
         );
     };
@@ -586,13 +736,13 @@ const ChatDemo: React.FC = () => {
                                 color: '#333',
                                 marginBottom: '4px'
                             }}>
-                                EasyAgent
+                                {agentDetail?.agentName || 'EasyAgent'}
                             </div>
                             <div style={{
                                 fontSize: '12px',
                                 color: '#666'
                             }}>
-                                智能助手
+                                {agentDetail?.agentDesc}
                             </div>
                         </div>
                     </div>
@@ -659,7 +809,7 @@ const ChatDemo: React.FC = () => {
                             padding: '20px',
                             color: '#999'
                         }}>
-                            <Spin size="small" /> 加载会话中...
+                            <Spin size="small"/> 加载会话中...
                         </div>
                     ) : conversations.length === 0 ? (
                         <div style={{
@@ -667,7 +817,7 @@ const ChatDemo: React.FC = () => {
                             padding: '40px 20px',
                             color: '#999'
                         }}>
-                            <MessageOutlined style={{fontSize: '48px', marginBottom: '16px', opacity: 0.3}} />
+                            <MessageOutlined style={{fontSize: '48px', marginBottom: '16px', opacity: 0.3}}/>
                             <div style={{fontSize: '14px'}}>暂无会话记录</div>
                         </div>
                     ) : conversations.map((conversation, index) => (
@@ -676,26 +826,26 @@ const ChatDemo: React.FC = () => {
                             onClick={() => selectChat(index)}
                             style={{
                                 marginBottom: '12px',
-                                background: currentConversationId === conversation.id
+                                background: selectedChatIndex === index
                                     ? 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)'
                                     : 'var(--ea-theme-background)',
-                                border: currentConversationId === conversation.id
+                                border: selectedChatIndex === index
                                     ? '1px solid #5c74a8'
                                     : '1px solid #d9e6f2',
                                 borderRadius: '12px',
                                 cursor: 'pointer',
                                 transition: 'all 0.3s ease',
-                                color: currentConversationId === conversation.id ? 'white' : '#333',
+                                color: selectedChatIndex === index ? 'white' : '#333',
                                 overflow: 'hidden'
                             }}
                             onMouseEnter={(e) => {
-                                if (currentConversationId !== conversation.id) {
+                                if (selectedChatIndex !== index) {
                                     e.currentTarget.style.background = '#d1e4f4';
                                     e.currentTarget.style.borderColor = '#c2d6ee';
                                 }
                             }}
                             onMouseLeave={(e) => {
-                                if (currentConversationId !== conversation.id) {
+                                if (selectedChatIndex !== index) {
                                     e.currentTarget.style.background = 'var(--ea-theme-background)';
                                     e.currentTarget.style.borderColor = '#d9e6f2';
                                 }
@@ -714,7 +864,7 @@ const ChatDemo: React.FC = () => {
                                     <Tooltip title={getChatPreview(conversation, true)}>
                                         <div style={{
                                             fontSize: '14px',
-                                            color: currentConversationId === conversation.id ? 'white' : '#333',
+                                            color: selectedChatIndex === index ? 'white' : '#333',
                                             marginBottom: '4px',
                                             overflow: 'hidden',
                                             textOverflow: 'ellipsis',
@@ -726,13 +876,17 @@ const ChatDemo: React.FC = () => {
                                     </Tooltip>
                                     <div style={{
                                         fontSize: '11px',
-                                        color: currentConversationId === conversation.id ? 'rgba(255, 255, 255, 0.8)' : '#999',
+                                        color: selectedChatIndex === index ? 'rgba(255, 255, 255, 0.8)' : '#999',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '4px'
                                     }}>
                                         <ClockCircleOutlined/>
-                                        {conversation.lastMessageTime ? formatTime(new Date(conversation.lastMessageTime).getTime()) : '--:--'}
+                                        {conversation.lastMessageTime
+                                            ? formatTime(new Date(conversation.lastMessageTime).getTime())
+                                            : conversation.formattedCreatedAt
+                                                ? formatTime(new Date(conversation.formattedCreatedAt).getTime())
+                                                : formatTime(new Date(conversation.createdAt).getTime())}
                                     </div>
                                 </div>
                             </div>
@@ -742,15 +896,15 @@ const ChatDemo: React.FC = () => {
                                     <Button
                                         type="text"
                                         icon={<DeleteOutlined style={{
-                                            color: currentConversationId === conversation.id ? 'rgba(255, 255, 255, 0.7)' : '#999'
-                                        }} />}
+                                            color: selectedChatIndex === index ? 'rgba(255, 255, 255, 0.7)' : '#999'
+                                        }}/>}
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             deleteChat(index);
                                         }}
                                         style={{
                                             marginLeft: '8px',
-                                            color: currentConversationId === conversation.id ? 'white' : '#999'
+                                            color: selectedChatIndex === index ? 'white' : '#999'
                                         }}
                                     />
                                 </Tooltip>
@@ -800,8 +954,30 @@ const ChatDemo: React.FC = () => {
                     overflowY: 'auto',
                     padding: '32px',
                     background: 'rgba(255, 255, 255, 0.85)',
-                    backdropFilter: 'blur(10px)'
+                    backdropFilter: 'blur(10px)',
+                    position: 'relative'
                 }}>
+                    {/* 模型版本显示 */}
+                    {getModelVersion() && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '12px',
+                            left: '12px',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            border: '1px solid #d9e6f2',
+                            borderRadius: '16px',
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            color: '#666',
+                            fontWeight: 500,
+                            zIndex: 10,
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                            backdropFilter: 'blur(10px)'
+                        }}>
+                            🚀 模型版本: {getModelVersion()}
+                        </div>
+                    )}
+
                     {messages.length === 0 ? (
                         <div style={{
                             display: 'flex',

@@ -3,29 +3,31 @@ const API_BASE_URL = 'http://localhost:8080'; // 替换为你的后端地址
 /**
  * 发送消息到 SSE 服务端，并接收流式响应
  * @param message 用户输入的消息
- * @param conversationId 会话ID
- * @param agentId 代理ID
+ * @param sessionId 会话 ID
+ * @param agentId 代理 ID
  * @param onLog 每次接收到日志数据时的回调
- * @param onFinalAnswer 每次接收到最终答案数据时的回调（替换原来的onData）
+ * @param onFinalAnswer 每次接收到最终答案数据时的回调（替换原来的 onData）
  * @param onThink 每次接收到思考过程数据时的回调
  * @param onData 每次接收到数据消息时的回调
+ * @param onTool 每次接收到工具执行数据时的回调
  * @param onDone 流式响应结束时的回调（后端关闭连接时触发）
  * @param onError 发生错误时的回调（如解析失败）
  * @returns 返回 EventSource 对象，可用于手动关闭连接
  */
 export const sendMessage = (
   message: string,
-  conversationId: string,
+  sessionId: string,
   agentId: string,
   onLog: (log: string) => void,
   onFinalAnswer: (data: string) => void,
   onThink: (think: string) => void,
   onData: (data: string) => void,
+  onTool: (tool: string) => void,
   onDone: () => void,
   onError: (error: string) => void
 ): EventSource => {
   const encodedMsg = encodeURIComponent(message);
-  const eventSource = new EventSource(`${API_BASE_URL}/eaAgent/ai/streamChatWith?msg=${encodedMsg}&conversationId=${conversationId}&agentId=${agentId}`);
+  const eventSource = new EventSource(`${API_BASE_URL}/eaAgent/ai/streamChatWith?msg=${encodedMsg}&sessionId=${sessionId}&agentId=${agentId}`);
 
   eventSource.onmessage = (event) => {
     try {
@@ -42,6 +44,8 @@ export const sendMessage = (
         onThink(jsonData.content);
       } else if (jsonData.type === 'data') {
         onData(jsonData.content);
+      } else if (jsonData.type === 'tool') {
+        onTool(jsonData.content);
       }
     } catch (error) {
       console.error('SSE 数据解析失败:', error);

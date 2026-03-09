@@ -2,6 +2,8 @@ package com.aaa.easyagent.core.domain.request;
 
 import com.aaa.easyagent.core.domain.DO.EaChatMessageDO;
 
+import java.math.BigDecimal;
+
 /**
  * 聊天消息请求对象
  *
@@ -9,24 +11,17 @@ import com.aaa.easyagent.core.domain.DO.EaChatMessageDO;
  * @version 1.0 ChatMessageReq.java  2026/2/10
  */
 public class ChatMessageReq extends EaChatMessageDO {
-    
-    // 消息类型常量
-    public static final String TYPE_USER_QUESTION = "user_question";
-    public static final String TYPE_AI_ANSWER = "ai_answer";
-    public static final String TYPE_SYSTEM_THINKING = "system_thinking";
-    public static final String TYPE_SYSTEM_TOOL_CALL = "system_tool_call";
-    
+
     /**
      * 验证请求参数是否有效
-     * 
+     *
      * @return 是否有效
      */
     public boolean isValid() {
         return this.getConversationId() != null && this.getConversationId() > 0
-                && this.getMessageType() != null && !this.getMessageType().isEmpty()
-                && this.getContent() != null;
+                && this.getQuestion() != null;
     }
-    
+
     /**
      * 设置默认值
      */
@@ -47,121 +42,142 @@ public class ChatMessageReq extends EaChatMessageDO {
             this.setTokensUsed(0);
         }
         if (this.getResponseTime() == null) {
-            this.setResponseTime(0);
+            this.setResponseTime(BigDecimal.ZERO);
         }
     }
-    
+
+
+
+
     /**
-     * 是否是用户提问
-     * 
-     * @return 是否是用户提问
-     */
-    public boolean isUserQuestion() {
-        return TYPE_USER_QUESTION.equals(this.getMessageType());
-    }
-    
-    /**
-     * 是否是AI回答
-     * 
-     * @return 是否是AI回答
-     */
-    public boolean isAiAnswer() {
-        return TYPE_AI_ANSWER.equals(this.getMessageType());
-    }
-    
-    /**
-     * 是否是系统思考过程
-     * 
-     * @return 是否是系统思考过程
-     */
-    public boolean isSystemThinking() {
-        return TYPE_SYSTEM_THINKING.equals(this.getMessageType());
-    }
-    
-    /**
-     * 是否是系统工具调用
-     * 
-     * @return 是否是系统工具调用
-     */
-    public boolean isSystemToolCall() {
-        return TYPE_SYSTEM_TOOL_CALL.equals(this.getMessageType());
-    }
-    
-    /**
-     * 创建用户提问消息
-     * 
-     * @param conversationId 会话ID
-     * @param content 消息内容
+     * 创建用户提问消息（仅问题，无回答）
+     *
+     * @param conversationId 会话 ID
+     * @param question 用户问题
      * @param sequence 消息序号
      * @return 用户提问消息请求对象
      */
-    public static ChatMessageReq createUserQuestion(Long conversationId, String content, Integer sequence) {
+    public static ChatMessageReq createUserQuestion(Long conversationId, String question, Integer sequence) {
         ChatMessageReq req = new ChatMessageReq();
         req.setConversationId(conversationId);
-        req.setMessageType(TYPE_USER_QUESTION);
-        req.setContent(content);
+        req.setQuestion(question);
+        req.setAnswer("");
         req.setSequence(sequence);
         req.setDefaults();
         return req;
     }
-    
+
     /**
-     * 创建AI回答消息
-     * 
-     * @param conversationId 会话ID
-     * @param content 消息内容
+     * 创建 AI 回答消息（包含问题和回答）
+     *
+     * @param conversationId 会话 ID
+     * @param question 用户问题
+     * @param answer AI 回答
      * @param sequence 消息序号
      * @param modelUsed 使用的模型
-     * @param tokensUsed 消耗的token数
+     * @param tokensUsed 消耗的 token 数
      * @param responseTime 响应时间
-     * @return AI回答消息请求对象
+     * @return AI 回答消息请求对象
      */
-    public static ChatMessageReq createAiAnswer(Long conversationId, String content, Integer sequence,
+    public static ChatMessageReq createAiAnswer(Long conversationId, String question, String answer, Integer sequence,
                                                 String modelUsed, Integer tokensUsed, Integer responseTime) {
         ChatMessageReq req = new ChatMessageReq();
         req.setConversationId(conversationId);
-        req.setMessageType(TYPE_AI_ANSWER);
-        req.setContent(content);
+        req.setQuestion(question);
+        req.setAnswer(answer);
+        req.setSequence(sequence);
+        req.setModelUsed(modelUsed);
+        req.setTokensUsed(tokensUsed);
+        req.setResponseTime(responseTime != null ? BigDecimal.valueOf(responseTime) : null);
+        req.setDefaults();
+        return req;
+    }
+
+    /**
+     * 创建 AI 回答消息（包含思考过程）
+     *
+     * @param conversationId 会话 ID
+     * @param question 用户问题
+     * @param answer AI 回答
+     * @param thinkingLog 思考过程日志
+     * @param sequence 消息序号
+     * @param modelUsed 使用的模型
+     * @param tokensUsed 消耗的 token 数
+     * @param responseTime 响应时间
+     * @return AI 回答消息请求对象
+     */
+    public static ChatMessageReq createAiAnswerWithThinking(Long conversationId, String question, String answer,
+                                                            String thinkingLog, Integer sequence,
+                                                            String modelUsed, Integer tokensUsed, Integer responseTime) {
+        ChatMessageReq req = new ChatMessageReq();
+        req.setConversationId(conversationId);
+        req.setQuestion(question);
+        req.setAnswer(answer);
+        req.setThinkingLog(thinkingLog);
+        req.setSequence(sequence);
+        req.setModelUsed(modelUsed);
+        req.setTokensUsed(tokensUsed);
+        req.setResponseTime(responseTime != null ? BigDecimal.valueOf(responseTime) : null);
+        req.setDefaults();
+        return req;
+    }
+
+    /**
+     * 创建 AI 回答消息（包含工具调用）
+     *
+     * @param conversationId 会话 ID
+     * @param question 用户问题
+     * @param answer AI 回答
+     * @param toolCalls 工具调用信息（JSON 格式）
+     * @param sequence 消息序号
+     * @param modelUsed 使用的模型
+     * @param tokensUsed 消耗的 token 数
+     * @param responseTime 响应时间
+     * @return AI 回答消息请求对象
+     */
+    public static ChatMessageReq createAiAnswerWithToolCalls(Long conversationId, String question, String answer,
+                                                             String toolCalls, Integer sequence,
+                                                             String modelUsed, Integer tokensUsed, Integer responseTime) {
+        ChatMessageReq req = new ChatMessageReq();
+        req.setConversationId(conversationId);
+        req.setQuestion(question);
+        req.setAnswer(answer);
+        req.setToolCalls(toolCalls);
+        req.setSequence(sequence);
+        req.setModelUsed(modelUsed);
+        req.setTokensUsed(tokensUsed);
+        req.setResponseTime(responseTime != null ? BigDecimal.valueOf(responseTime) : null);
+        req.setDefaults();
+        return req;
+    }
+
+    /**
+     * 创建 AI 回答消息（完整信息：思考 + 工具 + 回答）
+     *
+     * @param conversationId 会话 ID
+     * @param question 用户问题
+     * @param answer AI 回答
+     * @param answer AI 回答
+     * @param messageContext 聊天消息上下文
+     * @param sequence 消息序号
+     * @param modelUsed 使用的模型
+     * @param tokensUsed 消耗的 token 数
+     * @param responseTime 响应时间
+     * @return AI 回答消息请求对象
+     */
+    public static ChatMessageReq createFullAiAnswer(Long conversationId, Long messageId, String question, String answer,
+                                                    String messageContext, Integer sequence,
+                                                    String modelUsed, Integer tokensUsed, BigDecimal responseTime) {
+        ChatMessageReq req = new ChatMessageReq();
+        req.setId(messageId);
+        req.setConversationId(conversationId);
+        req.setQuestion(question);
+        req.setAnswer(answer);
+        req.setMessageContext(messageContext);
         req.setSequence(sequence);
         req.setModelUsed(modelUsed);
         req.setTokensUsed(tokensUsed);
         req.setResponseTime(responseTime);
-        req.setDefaults();
-        return req;
-    }
-    
-    /**
-     * 创建系统思考过程消息
-     * 
-     * @param conversationId 会话ID
-     * @param thinkingLog 思考过程日志
-     * @param sequence 消息序号
-     * @return 系统思考过程消息请求对象
-     */
-    public static ChatMessageReq createSystemThinking(Long conversationId, String thinkingLog, Integer sequence) {
-        ChatMessageReq req = new ChatMessageReq();
-        req.setConversationId(conversationId);
-        req.setMessageType(TYPE_SYSTEM_THINKING);
-        req.setThinkingLog(thinkingLog);
-        req.setSequence(sequence);
-        req.setDefaults();
-        return req;
-    }
-    
-    /**
-     * 创建系统工具调用消息
-     * 
-     * @param conversationId 会话ID
-     * @param toolCalls 工具调用信息（JSON格式）
-     * @param sequence 消息序号
-     * @return 系统工具调用消息请求对象
-     */
-    public static ChatMessageReq createSystemToolCall(Long conversationId, String toolCalls, Integer sequence) {
-        ChatMessageReq req = new ChatMessageReq();
-        req.setConversationId(conversationId);
-        req.setMessageType(TYPE_SYSTEM_TOOL_CALL);
-        req.setToolCalls(toolCalls);
-        req.setSequence(sequence);
         req.setDefaults();
         return req;
     }

@@ -69,4 +69,9 @@ public class AgentContext {
      */
     private boolean withStream = true;
 
+
+    /**
+     * 会话 Id
+     */
+    private String sessionId;
 }

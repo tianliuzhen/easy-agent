@@ -68,6 +68,10 @@ public class SseHelper {
         doSend(sseEmitter, message, "data");
     }
 
+    public static void sendTool(SseEmitter sseEmitter, Object... message) {
+        doSend(sseEmitter, message, "tool");
+    }
+
     public static void sendFinalAnswer(SseEmitter sseEmitter, Object... message) {
         doSend(sseEmitter, message, "finalAnswer");
     }

@@ -51,6 +51,11 @@ public class AgentManagerServiceImpl implements AgentManagerService {
     }
 
     @Override
+    public EaAgentResult queryAgent(EaAgentReq req) {
+        return BeanConvertUtil.beanTo(eaAgentDAO.selectByPrimaryKey(req.getId()), EaAgentResult.class);
+    }
+
+    @Override
     public int delAgent(EaAgentReq req) {
         return eaAgentDAO.deleteByPrimaryKey(req.getId());
     }

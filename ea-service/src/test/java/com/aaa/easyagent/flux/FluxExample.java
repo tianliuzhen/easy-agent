@@ -30,7 +30,7 @@ public class FluxExample {
         executorService.execute(() -> {
             List<String> think = AgentHolder.getAgentThink();
             System.err.println(think == agentThink);
-            AgentHolder.clearThink();
+            // AgentHolder.clearThink();
         });
         AgentHolder.writeThink("begin:", "开始执行2");
 

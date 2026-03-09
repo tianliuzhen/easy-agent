@@ -28,6 +28,15 @@ public interface AgentManagerService {
     List<EaAgentResult> listAgent(EaAgentReq req);
 
     /**
+     * 查询智能体
+     *
+     * @param req
+     * @return
+     */
+    EaAgentResult queryAgent(EaAgentReq req);
+
+
+    /**
      * 删除智能体
      *
      * @param req 智能体请求对象，包含要删除的智能体信息
@@ -42,6 +51,7 @@ public interface AgentManagerService {
      * @return
      */
     EaAgentResult getAgent(Long agentId);
+
     EaAgentResult getAgent(String agentId);
 
 

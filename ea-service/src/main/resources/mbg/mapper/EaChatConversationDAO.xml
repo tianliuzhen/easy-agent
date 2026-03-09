@@ -7,6 +7,7 @@
     -->
     <id column="id" jdbcType="BIGINT" property="id" />
     <result column="title" jdbcType="VARCHAR" property="title" />
+    <result column="session_id" jdbcType="VARCHAR" property="sessionId" />
     <result column="agent_id" jdbcType="BIGINT" property="agentId" />
     <result column="user_id" jdbcType="VARCHAR" property="userId" />
     <result column="message_count" jdbcType="INTEGER" property="messageCount" />

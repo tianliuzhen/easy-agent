@@ -11,7 +11,6 @@ import com.aaa.easyagent.core.domain.result.EaAgentResult;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
 import com.aaa.easyagent.core.service.AgentManagerService;
 import com.aaa.easyagent.core.service.ToolMangerService;
-import com.aaa.easyagent.web.example.ReactAgentController;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,20 +29,20 @@ public class AgentChatServiceImpl implements AgentChatService {
 
     private final AgentManagerService agentManagerService;
     private final ToolMangerService toolMangerService;
-    private final ChatRecordSaver chatRecordSaver;
 
 
     /**
-     * @param conversationId
-     * @param question
-     * @param agentId
-     * @param sseEmitter
-     * @see ReactAgentController#testXml()
+     * 流式对话
+     *
+     * @param sessionId  会话 ID
+     * @param question   问题
+     * @param agentId    Agent ID
+     * @param sseEmitter SSE 发射器
      */
     @Override
-    public void streamChatWith(String conversationId, String question, String agentId, SseEmitter sseEmitter) {
+    public void streamChatWith(String sessionId, String question, String agentId, SseEmitter sseEmitter) {
         EaAgentResult agent = agentManagerService.getAgent(Long.valueOf(agentId));
-        if (agent == null){
+        if (agent == null) {
             sseEmitter.complete();
             return;
         }
@@ -71,13 +70,10 @@ public class AgentChatServiceImpl implements AgentChatService {
 
         // sse
         agentContext.setSseEmitter(sseEmitter);
+        agentContext.setSessionId(sessionId);
 
         // 开始新的聊天会话并保存到数据库
-        Long newConversationId = chatRecordSaver.startNewConversation(agentContext, question);
-        if (newConversationId != null) {
-            log.info("开始新的聊天会话，会话ID: {}, Agent ID: {}, 用户提问: {}",
-                    newConversationId, agent.getId(), question);
-        }
+        ChatRecordSaver.startNewConversation(agentContext, question);
 
         // 执行Agent
         String result = new ReActAgentXmlExecutor(agentContext).exec(question);
