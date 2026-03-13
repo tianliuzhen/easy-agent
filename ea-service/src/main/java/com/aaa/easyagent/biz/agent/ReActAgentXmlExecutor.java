@@ -151,8 +151,6 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
         if (this.agentContext.isWithStream()) {
             CountDownLatch runOver = new CountDownLatch(1);
 
-            ChatRecordSaver.addData("test");
-
             chatModel.stream(prompt)
                     .bufferTimeout(10, Duration.ofMillis(100))  // 批量处理
                     .subscribe(SceneWrapper.wrapper(chatRes -> {
@@ -160,13 +158,13 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
                                 String lineResStr = ChatResponseUtil.getResStr(chatRes);
                                 resStr.append(lineResStr);
                                 SseHelper.sendData(sse, lineResStr);
-                                ChatRecordSaver.addData(lineResStr);
+
 
                                 // 思考
                                 String lineThinks = ChatResponseUtil.getReasoningContent(chatRes);
                                 reasoningContent.append(lineThinks);
                                 SseHelper.sendThink(sse, lineThinks);
-                                ChatRecordSaver.addThinking(lineThinks);
+
                             }),
                             error -> {
                                 // 执行异常
@@ -176,13 +174,15 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
                             }, () -> {
                                 // 执行结束
                                 runOver.countDown();
-                                ChatRecordSaver.addThinking(reasoningContent.toString());
                                 log.info("ReActAgentXmlExecutor.think.runOver");
                             });
 
             try {
                 // 串行等待
                 runOver.await();
+
+                ChatRecordSaver.addData(resStr.toString());
+                ChatRecordSaver.addThinking(reasoningContent.toString());
             } catch (InterruptedException e) {
                 log.error("ReActAgentXmlExecutor.runOver.await.error:" + e.getMessage(), e);
             }
@@ -191,11 +191,12 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
             // 结果
             String data = ChatResponseUtil.getResStr(chatResponse);
             resStr.append(data);
-            ChatRecordSaver.addData(data);
 
             // 思考过程
             String things = ChatResponseUtil.getReasoningContent(chatResponse);
             reasoningContent.append(things);
+
+            ChatRecordSaver.addData(data);
             ChatRecordSaver.addThinking(reasoningContent.toString());
         }
 
