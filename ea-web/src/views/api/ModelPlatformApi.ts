@@ -8,6 +8,7 @@ export const modelPlatformApi = {
   list: async () => {
     const response = await fetch(`${API_BASE_URL}/eaAgent/modelPlatform/list`, {
       method: 'POST',
+      credentials: 'include',
     });
     return response.json();
   },
@@ -21,6 +22,7 @@ export const modelPlatformApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ id }),
     });
     return response.json();
@@ -35,6 +37,7 @@ export const modelPlatformApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify(platform),
     });
     return response.json();
@@ -49,6 +52,7 @@ export const modelPlatformApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ id }),
     });
     return response.json();
@@ -63,6 +67,7 @@ export const modelPlatformApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ id, isActive }),
     });
     return response.json();

@@ -9,6 +9,8 @@ import HTTPConfig from './views/page/agent/tool/HTTPConfig';
 import MCPConfig from './views/page/agent/tool/MCPConfig';
 import GRPCConfig from './views/page/agent/tool/GRPCConfig';
 import ToolManager from './views/page/ToolManager';
+import Login from './views/page/Login';
+import Register from './views/page/Register';
 import {App as AntdApp, Button, ConfigProvider, Flex} from 'antd';
 
 function App() {
@@ -25,6 +27,15 @@ function App() {
 
 function AppContent() {
     const location = useLocation();
+
+    // 处理登录和注册页面
+    if (location.pathname === '/login') {
+        return <Login />;
+    }
+
+    if (location.pathname === '/register') {
+        return <Register />;
+    }
 
     // 如果是 /home 路径，渲染带导航栏的布局
     if (location.pathname.startsWith('/home')) {
@@ -67,7 +78,7 @@ function AppContent() {
                 <Routes>
                     <Route path="/pageTool/AgentConfig/*" element={<AgentConfig/>}>
                         {/*  在当前代码中，tool/sql ... 嵌套路由的定义并没有实际作用，因为组件内部通过程序化方式处理了路径匹配和组件渲染*/}
-                        <Route path="tool/sql" element={<SQLConfig/>}/> /
+                        <Route path="tool/sql" element={<SQLConfig/>}/>
                         <Route path="tool/http" element={<HTTPConfig/>}/>
                         <Route path="tool/mcp" element={<MCPConfig/>}/>
                         <Route path="tool/grpc" element={<GRPCConfig/>}/>

@@ -22,6 +22,17 @@ public class BaseResult<T> {
         baseResult.setData(data);
         return baseResult;
     }
+    public static <T> BaseResult<T> success(T data) {
+        BaseResult<T> baseResult = new BaseResult();
+        baseResult.setSuccess(true);
+        baseResult.setData(data);
+        return baseResult;
+    }
+    public static <T> BaseResult<T> success() {
+        BaseResult<T> baseResult = new BaseResult();
+        baseResult.setSuccess(true);
+        return baseResult;
+    }
 
     public static <T> BaseResult<T> buildSuc() {
         BaseResult<T> baseResult = new BaseResult();
@@ -31,6 +42,12 @@ public class BaseResult<T> {
     }
 
     public static <T> BaseResult<T> buildFail(String data) {
+        BaseResult<T> baseResult = new BaseResult();
+        baseResult.setSuccess(false);
+        baseResult.setMessage(data);
+        return baseResult;
+    }
+    public static <T> BaseResult<T> fail(String data) {
         BaseResult<T> baseResult = new BaseResult();
         baseResult.setSuccess(false);
         baseResult.setMessage(data);

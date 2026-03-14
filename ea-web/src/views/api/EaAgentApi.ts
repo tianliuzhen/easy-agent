@@ -9,6 +9,7 @@ export const eaAgentApi = {
   queryChatModelTypeList: async ()=> {
     const response = await fetch(`${API_BASE_URL}/eaAgent/ai/queryChatModelTypeList`, {
       method: 'POST',
+      credentials: 'include',
     });
     return response.json();
   },
@@ -21,6 +22,7 @@ export const eaAgentApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify(agent),
     });
     return response.json();
@@ -33,6 +35,7 @@ export const eaAgentApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify(req),
     });
     return response.json();
@@ -41,12 +44,13 @@ export const eaAgentApi = {
 
   // 删除 Agent
   delAgent: async (agent: any) => {
-    
+
     const response = await fetch(`${API_BASE_URL}/eaAgent/ai/delAgent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify( agent ),
     });
     return response.json();

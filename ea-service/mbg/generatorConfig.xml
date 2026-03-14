@@ -63,5 +63,25 @@
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
+        <table tableName="ea_iam_user" mapperName="EaIamUserDAO" domainObjectName="EaIamUserDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+        <table tableName="ea_iam_role" mapperName="EaIamRoleDAO" domainObjectName="EaIamRoleDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+        <table tableName="ea_iam_permission" mapperName="EaIamPermissionDAO" domainObjectName="EaIamPermissionDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+        <table tableName="ea_iam_user_role" mapperName="EaIamUserRoleDAO" domainObjectName="EaIamUserRoleDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+        <table tableName="ea_iam_role_permission" mapperName="EaIamRolePermissionDAO" domainObjectName="EaIamRolePermissionDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
     </context>
 </generatorConfiguration>

@@ -20,12 +20,16 @@ public class CorsConfig {
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
+
         // config.addAllowedOrigin("*");
-        config.addAllowedOriginPattern("*");   // Spring 5.3 版本引入的新方法，支持正则
+        // 当 allowCredentials 为 true 时，不能使用 "*"，需要指定具体的来源或使用正则
+        config.addAllowedOriginPattern("http://localhost:*");   // 允许所有 localhost 端口
+        // config.addAllowedOrigin("http://localhost:5170"); ; // 明确指定前端地址
         config.setAllowCredentials(true); // 允许跨域发送cookie
+
         config.addAllowedHeader("*"); // 放行全部原始头信息
         config.addAllowedMethod("*"); // 允许所有请求方法跨域调用
-        config.setMaxAge(60*10L); // 缓存options请求时间，单位：秒，如果不配置默认会一直请求options
+        config.setMaxAge(60 * 10L); // 缓存options请求时间，单位：秒，如果不配置默认会一直请求options
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
