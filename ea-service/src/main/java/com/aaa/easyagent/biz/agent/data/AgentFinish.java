@@ -14,5 +14,5 @@ import lombok.NoArgsConstructor;
 public class AgentFinish extends AgentOutput {
     private String result;
 
-    private String llmResponse;
+
 }

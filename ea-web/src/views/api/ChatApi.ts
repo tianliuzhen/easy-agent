@@ -27,7 +27,14 @@ export const sendMessage = (
   onError: (error: string) => void
 ): EventSource => {
   const encodedMsg = encodeURIComponent(message);
-  const eventSource = new EventSource(`${API_BASE_URL}/eaAgent/ai/streamChatWith?msg=${encodedMsg}&sessionId=${sessionId}&agentId=${agentId}`);
+  const url = `${API_BASE_URL}/eaAgent/ai/streamChatWith?msg=${encodedMsg}&sessionId=${sessionId}&agentId=${agentId}`;
+  console.log('创建 SSE 连接:', url);
+  console.log('当前 cookies:', document.cookie);
+
+  const eventSource = new EventSource(
+    url,
+    { withCredentials: true }
+  );
 
   eventSource.onmessage = (event) => {
     try {
@@ -54,11 +61,20 @@ export const sendMessage = (
     }
   };
 
-  eventSource.onerror = () => {
-    // 注意：后端关闭连接时，会触发 onerror，此处视为正常结束
-    console.log('SSE 连接已关闭（服务端主动终止）');
-    eventSource.close();
-    onDone(); // 调用结束回调
+  eventSource.onerror = (error) => {
+    console.error('SSE 连接错误:', error);
+    console.error('SSE readyState:', eventSource.readyState);
+
+    // 如果是权限错误，提供更明确的错误信息
+    if (eventSource.readyState === EventSource.CLOSED) {
+      console.error('SSE 连接被关闭，可能是权限问题');
+      onError('连接被拒绝，请检查登录状态或刷新页面重试');
+    } else {
+      // 注意：后端关闭连接时，会触发 onerror，此处视为正常结束
+      console.log('SSE 连接已关闭（服务端主动终止）');
+      eventSource.close();
+      onDone(); // 调用结束回调
+    }
   };
 
   return eventSource;

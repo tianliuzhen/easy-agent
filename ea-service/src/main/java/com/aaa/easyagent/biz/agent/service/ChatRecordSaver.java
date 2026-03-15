@@ -147,7 +147,7 @@ public class ChatRecordSaver {
      * @param functionUseAction 工具调用动作
      */
     public static void addToolCall(FunctionUseAction functionUseAction, String result) {
-        String toolCall = String.format("工具名称: %s, 输入参数: %s, 输出参数: %s",
+        String toolCall = String.format("工具名称: %s \n 输入参数: %s \n 输出参数: %s",
                 functionUseAction.getAction(),
                 functionUseAction.getActionInput(),
                 result);
@@ -179,8 +179,19 @@ public class ChatRecordSaver {
 
             String messageContextJson = JacksonUtil.beanToStr(messageContext.get());
 
+            // 检查是否为首次对话（消息序号为 1），如果是，则更新会话标题和状态
+            Long messageIdVal = currentMessageId.get();
+            if (messageIdVal != null) {
+                // 获取当前消息数量，判断是否为第一条消息
+                int messageCount = chatRecordService.countMessagesByConversationId(conversationId);
+                if (messageCount <= 1) {
+                    // 首次对话，更新会话标题和状态
+                    updateConversationTitleAndStatus(conversationId, userQuestion);
+                }
+            }
+
             // 保存聊天交互（一条记录包含问题和回答）
-            List<Long> messageIds = chatRecordService.saveChatInteraction(
+            List<Long> messageIds = chatRecordService.saveChatMessage(
                     conversationId,
                     messageId,
                     userQuestion,
@@ -204,13 +215,47 @@ public class ChatRecordSaver {
     }
 
     /**
-     * 保存Agent完成结果
+     * 更新会话标题和状态
      *
-     * @param agentFinish  Agent完成结果
+     * @param conversationId 会话 ID
+     * @param firstQuestion  首次用户问题
+     */
+    private static void updateConversationTitleAndStatus(Long conversationId, String firstQuestion) {
+        try {
+            if (conversationId == null || firstQuestion == null || firstQuestion.trim().isEmpty()) {
+                return;
+            }
+
+            // 生成标题（前 50 个字符）
+            String title = firstQuestion.length() > 50
+                    ? firstQuestion.substring(0, 47) + "..."
+                    : firstQuestion;
+
+            // 创建更新请求对象
+            com.aaa.easyagent.core.domain.request.ChatConversationReq req =
+                    new com.aaa.easyagent.core.domain.request.ChatConversationReq();
+            req.setId(conversationId);
+            req.setTitle(title);
+            req.setStatus("active");
+            req.setUpdatedAt(new Date());
+
+            // 更新会话信息
+            chatRecordService.updateConversation(req);
+
+            log.info("更新会话标题和状态成功，会话 ID: {}, 标题：{}", conversationId, title);
+        } catch (Exception e) {
+            log.error("更新会话标题和状态失败，会话 ID: {}", conversationId, e);
+        }
+    }
+
+    /**
+     * 保存 Agent 完成结果
+     *
+     * @param agentFinish  Agent 完成结果
      * @param modelUsed    使用的模型
-     * @param tokensUsed   消耗的token数
+     * @param tokensUsed   消耗的 token 数
      * @param responseTime 响应时间（毫秒）
-     * @return 保存的消息ID列表
+     * @return 保存的消息 ID 列表
      */
     public static List<Long> saveAgentFinish(AgentFinish agentFinish, String modelUsed,
                                              Integer tokensUsed, BigDecimal responseTime) {

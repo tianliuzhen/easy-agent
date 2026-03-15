@@ -65,6 +65,6 @@ public class ToolAgentExecutor extends BaseAgent {
             return new AgentOutput();
         }
 
-        return new AgentFinish(ChatResponseUtil.getResStr(chatResponse), ChatResponseUtil.getResStr(chatResponse));
+        return new AgentFinish(ChatResponseUtil.getResStr(chatResponse));
     }
 }

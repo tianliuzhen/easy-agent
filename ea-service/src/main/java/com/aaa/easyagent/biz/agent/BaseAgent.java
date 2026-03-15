@@ -117,7 +117,7 @@ public abstract class BaseAgent {
             throw new AgentException(agentContext.getModelType() + "无法匹配大模型");
         }
 
-        SseHelper.sendLog(sse, "使用【{}】{}大模型开始决策...", agentContext.getModelType(), agentContext.getAgentModelConfig().getModelVersion());
+        SseHelper.sendLog(sse, "power by【{}】{} ...", agentContext.getModelType(), agentContext.getAgentModelConfig().getModelVersion());
 
         // 提示词构建
         prompt = this.buildPrompt();
@@ -133,7 +133,6 @@ public abstract class BaseAgent {
             SseHelper.sendLog(sse, "第{}次大模型决策开始执行...", decisionCnt);
             AgentOutput agentOutput = null;
 
-
             try {
                 // tool/react ... 等等多模式执行
                 agentOutput = this.run();
@@ -143,9 +142,6 @@ public abstract class BaseAgent {
                     SseHelper.sendLog(sse, "第{}次大模型决策结束...：", decisionCnt);
                     String llmResponse = agentFinish.getResult();
                     SseHelper.sendLog(sse, "第{}次大模型决策结果...：{}", decisionCnt, llmResponse);
-
-                    SseHelper.sendThink(sse, agentOutput.getReasoningContent());
-                    ChatRecordSaver.addThinking(agentFinish.getReasoningContent());
 
                     SseHelper.sendFinalAnswer(sse, agentFinish.getResult());
                     ChatRecordSaver.addFinalAnswer(agentFinish.getResult());
@@ -167,11 +163,9 @@ public abstract class BaseAgent {
                 return null;
             }
 
-            SseHelper.sendThink(sse, agentOutput.getReasoningContent());
-
-            SseHelper.sendData(sse, "第{}次大模型决策：{}", decisionCnt, agentOutput);
 
             // todo 检查是否卡住
+            // 1. 多次调用工具，并且工具返回的结果都一样，则认为模型卡住
             // if (isStuck()) {
             //     handleStuckState();
             // }

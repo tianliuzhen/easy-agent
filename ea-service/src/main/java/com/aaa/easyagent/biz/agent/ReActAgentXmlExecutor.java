@@ -60,8 +60,8 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
              请尽最大可能回答以下问题。请记住，在没有执行工具的情况下，不得编造工具执行的结果。
              你可以使用以下工具：{tools}
             
-             ## 响应格式要求
-             请严格按照以下 XML 格式进行回答：
+             ## 使用工具的响应格式要求
+             如果需要调用工具，请严格按照以下 XML 格式进行回答：
              如果尚未获取工具执行结果，则响应中不应包含 <Final Answer> 和 <Thought> 标签。
              允许重复 <Thought> / <Action> / <ActionInput> / Observation 这一流程多次。
             
@@ -75,15 +75,12 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
              <Final Answer> 对原始输入问题的最终回答（如果没有可展示的结果，则无需展示此项） </Final Answer>
             
              ## 回答过程必须遵守的规则
-             1. <Action> 标签内只能包含工具名称，不得有任何其他字符。
+             1. <Action> 标签内只能包含工具名称，不得有任何其他字符,<ActionInput> 必须基于输入类型的描述进行分析后再提供
              2. 请勿猜测答案。如需执行 Action，请等待用户将执行结果作为下一步的 Observation 提供给你，并且不要在本次响应中提供后续的 <Thought> 和 <Final Answer>。
-             3. <ActionInput> 必须基于输入类型的描述进行分析后再提供。
-             4. 如需更多信息，请使用 query_knowledge_base 工具。
-             5. 如果结果不足，请考虑使用其他工具或再次查询知识库。
-             6. 一旦获得所有必要信息，请提供最终答案。
-             7. 关于查询当前时间的问题，必须调用工具获取结果后再回答。
-             8. 调用工具并得到结果后，在返回的结果中不得出现格式要求中的 <Action> 和 <ActionInput> 标签，以防干扰再次调用工具。
-             9. 始终使用类似 XML 的标签来构建你的响应：<Thought>、<Action>、<ActionInput>、<Final Answer>。
+             3. 如果结果不足，请考虑使用其他工具或再次查询知识库。
+             4. 调用工具并得到结果后，在返回的结果中不得出现格式要求中的 <Action> 和 <ActionInput> 标签，以防干扰再次调用工具。
+             5. 如果需要调用工具才需要始终使用类似 XML 的标签来构建你的响应：<Thought>、<Action>、<ActionInput>、<Final Answer>。
+             6. 如果只是简单问题，如：你好，你能干啥，快速响应即可
             
              ## 响应前的分析与规划框架
              请在组织最终回答前，按以下框架进行内部思考（此部分无需在最终响应中展示，但用于指导你的回答逻辑）：
@@ -152,19 +149,17 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
             CountDownLatch runOver = new CountDownLatch(1);
 
             chatModel.stream(prompt)
-                    .bufferTimeout(10, Duration.ofMillis(100))  // 批量处理
+                    .bufferTimeout(20, Duration.ofMillis(100))  // 批量处理
                     .subscribe(SceneWrapper.wrapper(chatRes -> {
-                                // 结果
-                                String lineResStr = ChatResponseUtil.getResStr(chatRes);
-                                resStr.append(lineResStr);
-                                SseHelper.sendData(sse, lineResStr);
-
-
                                 // 思考
                                 String lineThinks = ChatResponseUtil.getReasoningContent(chatRes);
                                 reasoningContent.append(lineThinks);
                                 SseHelper.sendThink(sse, lineThinks);
 
+                                // 结果
+                                String lineResStr = ChatResponseUtil.getResStr(chatRes);
+                                resStr.append(lineResStr);
+                                SseHelper.sendData(sse, lineResStr);
                             }),
                             error -> {
                                 // 执行异常
@@ -181,8 +176,8 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
                 // 串行等待
                 runOver.await();
 
-                ChatRecordSaver.addData(resStr.toString());
                 ChatRecordSaver.addThinking(reasoningContent.toString());
+                ChatRecordSaver.addData(resStr.toString());
             } catch (InterruptedException e) {
                 log.error("ReActAgentXmlExecutor.runOver.await.error:" + e.getMessage(), e);
             }
@@ -196,8 +191,8 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
             String things = ChatResponseUtil.getReasoningContent(chatResponse);
             reasoningContent.append(things);
 
-            ChatRecordSaver.addData(data);
             ChatRecordSaver.addThinking(reasoningContent.toString());
+            ChatRecordSaver.addData(data);
         }
 
         // 添加助手执行记忆

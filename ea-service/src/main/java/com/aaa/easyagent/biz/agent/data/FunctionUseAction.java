@@ -11,7 +11,6 @@ public class FunctionUseAction extends AgentOutput{
     private String action;
     private String actionInput;
 
-    private String llmResponse;
 
     public FunctionUseAction(String action, String actionInput) {
         this.action = action;

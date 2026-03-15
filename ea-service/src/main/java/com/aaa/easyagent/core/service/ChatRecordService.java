@@ -167,9 +167,9 @@ public interface ChatRecordService {
      * @param responseTime   响应时间（毫秒）
      * @return 保存的消息 ID 列表
      */
-    public List<Long> saveChatInteraction(Long conversationId,Long messageId, String question, String aiAnswer,
-                                          String messageContext, String modelUsed,
-                                          Integer tokensUsed, BigDecimal responseTime);
+    public List<Long> saveChatMessage(Long conversationId, Long messageId, String question, String aiAnswer,
+                                      String messageContext, String modelUsed,
+                                      Integer tokensUsed, BigDecimal responseTime);
 
     /**
      * 获取会话的完整聊天记录

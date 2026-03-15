@@ -19,7 +19,9 @@ import {
     MessageOutlined,
     ClockCircleOutlined,
     DeleteOutlined,
-    PlusCircleOutlined
+    PlusCircleOutlined,
+    DownOutlined,
+    RightOutlined
 } from '@ant-design/icons';
 import {Button, Input, Spin, Card, Badge, Tooltip, Divider, Tag, message} from 'antd';
 
@@ -34,7 +36,7 @@ interface ChatMessage {
 }
 
 interface ThinkingLogEntry {
-    type: 'log' | 'think' | 'data' | 'error' | 'tool';
+    type: 'log' | 'think' | 'data' | 'error' | 'tool' | 'finalAnswer';
     content: string;
     timestamp?: number;
 }
@@ -231,27 +233,240 @@ const ChatDemo: React.FC = () => {
         }
     };
 
+    // 解析 messageContext 中的思考过程
+    const parseMessageContext = (messageContext: string, messageId: string): ThinkingLogEntry[] => {
+        try {
+            if (!messageContext || messageContext.trim() === '') {
+                return [];
+            }
+
+            const contextArray = JSON.parse(messageContext);
+            if (!Array.isArray(contextArray)) {
+                return [];
+            }
+
+            const entries: ThinkingLogEntry[] = [];
+
+            contextArray.forEach((item: any) => {
+                const type = item.type;
+                const value = item.value || '';
+                const time = item.time;
+
+                if (type === 'thinking') {
+                    entries.push({
+                        type: 'think',
+                        content: value,
+                        timestamp: time
+                    });
+                } else if (type === 'data') {
+                    entries.push({
+                        type: 'data',
+                        content: value,
+                        timestamp: time
+                    });
+                } else if (type === 'tool') {
+                    entries.push({
+                        type: 'tool',
+                        content: value,
+                        timestamp: time
+                    });
+                } else if (type === 'log') {
+                    entries.push({
+                        type: 'log',
+                        content: value,
+                        timestamp: time
+                    });
+                } else if (type === 'error') {
+                    entries.push({
+                        type: 'error',
+                        content: value,
+                        timestamp: time
+                    });
+                } else if (type === 'finalAnswer') {
+                    entries.push({
+                        type: 'finalAnswer',
+                        content: value,
+                        timestamp: time
+                    });
+                }
+            });
+
+            return entries;
+        } catch (error) {
+            console.error('解析 messageContext 失败:', error);
+            return [];
+        }
+    };
+
     // 加载指定会话的聊天记录
     const loadConversation = async (conversationId: number) => {
         try {
+            console.log('加载会话记录，conversationId:', conversationId);
             const chatHistory = await getFullChatHistory(conversationId);
+            console.log('获取到的聊天记录:', chatHistory);
 
             // 将后端返回的聊天记录转换为前端格式
-            const convertedMessages: ChatMessage[] = chatHistory.map((msg: any) => ({
-                text: msg.content || '',
-                isUser: msg.messageType?.includes('user') || false,
-                type: 'data',
-                id: msg.id?.toString() || crypto.randomUUID(),
-                timestamp: new Date(msg.createdAt).getTime()
-            }));
+            const convertedMessages: ChatMessage[] = [];
+            const newMessageThinkingLogs: ThinkingLogState = {};
 
+            chatHistory.forEach((msg: any) => {
+                console.log('处理消息:', msg);
+
+                const hasMessageContext = msg.messageContext && msg.messageContext.trim() !== '';
+                const hasQuestion = msg.question && msg.question.trim() !== '';
+                const messageId = msg.id?.toString() || crypto.randomUUID();
+
+                // 情况1：同时有 question 和 messageContext（典型的一问一答）
+                if (hasQuestion && hasMessageContext) {
+                    // 1. 创建用户消息（显示 question）
+                    const userMessageId = `${messageId}-user`;
+                    convertedMessages.push({
+                        text: msg.question,
+                        isUser: true,
+                        type: 'data',
+                        id: userMessageId,
+                        timestamp: new Date(msg.createdAt).getTime()
+                    });
+
+                    // 2. 创建 AI 消息（从 messageContext 提取答案）
+                    const aiMessageId = `${messageId}-ai`;
+                    let aiText = '';
+                    let thinkingEntries: ThinkingLogEntry[] = [];
+
+                    console.log('解析 messageContext:', msg.messageContext);
+                    thinkingEntries = parseMessageContext(msg.messageContext, aiMessageId);
+                    console.log('解析后的 thinkingEntries:', thinkingEntries);
+
+                    // 从 messageContext 中提取最终答案
+                    const contextArray = JSON.parse(msg.messageContext);
+
+                    // 1. 优先找 finalAnswer 类型
+                    const finalAnswerEntry = contextArray.find((item: any) => item.type === 'finalAnswer');
+                    if (finalAnswerEntry?.value) {
+                        aiText = finalAnswerEntry.value;
+                    } else {
+                        // 2. 其次找 data 类型中包含 <Final Answer> 的
+                        const finalDataEntry = contextArray.find((item: any) =>
+                            item.type === 'data' && item.value?.includes('<Final Answer>')
+                        );
+                        if (finalDataEntry?.value) {
+                            // 提取 <Final Answer> 标签中的内容
+                            const match = finalDataEntry.value.match(/<Final Answer>([\s\S]*?)<\/Final Answer>/);
+                            aiText = match ? match[1].trim() : finalDataEntry.value;
+                        } else {
+                            // 3. 最后取最后一个 data 条目
+                            const dataEntries = contextArray.filter((item: any) => item.type === 'data');
+                            if (dataEntries.length > 0) {
+                                aiText = dataEntries[dataEntries.length - 1].value || '';
+                            }
+                        }
+                    }
+
+                    convertedMessages.push({
+                        text: aiText,
+                        isUser: false,
+                        type: 'data',
+                        id: aiMessageId,
+                        timestamp: new Date(msg.createdAt).getTime()
+                    });
+
+                    // 如果是 AI 消息且有思考过程，添加到 thinkingLog 状态
+                    if (thinkingEntries.length > 0) {
+                        newMessageThinkingLogs[aiMessageId] = {
+                            content: thinkingEntries,
+                            isVisible: true // 默认显示思考日志
+                        };
+                    }
+                }
+                // 情况2：只有 messageContext（可能是纯 AI 消息）
+                else if (hasMessageContext) {
+                    const isUser = msg.userMessage || msg.messageType?.includes('user') || false;
+                    let text = '';
+                    let thinkingEntries: ThinkingLogEntry[] = [];
+
+                    console.log('解析 messageContext:', msg.messageContext);
+                    thinkingEntries = parseMessageContext(msg.messageContext, messageId);
+                    console.log('解析后的 thinkingEntries:', thinkingEntries);
+
+                    // 从 messageContext 中提取最终答案
+                    const contextArray = JSON.parse(msg.messageContext);
+
+                    // 1. 优先找 finalAnswer 类型
+                    const finalAnswerEntry = contextArray.find((item: any) => item.type === 'finalAnswer');
+                    if (finalAnswerEntry?.value) {
+                        text = finalAnswerEntry.value;
+                    } else {
+                        // 2. 其次找 data 类型中包含 <Final Answer> 的
+                        const finalDataEntry = contextArray.find((item: any) =>
+                            item.type === 'data' && item.value?.includes('<Final Answer>')
+                        );
+                        if (finalDataEntry?.value) {
+                            // 提取 <Final Answer> 标签中的内容
+                            const match = finalDataEntry.value.match(/<Final Answer>([\s\S]*?)<\/Final Answer>/);
+                            text = match ? match[1].trim() : finalDataEntry.value;
+                        } else {
+                            // 3. 最后取最后一个 data 条目
+                            const dataEntries = contextArray.filter((item: any) => item.type === 'data');
+                            if (dataEntries.length > 0) {
+                                text = dataEntries[dataEntries.length - 1].value || '';
+                            }
+                        }
+                    }
+
+                    convertedMessages.push({
+                        text: text,
+                        isUser: isUser,
+                        type: 'data',
+                        id: messageId,
+                        timestamp: new Date(msg.createdAt).getTime()
+                    });
+
+                    // 如果是 AI 消息且有思考过程，添加到 thinkingLog 状态
+                    if (!isUser && thinkingEntries.length > 0) {
+                        newMessageThinkingLogs[messageId] = {
+                            content: thinkingEntries,
+                            isVisible: true // 默认显示思考日志
+                        };
+                    }
+                }
+                // 情况3：只有 question（纯用户消息）
+                else if (hasQuestion) {
+                    const isUser = msg.userMessage || msg.messageType?.includes('user') || true;
+                    convertedMessages.push({
+                        text: msg.question,
+                        isUser: isUser,
+                        type: 'data',
+                        id: messageId,
+                        timestamp: new Date(msg.createdAt).getTime()
+                    });
+                }
+                // 情况4：其他情况（可能是系统消息等）
+                else {
+                    const isUser = msg.userMessage || msg.messageType?.includes('user') || false;
+                    const text = msg.question || msg.answer || '';
+                    convertedMessages.push({
+                        text: text,
+                        isUser: isUser,
+                        type: 'data',
+                        id: messageId,
+                        timestamp: new Date(msg.createdAt).getTime()
+                    });
+                }
+            });
+
+            console.log('转换后的消息:', convertedMessages);
             setMessages(convertedMessages);
+
+            // 设置思考日志
+            setMessageThinkingLogs(newMessageThinkingLogs);
 
             // 更新选中状态
             const index = conversations.findIndex(c => c.id === conversationId);
             if (index !== -1) {
                 setSelectedChatIndex(index);
             }
+
+            console.log('加载会话记录完成');
         } catch (error) {
             console.error('加载聊天记录失败:', error);
             message.error('加载聊天记录失败');
@@ -539,8 +754,12 @@ const ChatDemo: React.FC = () => {
     const selectChat = (index: number) => {
         const conversation = conversations[index];
         if (conversation) {
+            console.log('选中会话:', conversation);
             setSelectedChatIndex(index);
-            loadConversation(conversation.id);
+            // 立即加载该会话的详细对话记录
+            loadConversation(conversation.id).catch(err => {
+                console.error('加载会话失败:', err);
+            });
         }
     };
 
@@ -555,52 +774,124 @@ const ChatDemo: React.FC = () => {
         return title.substring(0, 30) + (title.length > 30 ? '...' : '');
     };
 
+    // 简单的折叠组件
+    const CollapsibleGroup = ({type, title, color, background, border, contentStyle, content, defaultCollapsed}: {
+        type: ThinkingLogEntry['type'];
+        title: string;
+        color: string;
+        background: string;
+        border: string;
+        contentStyle: React.CSSProperties;
+        content: string;
+        defaultCollapsed: boolean;
+    }) => {
+        const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+
+        return (
+            <div
+                style={{
+                    background: background,
+                    border: `1px solid ${border}`,
+                    borderRadius: '8px',
+                    padding: '12px',
+                    marginTop: '12px',
+                    color: '#000000',
+                    whiteSpace: 'pre-wrap',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+                }}
+            >
+                <div
+                    style={{
+                        fontSize: '11px',
+                        color: color,
+                        fontWeight: 600,
+                        marginBottom: isCollapsed ? '0' : '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer'
+                    }}
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                >
+                    <div style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                        {isCollapsed ? <RightOutlined/> : <DownOutlined/>}
+                        <span>{title}</span>
+                    </div>
+                    {/*<span style={{fontSize: '10px', color: '#999'}}>*/}
+                    {/*    {isCollapsed ? '点击展开' : '点击折叠'}*/}
+                    {/*</span>*/}
+                </div>
+                {!isCollapsed && (
+                    <div style={{
+                        fontSize: '12px',
+                        lineHeight: 1.6,
+                        whiteSpace: 'pre-wrap',
+                        ...contentStyle
+                    }}>
+                        {content}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     // 渲染思考内容，区分不同类型，按顺序分组显示
-    const renderThinkingContent = (entries: ThinkingLogEntry[]) => {
+    // isRealTime: 是否为实时对话，实时对话时思考过程默认展开
+    const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: boolean = false) => {
         if (!entries || entries.length === 0) return null;
 
         // 定义类型配置
         const typeConfig = {
             think: {
-                title: '🤔 思考过程',
-                color: '#1890ff',
-                background: '#ffffff',
-                border: '#91caff',
-                hasContainer: true
+                title: '🤔 思考',
+                color: '#94a3b8',
+                background: '#f1f5f9',
+                hasContainer: true,
+                border: '#e2e8f0',
+                contentStyle: {color: '#475569'}
             },
             data: {
-                title: '💬 开始回答',
-                color: '#52c41a',
-                background: '#f6ffed',
-                border: '#b7eb8f',
-                hasContainer: true
+                title: '💬 回答',
+                color: '#1976d2', // 中蓝色标题
+                background: '#ffffff',
+                hasContainer: true,
+                contentStyle: {color: '#2c3e50'} // 深蓝灰内容
             },
             tool: {
-                title: '🔧 工具执行',
-                color: '#666666',
-                background: '#fafafa',
-                border: '#d9d9d9',
-                hasContainer: true
+                title: '🔧 工具',
+                color: '#95a5a6', // 浅灰绿标题
+                background: '#f5f5f5',
+                hasContainer: true,
+                contentStyle: {color: '#5d6d7e'}
             },
             log: {
                 title: '',
-                color: '#999999',
+                color: '#b0bec5',
                 background: 'transparent',
-                border: 'transparent',
                 hasContainer: false,
-                style: {color: '#999999', fontStyle: 'italic'}
+                style: {color: '#78909c', fontStyle: 'italic', fontSize: '0.9em'}
             },
             error: {
                 title: '',
-                color: '#ff4d4f',
+                color: '#e53935',
                 background: 'transparent',
-                border: 'transparent',
                 hasContainer: false,
-                style: {color: '#ff4d4f', fontWeight: 500}
+                style: {
+                    color: '#c62828',
+                    fontWeight: 500,
+                    background: '#ffebee',
+                    padding: '2px 4px',
+                    borderRadius: '3px'
+                }
+            },
+            finalAnswer: {
+                title: '✅ 最终答案',
+                color: '#2e7d32', // 深绿色标题
+                background: '#f1f8e9', // 浅绿背景
+                hasContainer: true,
+                contentStyle: {color: '#1b5e20', fontWeight: 500}
             }
-        };
-
-        // 分组连续的同类型条目
+        };        // 分组连续的同类型条目
         const groups: Array<{ type: ThinkingLogEntry['type'], entries: ThinkingLogEntry[] }> = [];
         let currentGroup: { type: ThinkingLogEntry['type'], entries: ThinkingLogEntry[] } | null = null;
 
@@ -633,11 +924,15 @@ const ChatDemo: React.FC = () => {
                     const content = group.entries.map(entry => entry.content).join(
                         group.type === 'tool' ? '\n' : ''
                     );
+                    const groupKey = `${group.type}-${groupIndex}`;
+                    // 实时对话：所有类型默认展开
+                    // 历史对话：thinking 和 tool 类型默认折叠，其他类型默认展开
+                    const defaultCollapsed = isRealTime ? false : (group.type === 'think' || group.type === 'tool');
 
                     if (!config.hasContainer) {
                         // log和error类型：单独显示每个条目
                         return (
-                            <React.Fragment key={`group-${groupIndex}`}>
+                            <React.Fragment key={groupKey}>
                                 {group.entries.map((entry, entryIndex) => (
                                     <div
                                         key={`entry-${groupIndex}-${entryIndex}`}
@@ -650,40 +945,19 @@ const ChatDemo: React.FC = () => {
                         );
                     }
 
-                    // think、data、tool类型：显示带标题的容器
+                    // think、data、tool、finalAnswer类型：使用折叠组件
                     return (
-                        <div
-                            key={`group-${groupIndex}`}
-                            style={{
-                                background: config.background,
-                                border: `1px solid ${config.border}`,
-                                borderRadius: '8px',
-                                padding: '12px',
-                                marginTop: groupIndex > 0 ? '12px' : '0',
-                                color: '#000000',
-                                whiteSpace: 'pre-wrap',
-                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
-                            }}
-                        >
-                            <div style={{
-                                fontSize: '11px',
-                                color: config.color,
-                                fontWeight: 600,
-                                marginBottom: '8px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                            }}>
-                                <span>{config.title}</span>
-                            </div>
-                            <div style={{
-                                fontSize: '12px',
-                                lineHeight: 1.6,
-                                whiteSpace: 'pre-wrap'
-                            }}>
-                                {content}
-                            </div>
-                        </div>
+                        <CollapsibleGroup
+                            key={groupKey}
+                            type={group.type}
+                            title={config.title}
+                            color={config.color}
+                            background={config.background}
+                            border={config.border}
+                            contentStyle={config.contentStyle || {}}
+                            content={content}
+                            defaultCollapsed={defaultCollapsed}
+                        />
                     );
                 })}
             </>
@@ -883,10 +1157,8 @@ const ChatDemo: React.FC = () => {
                                     }}>
                                         <ClockCircleOutlined/>
                                         {conversation.lastMessageTime
-                                            ? formatTime(new Date(conversation.lastMessageTime).getTime())
-                                            : conversation.formattedCreatedAt
-                                                ? formatTime(new Date(conversation.formattedCreatedAt).getTime())
-                                                : formatTime(new Date(conversation.createdAt).getTime())}
+                                            ? conversation.lastMessageTime
+                                            : conversation.createdAt}
                                     </div>
                                 </div>
                             </div>
@@ -1161,7 +1433,7 @@ const ChatDemo: React.FC = () => {
                                                         background: 'var(--ea-theme-background)',
                                                         borderRadius: '12px',
                                                         padding: '12px 16px',
-                                                        border: '1px solid #91caff',
+                                                        // border: '1px solid #91caff',
                                                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                                                         transition: 'all 0.3s ease'
                                                     }}
@@ -1176,15 +1448,18 @@ const ChatDemo: React.FC = () => {
                                                         marginBottom: '8px'
                                                     }}>
                                                         <div
-                                                            style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                                            <span>🤔 AI思考过程</span>
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                            }}>
+                                                            <span>✅ </span>
                                                             <span style={{
                                                                 fontSize: '11px',
                                                                 backgroundColor: 'var(--ea-theme-background)',
-                                                                padding: '2px 8px',
+                                                                padding: '2px 4px',
                                                                 borderRadius: '10px'
                                                             }}>
-                                已完成
+                                                        已完成
                                                             </span>
                                                         </div>
                                                         <Tooltip title="隐藏">
@@ -1206,10 +1481,10 @@ const ChatDemo: React.FC = () => {
                                                         lineHeight: 1.6,
                                                         color: '#333',
                                                         whiteSpace: 'pre-wrap',
-                                                        maxHeight: '300px',
+                                                        maxHeight: '500px',
                                                         overflowY: 'auto'
                                                     }}>
-                                                        {renderThinkingContent(msgThinkingLog.content)}
+                                                        {renderThinkingContent(msgThinkingLog.content, false)}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1299,7 +1574,7 @@ const ChatDemo: React.FC = () => {
                                                     background: 'var(--ea-theme-background)',
                                                     borderRadius: '12px',
                                                     padding: '12px 16px',
-                                                    border: '1px solid #ffd591',
+                                                    // border: '1px solid #ffd591',
                                                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                                                     animation: 'pulse 2s infinite'
                                                 }}
@@ -1314,7 +1589,7 @@ const ChatDemo: React.FC = () => {
                                                     marginBottom: '8px'
                                                 }}>
                                                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                                        <span>💭 实时思考中</span>
+                                                        <span>💭 分析中</span>
                                                         <Spin size="small"/>
                                                     </div>
                                                     <Tooltip title="隐藏">
@@ -1334,11 +1609,11 @@ const ChatDemo: React.FC = () => {
                                                         lineHeight: 1.6,
                                                         color: '#333',
                                                         whiteSpace: 'pre-wrap',
-                                                        maxHeight: '200px',
+                                                        maxHeight: '400px',
                                                         overflowY: 'auto'
                                                     }}
                                                 >
-                                                    {renderThinkingContent(messageThinkingLogs[currentAnsweringMsgIdRef.current]?.content || [])}
+                                                    {renderThinkingContent(messageThinkingLogs[currentAnsweringMsgIdRef.current]?.content || [], true)}
                                                 </div>
                                             </div>
                                         </div>

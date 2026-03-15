@@ -289,9 +289,9 @@ public class ChatRecordServiceImpl implements ChatRecordService {
 
     @Override
     @Transactional
-    public List<Long> saveChatInteraction(Long conversationId, Long msgId, String question, String aiAnswer,
-                                          String messageContext, String modelUsed,
-                                          Integer tokensUsed, BigDecimal responseTime) {
+    public List<Long> saveChatMessage(Long conversationId, Long msgId, String question, String aiAnswer,
+                                      String messageContext, String modelUsed,
+                                      Integer tokensUsed, BigDecimal responseTime) {
         // 获取当前消息序号
         int currentCount = countMessagesByConversationId(conversationId);
         int nextSequence = currentCount + 1;

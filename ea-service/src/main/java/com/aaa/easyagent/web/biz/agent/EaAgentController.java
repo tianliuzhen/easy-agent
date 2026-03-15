@@ -79,19 +79,26 @@ public class EaAgentController {
             @RequestParam(defaultValue = "110") String sessionId,
             @RequestParam(defaultValue = "你好") String msg,
             @RequestParam(defaultValue = "1", required = false) String agentId) {
-        // 默认设置5分钟
+        // 默认设置 5 分钟
         SseEmitter sseEmitter = new SseEmitterUTF8(1000 * 60L * 5);
-
-
+    
+        // 保存当前的 SecurityContext
+        var securityContext = org.springframework.security.core.context.SecurityContextHolder.getContext();
+    
         // todo 改为线程池
         new Thread(() -> {
             try {
+                // 在子线程中设置 SecurityContext
+                org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
                 agentChatService.streamChatWith(sessionId, msg, agentId, sseEmitter);
             } catch (Throwable e) {
                 log.error("streamChatWith:{}", e.getMessage(), e);
+            } finally {
+                // 清理线程上下文
+                org.springframework.security.core.context.SecurityContextHolder.clearContext();
             }
         }).start();
-
+    
         return sseEmitter;
     }
 

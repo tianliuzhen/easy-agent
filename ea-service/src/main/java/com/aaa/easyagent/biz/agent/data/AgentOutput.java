@@ -9,5 +9,14 @@ import lombok.Data;
 @Data
 public class AgentOutput {
 
+    /**
+     * 思考内容
+     */
     private String reasoningContent;
+
+    /**
+     * 模型结果
+     */
+    private String llmResponse;
+
 }
