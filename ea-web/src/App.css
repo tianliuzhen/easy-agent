@@ -55,3 +55,21 @@ body {
 .read-the-docs {
   color: #888;
 }
+
+/* 加深Select组件占位符颜色 */
+.dark-placeholder-select .ant-select-selection-placeholder {
+  color: #333 !important;
+  opacity: 0.8 !important;
+}
+
+/* 更具体的选择器 */
+.dark-placeholder-select .ant-select-selector .ant-select-selection-placeholder {
+  color: #333 !important;
+  opacity: 0.8 !important;
+}
+
+/* 针对输入框的placeholder */
+.dark-placeholder-select .ant-select-selection-search-input::placeholder {
+  color: #333 !important;
+  opacity: 0.8 !important;
+}

@@ -55,4 +55,17 @@ export const eaAgentApi = {
     });
     return response.json();
   },
+
+  // 查询 Agent 详情
+  queryAgent: async (agentId: number) => {
+    const response = await fetch(`${API_BASE_URL}/eaAgent/ai/queryAgent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ id: agentId }),
+    });
+    return response.json();
+  },
 };
