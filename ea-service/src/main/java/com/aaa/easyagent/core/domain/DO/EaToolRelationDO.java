@@ -8,15 +8,15 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 
 /**
- * 表名：ea_knowledge_relation
- * 表注释：知识库关系表
+ * 表名：ea_tool_relation
+ * 表注释：工具关系表
 */
 @Getter
 @Setter
 @ToString
 @Accessors(chain = true)
-@Table(name = "ea_knowledge_relation")
-public class EaKnowledgeRelationDO {
+@Table(name = "ea_tool_relation")
+public class EaToolRelationDO {
     /**
      * 主键ID
      */
@@ -26,10 +26,10 @@ public class EaKnowledgeRelationDO {
     private Long id;
 
     /**
-     * agentId
+     * 工具id
      */
-    @Column(name = "knowledge_base_id")
-    private Long knowledgeBaseId;
+    @Column(name = "tool_config_id")
+    private Long toolConfigId;
 
     /**
      * agentId

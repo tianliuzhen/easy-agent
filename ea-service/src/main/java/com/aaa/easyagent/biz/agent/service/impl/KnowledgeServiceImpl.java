@@ -2,6 +2,7 @@ package com.aaa.easyagent.biz.agent.service.impl;
 
 import com.aaa.easyagent.biz.agent.service.KnowledgeService;
 import com.aaa.easyagent.common.config.vectorstore.VectorStoreRegister;
+import com.aaa.easyagent.common.context.UserContextHolder;
 import com.aaa.easyagent.common.transformer.MyTextReader;
 import com.aaa.easyagent.common.transformer.MyTokenTextSplitterV2;
 import com.aaa.easyagent.common.util.OcrUtil;
@@ -87,7 +88,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             log.info("文档切分完成，共 {} 个片段", chunks.size());
 
             // 存入向量数据库
-            VectorStore vectorStore = getVectorStore(agentManagerService.getAgent(agentId));
+            VectorStore vectorStore = getLoginCurrentUserVectorStore();
             vectorStore.add(chunks);
 
             // 收集文档ID
@@ -104,7 +105,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             kb.setFileSize(fileSize);
             kb.setDocCount(chunks.size());
             kb.setDocIds(JSON.toJSONString(docIds));
-            kb.setAgentId(Long.valueOf(agentId));
+            kb.setAgentId(StringUtils.hasText(agentId) ? Long.valueOf(agentId) : null);
             kb.setStatus((byte) 1);
             kb.setCreateTime(new Date());
             kb.setUpdateTime(new Date());
@@ -132,7 +133,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             if (StringUtils.hasText(kb.getDocIds())) {
                 List<String> docIds = JSON.parseArray(kb.getDocIds(), String.class);
                 log.info("删除知识库，同时删除 {} 个文档片段", docIds.size());
-                VectorStore vectorStore = getVectorStore(agentManagerService.getAgent(kb.getAgentId()));
+                VectorStore vectorStore = getLoginCurrentUserVectorStore();
                 for (String docId : docIds) {
                     try {
                         vectorStore.delete(List.of(docId));
@@ -166,7 +167,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                     .topK(topK)
                     .build();
 
-            VectorStore vectorStore = getVectorStore(agentManagerService.getAgent(agentId));
+            VectorStore vectorStore = getLoginCurrentUserVectorStore();
             List<Document> documents = vectorStore.similaritySearch(searchRequest);
 
             return documents.stream()
@@ -192,6 +193,12 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private VectorStore getVectorStore(EaAgentResult agentManagerService) {
         EaAgentResult agent = agentManagerService;
         VectorStore vectorStore = vectorStoreRegister.register(agent.getAgentKey());
+        return vectorStore;
+    }
+
+    private VectorStore getLoginCurrentUserVectorStore() {
+        String agentKey = "ea_user_common_" + UserContextHolder.getUserId();
+        VectorStore vectorStore = vectorStoreRegister.register(agentKey);
         return vectorStore;
     }
 

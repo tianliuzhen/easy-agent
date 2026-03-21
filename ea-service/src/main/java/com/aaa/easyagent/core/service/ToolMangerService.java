@@ -1,6 +1,8 @@
 package com.aaa.easyagent.core.service;
 
 import com.aaa.easyagent.core.domain.request.EaToolConfigReq;
+import com.aaa.easyagent.core.domain.request.ToolBindRequest;
+import com.aaa.easyagent.core.domain.request.ToolUnbindRequest;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
 
 import java.util.List;
@@ -14,12 +16,44 @@ import java.util.List;
 public interface ToolMangerService {
 
     /**
+     * 查询官方工具列表
+     *
+     * @return
+     */
+    List<EaToolConfigResult> getDefaultTools();
+
+    /**
      * 根据智能体ID获取工具配置列表
      *
      * @param agentId 智能体ID，用于查询关联的工具配置
      * @return 工具配置结果列表，包含所有与指定智能体关联的工具配置信息
      */
     List<EaToolConfigResult> getToolConfigByAgentId(Long agentId);
+
+    /**
+     * 根据智能体ID获取已绑定的工具列表
+     *
+     * @param agentId 智能体ID
+     * @return 已绑定的工具配置列表
+     */
+    List<EaToolConfigResult> listBoundToolsByAgentId(Long agentId);
+
+
+    /**
+     * 绑定工具到智能体
+     *
+     * @param request 工具绑定请求
+     * @return 绑定成功返回1，否则返回0
+     */
+    int bindTool(ToolBindRequest request);
+
+    /**
+     * 从智能体解绑工具
+     *
+     * @param request 工具解绑请求
+     * @return 解绑成功返回1，否则返回0
+     */
+    int unbindTool(ToolUnbindRequest request);
 
     /**
      * 保存工具配置

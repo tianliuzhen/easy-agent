@@ -85,21 +85,21 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             EaKnowledgeRelationDO relationQuery = new EaKnowledgeRelationDO();
             relationQuery.setAgentId(Long.valueOf(agentId));
             List<EaKnowledgeRelationDO> relations = knowledgeRelationDAO.select(relationQuery);
-            
+
             if (relations.isEmpty()) {
                 return List.of();
             }
-            
+
             // 根据知识库 ID 查询知识库详情
             List<Long> knowledgeBaseIds = relations.stream()
                     .map(EaKnowledgeRelationDO::getKnowledgeBaseId)
                     .toList();
-            
+
             Example example = new Example(EaKnowledgeBaseDO.class);
             Example.Criteria criteria = example.createCriteria();
             criteria.andEqualTo("status", (byte) 1);
             criteria.andIn("id", knowledgeBaseIds);
-            
+
             return knowledgeBaseDAO.selectByExample(example);
         } catch (Exception e) {
             log.error("根据 Agent ID 查询知识库列表失败", e);
@@ -155,7 +155,6 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             EaKnowledgeRelationDO relation = new EaKnowledgeRelationDO();
             relation.setAgentId(Long.valueOf(request.getAgentId()));
             relation.setKnowledgeBaseId(request.getKnowledgeBaseId());
-            relation.setKbName(request.getKbName());
             relation.setCreator(request.getCreator() != null ? request.getCreator() : UserContextHolder.getUserId());
 
             knowledgeRelationDAO.insertSelective(relation);
