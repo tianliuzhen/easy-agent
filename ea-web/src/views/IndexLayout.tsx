@@ -6,7 +6,8 @@ import {
     RobotOutlined,
     ToolOutlined,
     ApiOutlined,
-    LogoutOutlined
+    LogoutOutlined,
+    BookOutlined
 } from '@ant-design/icons';
 import type {MenuProps} from 'antd';
 import {Breadcrumb, Layout, Menu, theme, Avatar, Dropdown, message, Space} from 'antd';
@@ -15,6 +16,7 @@ import AgentManager from './page/AgentManager';
 import ChatModelConfig from './page/ChatModelConfig';
 import User from './page/User';
 import ToolManager from './page/ToolManager';
+import KnowledgeBaseList from './page/agent/knowledge/KnowledgeBaseList';
 import logo from '../assets/eaLogo.png';
 import AuthGuard from '../components/AuthGuard';
 import {authApi} from './api/AuthApi';
@@ -40,6 +42,19 @@ const routes = [
                 label: 'agent 市场',
                 path: '/page/AgentManager',
                 component: <AuthGuard><AgentManager/></AuthGuard>
+            },
+        ]
+    },
+    {
+        key: 'sub5',
+        icon: <BookOutlined/>,
+        label: '知识库管理',
+        children: [
+            {
+                key: '4',
+                label: '我的知识库',
+                path: '/page/knowledge/KnowledgeBaseList',
+                component: <AuthGuard><KnowledgeBaseList/></AuthGuard>
             },
         ]
     },
@@ -81,7 +96,7 @@ const routes = [
         children: [
             {key: '3', label: 'User 配置', path: '/page/User', component: <AuthGuard><User/></AuthGuard>},
         ]
-    }
+    },
 ];
 
 // 示例组件

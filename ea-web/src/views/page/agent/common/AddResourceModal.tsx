@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, Button, Upload, message, Tabs } from 'antd';
-import { UploadOutlined, PlusOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Select, Button, Upload, message, Tabs, Radio, List, Card, Tag } from 'antd';
+import { UploadOutlined, PlusOutlined, LinkOutlined, FileAddOutlined } from '@ant-design/icons';
+import { knowledgeBaseApi } from '../../../api/KnowledgeBaseApi';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -14,6 +15,16 @@ interface AddResourceModalProps {
     onSuccess: (type: 'knowledge' | 'tool' | 'mcp') => void;
 }
 
+interface KnowledgeBaseItem {
+    id: number;
+    kbName: string;
+    description: string;
+    type: string;
+    status: string;
+    fileCount: number;
+    lastUpdated: string;
+}
+
 const AddResourceModal: React.FC<AddResourceModalProps> = ({
     visible,
     type,
@@ -24,14 +35,55 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('basic');
+    const [knowledgeBaseMode, setKnowledgeBaseMode] = useState<'create' | 'link'>('create');
+    const [availableKnowledgeBases, setAvailableKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
+    const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<number | null>(null);
+    const [searchLoading, setSearchLoading] = useState(false);
 
     // 重置表单
     useEffect(() => {
         if (visible) {
             form.resetFields();
             setActiveTab('basic');
+            setKnowledgeBaseMode('create');
+            setSelectedKnowledgeBase(null);
+
+            // 如果是知识库类型，加载可用的知识库
+            if (type === 'knowledge') {
+                loadAvailableKnowledgeBases();
+            }
         }
     }, [visible, type, form]);
+
+    // 加载可用的知识库
+    const loadAvailableKnowledgeBases = async () => {
+        if (type !== 'knowledge') return;
+
+        setSearchLoading(true);
+        try {
+            const response = await knowledgeBaseApi.listByCondition({});
+            if (response.success) {
+                // 转换数据格式
+                const knowledgeBases = response.data.map((item: any) => ({
+                    id: item.id,
+                    kbName: item.kbName || item.fileName,
+                    description: item.description || item.kbDesc,
+                    type: item.type || '文档',
+                    status: item.status === 1 ? 'active' : 'inactive',
+                    fileCount: item.fileCount || 0,
+                    lastUpdated: item.updateTime || item.createTime
+                }));
+                setAvailableKnowledgeBases(knowledgeBases);
+            } else {
+                message.error(`加载知识库失败: ${response.message}`);
+            }
+        } catch (error) {
+            console.error('加载知识库失败:', error);
+            message.error('加载知识库失败');
+        } finally {
+            setSearchLoading(false);
+        }
+    };
 
     // 获取模态框标题
     const getModalTitle = () => {
@@ -157,22 +209,55 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
     // 处理提交
     const handleSubmit = async () => {
         try {
-            const values = await form.validateFields();
             setLoading(true);
 
-            // 这里可以调用API添加资源
-            // await resourceApi.addResource({
-            //     ...values,
-            //     agentId,
-            //     type
-            // });
+            if (type === 'knowledge' && knowledgeBaseMode === 'link') {
+                // 关联现有知识库
+                if (!selectedKnowledgeBase) {
+                    message.error('请选择一个知识库');
+                    return;
+                }
 
-            // 模拟API调用
-            await new Promise(resolve => setTimeout(resolve, 1000));
+                const selectedKb = availableKnowledgeBases.find(kb => kb.id === selectedKnowledgeBase);
+                if (!selectedKb) {
+                    message.error('选择的知识库不存在');
+                    return;
+                }
 
-            message.success(`${getModalTitle()}添加成功`);
-            onSuccess(type);
-            onClose();
+                // 调用绑定API
+                const bindRequest = {
+                    agentId: agentId?.toString() || '',
+                    knowledgeBaseId: selectedKnowledgeBase,
+                    kbName: selectedKb.kbName,
+                    creator: 'system' // 这里应该从用户上下文获取
+                };
+
+                const response = await knowledgeBaseApi.bind(bindRequest);
+                if (response.success) {
+                    message.success(`知识库 "${selectedKb.kbName}" 关联成功`);
+                    onSuccess(type);
+                    onClose();
+                } else {
+                    message.error(`关联失败: ${response.message}`);
+                }
+            } else {
+                // 创建新资源（原有逻辑）
+                const values = await form.validateFields();
+
+                // 这里可以调用API添加资源
+                // await resourceApi.addResource({
+                //     ...values,
+                //     agentId,
+                //     type
+                // });
+
+                // 模拟API调用
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                message.success(`${getModalTitle()}添加成功`);
+                onSuccess(type);
+                onClose();
+            }
         } catch (error) {
             console.error('添加资源失败:', error);
             if (error instanceof Error) {
@@ -196,6 +281,110 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
                 {field.component}
             </Form.Item>
         ));
+    };
+
+    // 渲染知识库模式选择
+    const renderKnowledgeBaseModeSelector = () => {
+        if (type !== 'knowledge') return null;
+
+        return (
+            <div style={{ marginBottom: '16px' }}>
+                <Radio.Group
+                    value={knowledgeBaseMode}
+                    onChange={(e) => setKnowledgeBaseMode(e.target.value)}
+                    style={{ width: '100%' }}
+                >
+                    <Radio.Button value="create" style={{ width: '50%', textAlign: 'center' }}>
+                        <FileAddOutlined /> 创建新知识库
+                    </Radio.Button>
+                    <Radio.Button value="link" style={{ width: '50%', textAlign: 'center' }}>
+                        <LinkOutlined /> 关联现有知识库
+                    </Radio.Button>
+                </Radio.Group>
+            </div>
+        );
+    };
+
+    // 渲染知识库列表
+    const renderKnowledgeBaseList = () => {
+        if (type !== 'knowledge' || knowledgeBaseMode !== 'link') return null;
+
+        if (searchLoading) {
+            return (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                    <div>加载知识库中...</div>
+                </div>
+            );
+        }
+
+        if (availableKnowledgeBases.length === 0) {
+            return (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+                    暂无可用知识库
+                </div>
+            );
+        }
+
+        return (
+            <List
+                dataSource={availableKnowledgeBases}
+                renderItem={(item) => (
+                    <List.Item>
+                        <Card
+                            size="small"
+                            style={{
+                                width: '100%',
+                                cursor: 'pointer',
+                                borderColor: selectedKnowledgeBase === item.id ? '#1890ff' : '#f0f0f0',
+                                backgroundColor: selectedKnowledgeBase === item.id ? '#e6f7ff' : '#fff'
+                            }}
+                            onClick={() => setSelectedKnowledgeBase(item.id)}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
+                                            {item.kbName}
+                                        </h4>
+                                        <Tag
+                                            color={item.status === 'active' ? 'green' : 'red'}
+                                            style={{ marginLeft: '8px', fontSize: '11px' }}
+                                        >
+                                            {item.status === 'active' ? '启用' : '停用'}
+                                        </Tag>
+                                        <Tag
+                                            color="blue"
+                                            style={{ marginLeft: '4px', fontSize: '11px' }}
+                                        >
+                                            {item.type}
+                                        </Tag>
+                                    </div>
+
+                                    <p style={{
+                                        margin: '0 0 8px 0',
+                                        fontSize: '12px',
+                                        color: '#666',
+                                        lineHeight: '1.4'
+                                    }}>
+                                        {item.description}
+                                    </p>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', fontSize: '11px', color: '#999' }}>
+                                        <span style={{ marginRight: '12px' }}>
+                                            文件数: <strong>{item.fileCount}</strong>
+                                        </span>
+                                        <span>
+                                            更新: {item.lastUpdated}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    </List.Item>
+                )}
+                style={{ marginTop: '8px', maxHeight: '300px', overflowY: 'auto' }}
+            />
+        );
     };
 
     // 渲染高级配置
@@ -313,30 +502,41 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
             width={600}
             destroyOnClose
         >
-            <Tabs
-                activeKey={activeTab}
-                onChange={setActiveTab}
-                size="small"
-            >
-                <TabPane tab="基本配置" key="basic">
-                    <Form
-                        form={form}
-                        layout="vertical"
-                        style={{ marginTop: '16px' }}
-                    >
-                        {renderFormFields()}
-                    </Form>
-                </TabPane>
-                <TabPane tab="高级配置" key="advanced">
-                    <Form
-                        form={form}
-                        layout="vertical"
-                        style={{ marginTop: '16px' }}
-                    >
-                        {renderAdvancedConfig()}
-                    </Form>
-                </TabPane>
-            </Tabs>
+            {renderKnowledgeBaseModeSelector()}
+
+            {type === 'knowledge' && knowledgeBaseMode === 'link' ? (
+                <div style={{ marginTop: '16px' }}>
+                    <div style={{ marginBottom: '8px', fontWeight: 500, color: '#333' }}>
+                        选择要关联的知识库：
+                    </div>
+                    {renderKnowledgeBaseList()}
+                </div>
+            ) : (
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    size="small"
+                >
+                    <TabPane tab="基本配置" key="basic">
+                        <Form
+                            form={form}
+                            layout="vertical"
+                            style={{ marginTop: '16px' }}
+                        >
+                            {renderFormFields()}
+                        </Form>
+                    </TabPane>
+                    <TabPane tab="高级配置" key="advanced">
+                        <Form
+                            form={form}
+                            layout="vertical"
+                            style={{ marginTop: '16px' }}
+                        >
+                            {renderAdvancedConfig()}
+                        </Form>
+                    </TabPane>
+                </Tabs>
+            )}
 
             <div style={{
                 marginTop: '16px',

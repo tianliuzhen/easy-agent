@@ -44,6 +44,12 @@ public class EaKnowledgeBaseDO {
     private String kbDesc;
 
     /**
+     * 知识库类型
+     */
+    @Column(name = "kb_type")
+    private String kbType;
+
+    /**
      * 文件名
      */
     @Column(name = "file_name")
@@ -84,6 +90,12 @@ public class EaKnowledgeBaseDO {
      */
     @Column(name = "update_time")
     private Date updateTime;
+
+    /**
+     * creator
+     */
+    @Column(name = "creator")
+    private String creator;
 
     /**
      * 文档分片ID列表，JSON数组格式，如：["doc_id_1","doc_id_2"]

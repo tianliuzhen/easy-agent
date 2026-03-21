@@ -51,6 +51,11 @@
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
+        <table tableName="ea_knowledge_relation" mapperName="EaKnowledgeRelationDAO" domainObjectName="EaKnowledgeRelationDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+
         <table tableName="ea_chat_conversation" mapperName="EaChatConversationDAO" domainObjectName="EaChatConversationDO">
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
