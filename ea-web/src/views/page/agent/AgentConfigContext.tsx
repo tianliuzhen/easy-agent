@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { eaAgentApi } from '../../api/EaAgentApi';
+import {eaAgentApi} from '../../api/EaAgentApi';
 
 interface AgentDetail {
     id: number;
@@ -36,40 +36,37 @@ interface AgentConfigProviderProps {
 }
 
 export const AgentConfigProvider: React.FC<AgentConfigProviderProps> = ({
-    children,
-    initialAgentId
-}) => {
+                                                                            children,
+                                                                            initialAgentId
+                                                                        }) => {
     const [agentId, setAgentId] = useState<number | null>(initialAgentId || null);
     const [refreshKey, setRefreshKey] = useState(0);
     const [promptContent, setPromptContent] = useState('');
     const [agentDetail, setAgentDetail] = useState<AgentDetail | null>(null);
     const [loadingAgentDetail, setLoadingAgentDetail] = useState(false);
 
-    // 加载Agent详情
-    const loadAgentDetail = useCallback(async () => {
-        if (!agentId) {
+    // 当 agentId 变化时重新加载 Agent 详情
+    useEffect(() => {
+        if (agentId) {
+            setLoadingAgentDetail(true);
+            eaAgentApi.queryAgent(agentId)
+                .then(result => {
+                    if (result && result.data) {
+                        setAgentDetail(result.data);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载 Agent 详情失败:', error);
+                    setAgentDetail(null);
+                })
+                .finally(() => {
+                    setLoadingAgentDetail(false);
+                });
+        } else {
             setAgentDetail(null);
-            return;
-        }
-
-        setLoadingAgentDetail(true);
-        try {
-            const result = await eaAgentApi.queryAgent(agentId);
-            if (result && result.data) {
-                setAgentDetail(result.data);
-            }
-        } catch (error) {
-            console.error('加载Agent详情失败:', error);
-            setAgentDetail(null);
-        } finally {
             setLoadingAgentDetail(false);
         }
     }, [agentId]);
-
-    // 当agentId变化时重新加载Agent详情
-    useEffect(() => {
-        loadAgentDetail();
-    }, [loadAgentDetail]);
 
     // 刷新所有资源
     const refreshResources = useCallback(() => {
@@ -86,7 +83,7 @@ export const AgentConfigProvider: React.FC<AgentConfigProviderProps> = ({
         setPromptContent,
         agentDetail,
         loadingAgentDetail,
-        loadAgentDetail
+        loadAgentDetail: () => {} // 空函数，保持接口兼容
     };
 
     return (
@@ -96,11 +93,11 @@ export const AgentConfigProvider: React.FC<AgentConfigProviderProps> = ({
     );
 };
 
-// 自定义hook使用Context
+// 自定义 hook 使用 Context
 export const useAgentConfig = (): AgentConfigContextType => {
     const context = useContext(AgentConfigContext);
     if (context === undefined) {
-        throw new Error('useAgentConfig必须在AgentConfigProvider内使用');
+        throw new Error('useAgentConfig 必须在 AgentConfigProvider 内使用');
     }
     return context;
 };

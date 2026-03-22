@@ -17,12 +17,14 @@ interface MCPSkillListProps {
     agentId?: number;
     refreshKey?: number;
     onRefresh?: () => void;
+    onCountUpdate?: (count: number) => void;
 }
 
 const MCPSkillList: React.FC<MCPSkillListProps> = ({
     agentId,
     refreshKey,
-    onRefresh
+    onRefresh,
+    onCountUpdate
 }) => {
     const [skills, setSkills] = useState<MCPSkillItem[]>([]);
     const [loading, setLoading] = useState(false);
@@ -71,10 +73,32 @@ const MCPSkillList: React.FC<MCPSkillListProps> = ({
         }
     ];
 
-    // 加载MCP技能
+    // 当 agentId 变化时加载数据
     useEffect(() => {
-        loadSkills();
-    }, [agentId, refreshKey]);
+        if (agentId !== undefined) {
+            loadSkills();
+        } else {
+            // 如果没有 agentId，清空数据
+            setSkills([]);
+            if (onCountUpdate) {
+                onCountUpdate(0);
+            }
+        }
+    }, [agentId]); // 监听 agentId 变化
+
+    // 当 refreshKey 变化时重新加载
+    useEffect(() => {
+        if (refreshKey > 0) {
+            loadSkills();
+        }
+    }, [refreshKey]);
+    
+    // 当技能列表变化时，通知父组件更新数量
+    useEffect(() => {
+        if (onCountUpdate) {
+            onCountUpdate(skills.length);
+        }
+    }, [skills, onCountUpdate]);
 
     const loadSkills = async () => {
         setLoading(true);

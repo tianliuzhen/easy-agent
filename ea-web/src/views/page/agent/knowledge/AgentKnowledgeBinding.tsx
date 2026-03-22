@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { List, Card, Tag, Button, Empty, Spin, Tooltip, message, Popconfirm } from 'antd';
-import { FileTextOutlined, EyeOutlined, DownloadOutlined, DisconnectOutlined, PlusOutlined } from '@ant-design/icons';
-import { knowledgeBaseApi } from '../../../api/KnowledgeBaseApi';
+import React, {useState, useEffect} from 'react';
+import {List, Card, Tag, Button, Empty, Spin, Tooltip, message, Popconfirm} from 'antd';
+import {FileTextOutlined, EyeOutlined, DownloadOutlined, DisconnectOutlined, PlusOutlined} from '@ant-design/icons';
+import {knowledgeBaseApi} from '../../../api/KnowledgeBaseApi';
 import AddResourceModal from '../common/AddResourceModal';
 
 interface KnowledgeBaseItem {
@@ -19,22 +19,46 @@ interface AgentKnowledgeBindingProps {
     agentId?: number;
     refreshKey?: number;
     onRefresh?: () => void;
+    onCountUpdate?: (count: number) => void;
 }
 
 const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
-    agentId,
-    refreshKey,
-    onRefresh
-}) => {
+                                                                         agentId,
+                                                                         refreshKey,
+                                                                         onRefresh,
+                                                                         onCountUpdate
+                                                                     }) => {
     const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState<'knowledge'>('knowledge');
 
-    // 加载知识库
+    // 当 agentId 变化时加载数据
     useEffect(() => {
-        loadKnowledgeBases();
-    }, [agentId, refreshKey]);
+        if (agentId) {
+            loadKnowledgeBases();
+        } else {
+            // 如果没有 agentId，清空数据
+            setKnowledgeBases([]);
+            if (onCountUpdate) {
+                onCountUpdate(0);
+            }
+        }
+    }, [agentId]); // 监听 agentId 变化
+
+    // 当 refreshKey 变化时重新加载
+    useEffect(() => {
+        if (refreshKey > 0) {
+            loadKnowledgeBases();
+        }
+    }, [refreshKey]);
+
+    // 当知识库列表变化时，通知父组件更新数量
+    useEffect(() => {
+        if (onCountUpdate) {
+            onCountUpdate(knowledgeBases.length);
+        }
+    }, [knowledgeBases, onCountUpdate]);
 
     const loadKnowledgeBases = async () => {
         if (!agentId) return;
@@ -156,21 +180,21 @@ const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
                     <div>
-                        <div style={{ marginBottom: '8px' }}>暂无关联的知识库</div>
-                        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddResource}>
+                        <div style={{marginBottom: '8px'}}>暂无关联的知识库</div>
+                        <Button type="primary" icon={<PlusOutlined/>} onClick={handleAddResource}>
                             关联知识库
                         </Button>
                     </div>
                 }
-                style={{ margin: '40px 0' }}
+                style={{margin: '40px 0'}}
             />
         );
     };
 
     if (loading) {
         return (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
-                <Spin tip="加载知识库中..." />
+            <div style={{display: 'flex', justifyContent: 'center', padding: '40px 0'}}>
+                <Spin tip="加载知识库中..."/>
             </div>
         );
     }
@@ -178,9 +202,9 @@ const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
     if (knowledgeBases.length === 0) {
         return (
             <div>
-                <div style={{ marginBottom: '16px' }}>
-                    <h3 style={{ margin: 0 }}>关联的知识库</h3>
-                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                <div style={{marginBottom: '16px'}}>
+                    <h3 style={{margin: 0}}>关联的知识库</h3>
+                    <div style={{fontSize: '12px', color: '#666', marginTop: '4px'}}>
                         关联外部知识库，让Agent具备相关知识能力
                     </div>
                 </div>
@@ -199,9 +223,9 @@ const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
 
     return (
         <div>
-            <div style={{ marginBottom: '16px' }}>
-                <h3 style={{ margin: 0 }}>关联的知识库</h3>
-                <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            <div style={{marginBottom: '16px'}}>
+                {/*<h3 style={{ margin: 0 }}>关联的知识库</h3>*/}
+                <div style={{fontSize: '12px', color: '#666', marginTop: '4px'}}>
                     关联外部知识库，让Agent具备相关知识能力
                 </div>
             </div>
@@ -212,25 +236,25 @@ const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
                     <List.Item>
                         <Card
                             size="small"
-                            style={{ width: '100%' }}
-                            bodyStyle={{ padding: '12px' }}
+                            style={{width: '100%'}}
+                            bodyStyle={{padding: '12px'}}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                                        <FileTextOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                                <div style={{flex: 1}}>
+                                    <div style={{display: 'flex', alignItems: 'center', marginBottom: '8px'}}>
+                                        <FileTextOutlined style={{marginRight: '8px', color: '#1890ff'}}/>
+                                        <h4 style={{margin: 0, fontSize: '14px', fontWeight: 600}}>
                                             {item.name}
                                         </h4>
                                         <Tag
                                             color={getStatusColor(item.status)}
-                                            style={{ marginLeft: '8px', fontSize: '11px' }}
+                                            style={{marginLeft: '8px', fontSize: '11px'}}
                                         >
                                             {item.status === 'active' ? '启用' : '停用'}
                                         </Tag>
                                         <Tag
                                             color={getTypeColor(item.type)}
-                                            style={{ marginLeft: '4px', fontSize: '11px' }}
+                                            style={{marginLeft: '4px', fontSize: '11px'}}
                                         >
                                             {item.type}
                                         </Tag>
@@ -245,8 +269,13 @@ const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
                                         {item.description}
                                     </p>
 
-                                    <div style={{ display: 'flex', alignItems: 'center', fontSize: '11px', color: '#999' }}>
-                                        <span style={{ marginRight: '12px' }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        fontSize: '11px',
+                                        color: '#999'
+                                    }}>
+                                        <span style={{marginRight: '12px'}}>
                                             文件数: <strong>{item.fileCount}</strong>
                                         </span>
                                         <span>
@@ -255,11 +284,11 @@ const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: '12px' }}>
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: '12px'}}>
                                     <Tooltip title="查看详情">
                                         <Button
                                             type="text"
-                                            icon={<EyeOutlined />}
+                                            icon={<EyeOutlined/>}
                                             size="small"
                                             onClick={() => handleView(item)}
                                         />
@@ -267,7 +296,7 @@ const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
                                     <Tooltip title="下载">
                                         <Button
                                             type="text"
-                                            icon={<DownloadOutlined />}
+                                            icon={<DownloadOutlined/>}
                                             size="small"
                                             onClick={() => handleDownload(item)}
                                         />
@@ -281,7 +310,7 @@ const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
                                         >
                                             <Button
                                                 type="text"
-                                                icon={<DisconnectOutlined />}
+                                                icon={<DisconnectOutlined/>}
                                                 size="small"
                                                 danger
                                             />
@@ -292,7 +321,7 @@ const AgentKnowledgeBinding: React.FC<AgentKnowledgeBindingProps> = ({
                         </Card>
                     </List.Item>
                 )}
-                style={{ marginTop: '8px' }}
+                style={{marginTop: '8px'}}
             />
 
             <AddResourceModal

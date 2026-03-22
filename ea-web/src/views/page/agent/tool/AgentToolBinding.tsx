@@ -31,22 +31,46 @@ interface AgentToolBindingProps {
     agentId?: number;
     refreshKey?: number;
     onRefresh?: () => void;
+    onCountUpdate?: (count: number) => void;
 }
 
 const AgentToolBinding: React.FC<AgentToolBindingProps> = ({
                                                                agentId,
                                                                refreshKey,
-                                                               onRefresh
+                                                               onRefresh,
+                                                               onCountUpdate
                                                            }) => {
     const [tools, setTools] = useState<ToolItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState<'tool'>('tool');
 
-    // 加载工具
+    // 当 agentId 变化时加载数据
     useEffect(() => {
-        loadTools();
-    }, [agentId, refreshKey]);
+        if (agentId) {
+            loadTools();
+        } else {
+            // 如果没有 agentId，清空数据
+            setTools([]);
+            if (onCountUpdate) {
+                onCountUpdate(0);
+            }
+        }
+    }, [agentId]); // 监听 agentId 变化
+
+    // 当 refreshKey 变化时重新加载
+    useEffect(() => {
+        if (refreshKey > 0) {
+            loadTools();
+        }
+    }, [refreshKey]);
+
+    // 当工具列表变化时，通知父组件更新数量
+    useEffect(() => {
+        if (onCountUpdate) {
+            onCountUpdate(tools.length);
+        }
+    }, [tools, onCountUpdate]);
 
     const loadTools = async () => {
         if (!agentId) return;
@@ -242,7 +266,7 @@ const AgentToolBinding: React.FC<AgentToolBindingProps> = ({
     return (
         <div>
             <div style={{marginBottom: '16px'}}>
-                <h3 style={{margin: 0}}>关联的工具</h3>
+                {/*<h3 style={{margin: 0}}>关联的工具</h3>*/}
                 <div style={{fontSize: '12px', color: '#666', marginTop: '4px'}}>
                     关联官方工具，让Agent具备相关工具能力
                 </div>

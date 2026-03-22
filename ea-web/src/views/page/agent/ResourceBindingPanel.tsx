@@ -1,11 +1,13 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import type {CollapseProps} from 'antd';
 import {Collapse, Button, Empty, Spin, message} from 'antd';
-import {PlusOutlined, ReloadOutlined} from '@ant-design/icons';
+import {PlusCircleFilled, ReloadOutlined, AppstoreOutlined} from '@ant-design/icons';
 import AgentKnowledgeBinding from './knowledge/AgentKnowledgeBinding';
 import AgentToolBinding from './tool/AgentToolBinding';
 import MCPSkillList from './mcp/MCPSkillList';
 import AddResourceModal from './common/AddResourceModal';
+import {knowledgeBaseApi} from '../../api/KnowledgeBaseApi';
+import {eaToolApi} from '../../api/EaToolApi';
 
 interface ResourceBindingPanelProps {
     agentId?: number;
@@ -15,21 +17,91 @@ interface ResourceBindingPanelProps {
 type ResourceType = 'knowledge' | 'tool' | 'mcp';
 
 const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, className}) => {
-    const [activeKeys, setActiveKeys] = useState<string[]>(['knowledge', 'tool', 'mcp']);
+    const [activeKeys, setActiveKeys] = useState<string[]>([]); // 默认全部折叠
     const [isLoading, setIsLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState<ResourceType>('knowledge');
     const [refreshKey, setRefreshKey] = useState(0);
 
-    // 处理Collapse变化
+    // 资源数量统计
+    const [resourceCounts, setResourceCounts] = useState({
+        knowledge: 0,
+        tool: 0,
+        mcp: 0
+    });
+
+    // 加载资源数量的函数
+    const loadResourceCounts = useCallback(async () => {
+        if (!agentId) {
+            // 如果没有 agentId，重置为0
+            setResourceCounts({
+                knowledge: 0,
+                tool: 0,
+                mcp: 0
+            });
+            return;
+        }
+
+        try {
+            // 并行获取知识库和工具数量
+            const [knowledgeResponse, toolResponse] = await Promise.all([
+                knowledgeBaseApi.listByAgentId(agentId.toString()),
+                eaToolApi.listBoundToolsByAgentId(agentId.toString())
+            ]);
+
+            setResourceCounts({
+                knowledge: knowledgeResponse.success ? (knowledgeResponse.data?.length || 0) : 0,
+                tool: toolResponse.success ? (toolResponse.data?.length || 0) : 0,
+                mcp: 0 // MCP暂时设为0，如果有API可以获取
+            });
+        } catch (error) {
+            console.error('加载资源数量失败:', error);
+            // 出错时保持当前状态
+        }
+    }, [agentId]);
+
+    // 当 agentId 变化时，获取资源数量
+    useEffect(() => {
+        loadResourceCounts();
+    }, [loadResourceCounts]);
+
+    // 处理 Collapse 变化
     const handleCollapseChange = (keys: string | string[]) => {
         setActiveKeys(Array.isArray(keys) ? keys : [keys]);
+    };
+
+
+    // 处理知识库数量更新
+    const handleKnowledgeCountUpdate = (count: number) => {
+        setResourceCounts(prev => ({
+            ...prev,
+            knowledge: count
+        }));
+    };
+
+    // 处理工具数量更新
+    const handleToolCountUpdate = (count: number) => {
+        setResourceCounts(prev => ({
+            ...prev,
+            tool: count
+        }));
+    };
+
+    // 处理 MCP 数量更新
+    const handleMCPCountUpdate = (count: number) => {
+        setResourceCounts(prev => ({
+            ...prev,
+            mcp: count
+        }));
     };
 
     // 刷新所有资源
     const handleRefreshAll = () => {
         setIsLoading(true);
         setRefreshKey(prev => prev + 1);
+
+        // 重新获取资源数量
+        loadResourceCounts();
 
         // 模拟加载
         setTimeout(() => {
@@ -54,6 +126,9 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
         setModalVisible(false);
         setRefreshKey(prev => prev + 1);
         message.success(`${getResourceTypeName(type)}添加成功`);
+
+        // 重新获取资源数量
+        loadResourceCounts();
     };
 
     // 获取资源类型名称
@@ -70,16 +145,31 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
         }
     };
 
-    // Collapse配置
+    // Collapse 配置
     const items: CollapseProps['items'] = [
         {
             key: 'knowledge',
             label: (
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                    <span>知识库</span>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <span>知识库</span>
+                        <span style={{
+                            background: resourceCounts.knowledge > 0 ? '#1890ff' : '#f0f0f0',
+                            color: resourceCounts.knowledge > 0 ? '#fff' : '#666',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            minWidth: '18px',
+                            textAlign: 'center',
+                            display: 'inline-block'
+                        }}>
+                            {resourceCounts.knowledge}
+                        </span>
+                    </div>
                     <Button
                         type="text"
-                        icon={<PlusOutlined/>}
+                        icon={<PlusCircleFilled style={{color: '#1890ff', fontSize: '16px'}}/>}
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
@@ -94,6 +184,7 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                     agentId={agentId}
                     refreshKey={refreshKey}
                     onRefresh={() => setRefreshKey(prev => prev + 1)}
+                    onCountUpdate={handleKnowledgeCountUpdate}
                 />
             ),
             extra: <span style={{fontSize: '12px', color: '#666'}}>文档、文件等知识资源</span>
@@ -102,10 +193,25 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
             key: 'tool',
             label: (
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                    <span>工具</span>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <span>工具</span>
+                        <span style={{
+                            background: resourceCounts.tool > 0 ? '#52c41a' : '#f0f0f0',
+                            color: resourceCounts.tool > 0 ? '#fff' : '#666',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            minWidth: '18px',
+                            textAlign: 'center',
+                            display: 'inline-block'
+                        }}>
+                            {resourceCounts.tool}
+                        </span>
+                    </div>
                     <Button
                         type="text"
-                        icon={<PlusOutlined/>}
+                        icon={<PlusCircleFilled style={{color: '#1890ff', fontSize: '16px'}}/>}
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
@@ -120,24 +226,40 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                     agentId={agentId}
                     refreshKey={refreshKey}
                     onRefresh={() => setRefreshKey(prev => prev + 1)}
+                    onCountUpdate={handleToolCountUpdate}
                 />
             ),
-            extra: <span style={{fontSize: '12px', color: '#666'}}>API、SQL、HTTP等工具</span>
+            extra: <span style={{fontSize: '12px', color: '#666'}}>RPC/HTTP/SQL 等工具</span>
         },
         {
             key: 'mcp',
             label: (
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                    <span>MCP</span>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <span>MCP</span>
+                        <span style={{
+                            background: resourceCounts.mcp > 0 ? '#fa8c16' : '#f0f0f0',
+                            color: resourceCounts.mcp > 0 ? '#fff' : '#666',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            minWidth: '18px',
+                            textAlign: 'center',
+                            display: 'inline-block'
+                        }}>
+                            {resourceCounts.mcp}
+                        </span>
+                    </div>
                     <Button
                         type="text"
-                        icon={<PlusOutlined/>}
+                        icon={<PlusCircleFilled style={{color: '#1890ff', fontSize: '16px'}}/>}
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
                             handleAddResource('mcp');
                         }}
-                        title="添加MCP"
+                        title="添加 MCP"
                     />
                 </div>
             ),
@@ -146,6 +268,7 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                     agentId={agentId}
                     refreshKey={refreshKey}
                     onRefresh={() => setRefreshKey(prev => prev + 1)}
+                    onCountUpdate={handleMCPCountUpdate}
                 />
             ),
             extra: <span style={{fontSize: '12px', color: '#666'}}>模型上下文协议技能</span>
@@ -154,16 +277,31 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
             key: 'Skill',
             label: (
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                    <span>Skills</span>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <span>Skills</span>
+                        <span style={{
+                            background: resourceCounts.mcp > 0 ? '#722ed1' : '#f0f0f0',
+                            color: resourceCounts.mcp > 0 ? '#fff' : '#666',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            minWidth: '18px',
+                            textAlign: 'center',
+                            display: 'inline-block'
+                        }}>
+                            {resourceCounts.mcp}
+                        </span>
+                    </div>
                     <Button
                         type="text"
-                        icon={<PlusOutlined/>}
+                        icon={<PlusCircleFilled style={{color: '#1890ff', fontSize: '16px'}}/>}
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
                             handleAddResource('mcp');
                         }}
-                        title="添加Skill"
+                        title="添加 Skill"
                     />
                 </div>
             ),
@@ -172,6 +310,7 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                     agentId={agentId}
                     refreshKey={refreshKey}
                     onRefresh={() => setRefreshKey(prev => prev + 1)}
+                    onCountUpdate={handleMCPCountUpdate}
                 />
             ),
             extra: <span style={{fontSize: '12px', color: '#666'}}>模型上下文协议技能</span>
@@ -194,7 +333,10 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
             }}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                     <div>
-                        <h3 style={{margin: 0, fontSize: '16px', fontWeight: 600}}>资源绑定</h3>
+                        <h3 style={{margin: 0, fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <AppstoreOutlined style={{color: '#1890ff', fontSize: '18px'}}/>
+                            资源绑定
+                        </h3>
                         <p style={{margin: '4px 0 0 0', fontSize: '12px', color: '#666'}}>
                             管理Agent可用的知识库、工具和MCP技能
                         </p>

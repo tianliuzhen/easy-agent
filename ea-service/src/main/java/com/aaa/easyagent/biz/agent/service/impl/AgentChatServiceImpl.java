@@ -60,7 +60,7 @@ public class AgentChatServiceImpl implements AgentChatService {
         agentContext.setAgentModelConfig(agent.getAgentModelConfig());
 
         // 工具信息
-        List<EaToolConfigResult> eaToolConfigResults = toolMangerService.getToolConfigByAgentId(agent.getId());
+        List<EaToolConfigResult> eaToolConfigResults = toolMangerService.listBoundToolsByAgentId(agent.getId());
         List<ToolDefinition> toolDefinitions = eaToolConfigResults.stream().map(ToolDefinition::buildToolDefinition).toList();
         agentContext.setToolDefinitions(toolDefinitions);
 
