@@ -71,7 +71,6 @@ const ChatDemo: React.FC = () => {
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const eventSourceRef = useRef<EventSource | null>(null);
     const location = useLocation();
     const currentAnsweringMsgIdRef = useRef<string | null>(null);
     const [messageThinkingLogs, setMessageThinkingLogs] = useState<ThinkingLogState>({});
@@ -365,14 +364,13 @@ const ChatDemo: React.FC = () => {
             }
         }));
 
-        if (eventSourceRef.current) {
-            eventSourceRef.current.close();
-        }
+        // 注意：现在 sendMessage 不返回 AbortController，无法手动中断之前的连接
+        // 需要确保不会同时发送多个消息，或者依赖后端处理并发请求
 
         const urlParams = new URLSearchParams(location.search);
         const agentId = urlParams.get('agentId') || '1';
 
-        const eventSource = sendMessage(
+        sendMessage(
             input,
             activeConversationId.toString(),
             agentId,
@@ -412,6 +410,18 @@ const ChatDemo: React.FC = () => {
                                 timestamp: Date.now()
                             }];
                         }
+                    });
+                    
+                    // 添加 finalAnswer 到思考日志中
+                    setMessageThinkingLogs(prev => {
+                        const currentEntries = prev[currentAiMessageId]?.content || [];
+                        return {
+                            ...prev,
+                            [currentAiMessageId]: {
+                                content: [...currentEntries, {type: 'finalAnswer' as const, content: finalAnswer}],
+                                isVisible: prev[currentAiMessageId]?.isVisible || true
+                            }
+                        };
                     });
                 }
             },
@@ -489,8 +499,6 @@ const ChatDemo: React.FC = () => {
                 currentAnsweringMsgIdRef.current = null;
             }
         );
-
-        eventSourceRef.current = eventSource;
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {

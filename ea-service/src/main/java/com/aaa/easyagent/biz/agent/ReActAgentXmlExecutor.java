@@ -56,6 +56,9 @@ import java.util.concurrent.CountDownLatch;
 public class ReActAgentXmlExecutor extends BaseReActAgent {
 
     protected static final String DefaultTemplate = """
+             {agentPrompt}
+             -------------------------------------
+             -------------------------------------
              ## 任务指令
              请尽最大可能回答以下问题。请记住，在没有执行工具的情况下，不得编造工具执行的结果。
              你可以使用以下工具：{tools}
@@ -84,13 +87,6 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
             
              ## 响应前的分析与规划框架
              请在组织最终回答前，按以下框架进行内部思考（此部分无需在最终响应中展示，但用于指导你的回答逻辑）：
-            
-             总结用户的问题：
-             [在此处提供问题的简要概述]
-             [列出回答问题所需的主要信息]
-             [列出可能有帮助的工具，并解释其原因]
-             [如需使用多个工具，请概述计划使用的顺序]
-             [注意与所访问工具或数据相关的任何潜在隐私或安全问题]
             
              开始！
             """;
@@ -127,6 +123,7 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
             tools.append("\n");
         }
         renderModel.put("tools", tools.toString());
+        renderModel.put("agentPrompt", agentContext.getPrompt());
 
         messages.add(new SystemMessage(reactSystemPromptTemplate.render(renderModel)));
 

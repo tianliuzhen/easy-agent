@@ -109,17 +109,24 @@ public class SseHelper {
         // 发送日志
         log.info(formattedMessage);
 
+        if ("log".equals(eventName)) {
+            // 日志不需要发送
+            return;
+        }
+
         // 如果需要通过 SSE 发送
         if (sseEmitter != null) {
             ReentrantLock lock = getLock(sseEmitter);
             lock.lock();
             try {
                 // 统一发送 JSON 格式数据，包含事件类型和消息内容
-                String jsonData = "{\"type\":\"" + eventName + "\",\"content\":\"" + escapeJsonString(formattedMessage) + "\"}";
+                // 使用更安全的JSON构建方式
+                String jsonData = String.format("{\"type\":\"%s\",\"content\":\"%s\"}",
+                        eventName, escapeJsonString(formattedMessage));
                 sseEmitter.send(SseEmitter.event()
                         .data(jsonData));
             } catch (IOException e) {
-                log.error("SSE 发送失败，type={}", eventName, e);
+                log.error("SSE 发送失败，type={}, message={}", eventName, formattedMessage, e);
                 // 可选：通知监听器连接已断开
                 try {
                     sseEmitter.complete();
@@ -128,11 +135,15 @@ public class SseHelper {
                 }
             } catch (IllegalStateException e) {
                 // 处理 ResponseBodyEmitter has already completed 错误
-                log.warn("SSE 连接已关闭，无法发送消息，type={}", eventName);
+                log.warn("SSE 连接已关闭，无法发送消息，type={}, message={}", eventName, formattedMessage);
                 // 清理锁
                 emitterLocks.remove(sseEmitter);
             } finally {
-                lock.unlock();
+                try {
+                    lock.unlock();
+                } catch (Exception e) {
+                    log.error("解锁失败", e);
+                }
             }
         }
     }

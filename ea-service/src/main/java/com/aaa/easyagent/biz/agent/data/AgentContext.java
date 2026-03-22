@@ -2,6 +2,7 @@ package com.aaa.easyagent.biz.agent.data;
 
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
+import jakarta.persistence.Column;
 import lombok.Data;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -21,6 +22,12 @@ public class AgentContext {
      * agentName
      */
     private String agentName;
+
+    /**
+     * 提示词
+     */
+    @Column(name = "prompt")
+    private String prompt;
 
     /**
      * 模型配置

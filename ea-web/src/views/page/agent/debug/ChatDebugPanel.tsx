@@ -49,7 +49,6 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const eventSourceRef = useRef<EventSource | null>(null);
     const currentAnsweringMsgIdRef = useRef<string | null>(null);
     const [messageThinkingLogs, setMessageThinkingLogs] = useState<ThinkingLogState>({});
     const {agentDetail} = useAgentConfig();
@@ -65,9 +64,8 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
 
     useEffect(() => {
         return () => {
-            if (eventSourceRef.current) {
-                eventSourceRef.current.close();
-            }
+            // 注意：现在 sendMessage 不返回 AbortController，无法在组件卸载时手动中断连接
+            // 依赖 fetchEventSource 自己管理连接生命周期
         };
     }, []);
 
@@ -185,7 +183,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
             setMessages(prev => [...prev, aiMessage]);
 
             // 使用正确的函数参数形式调用 sendMessage
-            const eventSource = sendMessage(
+            sendMessage(
                 input,
                 currentConversationId!.toString(),
                 agentId.toString(),
@@ -308,8 +306,6 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                     currentAnsweringMsgIdRef.current = null;
                 }
             );
-
-            eventSourceRef.current = eventSource;
 
         } catch (error: any) {
             console.error('发送消息失败:', error);

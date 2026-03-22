@@ -3,6 +3,7 @@ package com.aaa.easyagent.web.biz.agent;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.EaAgentReq;
+import com.aaa.easyagent.core.domain.request.StreamChatPostRequest;
 import com.aaa.easyagent.core.service.AgentManagerService;
 import com.aaa.easyagent.web.example.sse.SseEmitterUTF8;
 import lombok.RequiredArgsConstructor;
@@ -68,7 +69,7 @@ public class EaAgentController {
     }
 
     /**
-     * 对话
+     * 对话（GET 方式）
      *
      * @param sessionId 会话 ID
      * @param msg       消息
@@ -81,10 +82,10 @@ public class EaAgentController {
             @RequestParam(defaultValue = "1", required = false) String agentId) {
         // 默认设置 5 分钟
         SseEmitter sseEmitter = new SseEmitterUTF8(1000 * 60L * 5);
-    
+
         // 保存当前的 SecurityContext
         var securityContext = org.springframework.security.core.context.SecurityContextHolder.getContext();
-    
+
         // todo 改为线程池
         new Thread(() -> {
             try {
@@ -98,7 +99,37 @@ public class EaAgentController {
                 org.springframework.security.core.context.SecurityContextHolder.clearContext();
             }
         }).start();
-    
+
+        return sseEmitter;
+    }
+
+    /**
+     * 对话（POST 方式）
+     *
+     * @param request 流式对话请求对象
+     * @return SSE Emitter
+     */
+    @PostMapping("/ai/chat")
+    public SseEmitter chat(@RequestBody StreamChatPostRequest request) {
+        // 默认设置 5 分钟
+        SseEmitter sseEmitter = new SseEmitterUTF8(1000 * 60L * 5);
+
+        // 保存当前的 SecurityContext
+        var securityContext = org.springframework.security.core.context.SecurityContextHolder.getContext();
+
+        // todo 改为线程池
+        new Thread(() -> {
+            try {
+                // 在子线程中设置 SecurityContext
+                org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
+                agentChatService.streamChatWith(request.getSessionId(), request.getMsg(), request.getAgentId(), sseEmitter);
+            } catch (Throwable e) {
+                log.error("streamChatWithPost:{}", e.getMessage(), e);
+            } finally {
+                // 清理线程上下文
+                org.springframework.security.core.context.SecurityContextHolder.clearContext();
+            }
+        }).start();
         return sseEmitter;
     }
 

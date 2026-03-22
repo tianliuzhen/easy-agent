@@ -141,7 +141,7 @@ public abstract class BaseAgent {
                 if (agentOutput instanceof AgentFinish agentFinish) {
                     SseHelper.sendLog(sse, "第{}次大模型决策结束...：", decisionCnt);
                     String llmResponse = agentFinish.getResult();
-                    SseHelper.sendLog(sse, "第{}次大模型决策结果...：{}", decisionCnt, llmResponse);
+                    SseHelper.sendLog(sse, "第{}次大模型决策结果...：", decisionCnt, llmResponse);
 
                     SseHelper.sendFinalAnswer(sse, agentFinish.getResult());
                     ChatRecordSaver.addFinalAnswer(agentFinish.getResult());

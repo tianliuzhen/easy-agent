@@ -45,15 +45,15 @@ export const CollapsibleGroup: React.FC<{
     content: string;
     defaultCollapsed: boolean;
 }> = ({
-    type,
-    title,
-    color,
-    background,
-    border,
-    contentStyle,
-    content,
-    defaultCollapsed
-}) => {
+          type,
+          title,
+          color,
+          background,
+          border,
+          contentStyle,
+          content,
+          defaultCollapsed
+      }) => {
     const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
     return (
@@ -247,7 +247,8 @@ export const ThinkingLogToggleButton: React.FC<{
 
     if (isPanel) {
         return (
-            <Tooltip title={isVisible ? (isThinking ? "隐藏实时思考" : "隐藏思考过程") : (isThinking ? "显示实时思考" : "显示思考过程")}>
+            <Tooltip
+                title={isVisible ? (isThinking ? "隐藏实时思考" : "隐藏思考过程") : (isThinking ? "显示实时思考" : "显示思考过程")}>
                 <Button
                     type="text"
                     size="small"
@@ -315,17 +316,24 @@ export interface ChatMessageItemProps {
     messageThinkingLogs: ThinkingLogState;
     onToggleThinkingLog: (messageId: string) => void;
     renderThinkingContentFn: (entries: ThinkingLogEntry[], isRealTime?: boolean) => React.ReactNode;
+    currentAnsweringMsgId: string | null;
 }
 
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
-    msg,
-    messageThinkingLogs,
-    onToggleThinkingLog,
-    renderThinkingContentFn
-}) => {
+                                                                    msg,
+                                                                    messageThinkingLogs,
+                                                                    onToggleThinkingLog,
+                                                                    renderThinkingContentFn,
+                                                                    currentAnsweringMsgId
+                                                                }) => {
     const msgThinkingLog = messageThinkingLogs[msg.id];
     const hasThinkingLog = msgThinkingLog && msgThinkingLog.content.length > 0;
     const isThinkingVisible = msgThinkingLog?.isVisible || false;
+
+    // 如果是机器人的空消息且正在思考中，不显示（由 ThinkingIndicator 统一显示）
+    if (!msg.isUser && msg.text.trim() === '' && currentAnsweringMsgId === msg.id) {
+        return null;
+    }
 
     return (
         <React.Fragment key={`msg-${msg.id}`}>
@@ -421,8 +429,8 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 )}
             </div>
 
-            {/* 思考过程内容 */}
-            {!msg.isUser && hasThinkingLog && isThinkingVisible && (
+            {/* 思考过程内容 - 只在消息已完成时显示 */}
+            {!msg.isUser && hasThinkingLog && isThinkingVisible && currentAnsweringMsgId !== msg.id && (
                 <div style={{
                     marginBottom: '16px',
                     marginLeft: '56px',
@@ -447,15 +455,31 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                             marginBottom: '8px'
                         }}>
                             <div style={{display: 'flex', alignItems: 'center'}}>
-                                <span>✅ </span>
-                                <span style={{
-                                    fontSize: '11px',
-                                    backgroundColor: 'var(--ea-theme-background)',
-                                    padding: '2px 4px',
-                                    borderRadius: '10px'
-                                }}>
-                                    已完成
-                                </span>
+                                {currentAnsweringMsgId === msg.id ? (
+                                    <>
+                                        <span>💭 </span>
+                                        <span style={{
+                                            fontSize: '11px',
+                                            backgroundColor: 'var(--ea-theme-background)',
+                                            padding: '2px 4px',
+                                            borderRadius: '10px'
+                                        }}>
+                                            分析中
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>✅ </span>
+                                        <span style={{
+                                            fontSize: '11px',
+                                            backgroundColor: 'var(--ea-theme-background)',
+                                            padding: '2px 4px',
+                                            borderRadius: '10px'
+                                        }}>
+                                            已完成
+                                        </span>
+                                    </>
+                                )}
                             </div>
                             <Tooltip title="隐藏">
                                 <Button
@@ -475,7 +499,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                             maxHeight: '500px',
                             overflowY: 'auto'
                         }}>
-                            {renderThinkingContentFn(msgThinkingLog.content, false)}
+                            {renderThinkingContentFn(msgThinkingLog.content, currentAnsweringMsgId === msg.id)}
                         </div>
                     </div>
                 </div>
@@ -494,12 +518,12 @@ export interface ThinkingIndicatorProps {
 }
 
 export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
-    messageThinkingLogs,
-    currentAnsweringMsgId,
-    onToggleThinkingLog,
-    renderThinkingContentFn,
-    thinkingContentRef
-}) => {
+                                                                        messageThinkingLogs,
+                                                                        currentAnsweringMsgId,
+                                                                        onToggleThinkingLog,
+                                                                        renderThinkingContentFn,
+                                                                        thinkingContentRef
+                                                                    }) => {
     if (!currentAnsweringMsgId || !messageThinkingLogs[currentAnsweringMsgId]) {
         return null;
     }
@@ -622,13 +646,13 @@ export interface ChatInputAreaProps {
 }
 
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
-    value,
-    onChange,
-    onSend,
-    onKeyPress,
-    disabled = false,
-    placeholder = "输入您的问题...（按 Enter 发送，Shift + Enter 换行）"
-}) => {
+                                                                value,
+                                                                onChange,
+                                                                onSend,
+                                                                onKeyPress,
+                                                                disabled = false,
+                                                                placeholder = "输入您的问题...（按 Enter 发送，Shift + Enter 换行）"
+                                                            }) => {
     const {TextArea} = Input;
 
     return (
@@ -705,10 +729,10 @@ export interface ChatEmptyStateProps {
 }
 
 export const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({
-    agentName = 'EasyAgent',
-    title = '开始新的对话',
-    subtitle = '在下方输入您的消息，智能助手将为您解答'
-}) => {
+                                                                  agentName = 'EasyAgent',
+                                                                  title = '开始新的对话',
+                                                                  subtitle = '在下方输入您的消息，智能助手将为您解答'
+                                                              }) => {
     return (
         <div style={{
             display: 'flex',
@@ -761,22 +785,22 @@ export interface ChatRightPanelProps {
 }
 
 export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
-    messages,
-    messageThinkingLogs,
-    isThinking,
-    currentAnsweringMsgId,
-    input,
-    onInputChange,
-    onSend,
-    onKeyPress,
-    onToggleThinkingLog,
-    agentName = 'EasyAgent',
-    modelVersion,
-    conversationId,
-    error,
-    emptyTitle = '开始新的对话',
-    emptySubtitle = '在下方输入您的消息，智能助手将为您解答'
-}) => {
+                                                                  messages,
+                                                                  messageThinkingLogs,
+                                                                  isThinking,
+                                                                  currentAnsweringMsgId,
+                                                                  input,
+                                                                  onInputChange,
+                                                                  onSend,
+                                                                  onKeyPress,
+                                                                  onToggleThinkingLog,
+                                                                  agentName = 'EasyAgent',
+                                                                  modelVersion,
+                                                                  conversationId,
+                                                                  error,
+                                                                  emptyTitle = '开始新的对话',
+                                                                  emptySubtitle = '在下方输入您的消息，智能助手将为您解答'
+                                                              }) => {
     const chatMessagesEndRef = useRef<HTMLDivElement>(null);
     const thinkingContentRef = useRef<HTMLDivElement>(null);
     const prevThinkingContentLengthRef = useRef<number>(0);
@@ -852,6 +876,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                                 messageThinkingLogs={messageThinkingLogs}
                                 onToggleThinkingLog={onToggleThinkingLog}
                                 renderThinkingContentFn={renderThinkingContent}
+                                currentAnsweringMsgId={currentAnsweringMsgId}
                             />
                         ))}
 

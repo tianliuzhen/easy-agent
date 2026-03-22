@@ -177,6 +177,7 @@ const AgentConfigContent: React.FC = () => {
                                 min="20%"
                                 max="50%"
                                 className="splitter-panel"
+                                collapsible
                             >
                                 <PromptInputPanel
                                     agentId={agentIdNum}
@@ -189,6 +190,7 @@ const AgentConfigContent: React.FC = () => {
                                 min="30%"
                                 max="60%"
                                 className="splitter-panel"
+                                collapsible
                             >
                                 <ResourceBindingPanel
                                     agentId={agentIdNum}
@@ -200,6 +202,7 @@ const AgentConfigContent: React.FC = () => {
                                 min="20%"
                                 max="50%"
                                 className="splitter-panel"
+                                collapsible={{start: true}}
                             >
                                 <ChatDebugPanel
                                     agentId={agentIdNum}
