@@ -53,7 +53,7 @@ public class ToolAgentExecutor extends BaseAgent {
         ChatResponse chatResponse = chatModel.call(prompt);
 
         // 添加助手执行记忆
-        addAssistantMessage(prompt, chatResponse);
+        addAssistantMessage(chatResponse);
 
         if (prompt.getOptions() != null && chatResponse.hasToolCalls()) {
             List<AssistantMessage.ToolCall> toolCalls = chatResponse.getResults().stream().flatMap(e -> e.getOutput().getToolCalls().stream()).toList();

@@ -83,8 +83,6 @@ export const sendMessage = (
                     return;
                 }
 
-                console.log('SSE 收到数据:', event.data);
-
                 // 解析 JSON 数据
                 const jsonData = JSON.parse(event.data);
 

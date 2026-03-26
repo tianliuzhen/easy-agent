@@ -192,12 +192,13 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
             ChatRecordSaver.addData(data);
         }
 
-        // 添加助手执行记忆
-        addAssistantMessage(prompt, resStr.toString());
 
         // 使用XML格式解析Action入参或者解析成功
         AgentOutput agentOutput = parseXmlResponse(resStr.toString());
         agentOutput.setReasoningContent(reasoningContent.toString());
+
+        // 添加助手执行记忆
+        addAssistantMessage(agentOutput);
         return agentOutput;
     }
 

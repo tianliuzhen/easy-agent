@@ -116,7 +116,7 @@ public class ReActAgentExecutor extends BaseReActAgent {
         ChatResponse chatResponse = chatModel.call(prompt);
 
         // 添加助手执行记忆
-        addAssistantMessage(prompt, chatResponse);
+        addAssistantMessage(chatResponse);
 
         // reAct-决策模式
         String resStr = ChatResponseUtil.getResStr(chatResponse);
