@@ -91,5 +91,13 @@
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
+        <table tableName="ea_mcp_config" mapperName="EaMcpConfigDAO" domainObjectName="EaMcpConfigDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+        <table tableName="ea_mcp_relation" mapperName="EaMcpRelationDAO" domainObjectName="EaMcpRelationDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
     </context>
 </generatorConfiguration>

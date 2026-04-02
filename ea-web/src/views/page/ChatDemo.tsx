@@ -72,7 +72,7 @@ const ChatDemo: React.FC = () => {
     const [isThinking, setIsThinking] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const location = useLocation();
-    const currentAnsweringMsgIdRef = useRef<string | null>(null);
+    const [currentAnsweringMsgId, setCurrentAnsweringMsgId] = useState<string | null>(null);
     const [messageThinkingLogs, setMessageThinkingLogs] = useState<ThinkingLogState>({});
     const [selectedChatIndex, setSelectedChatIndex] = useState(-1);
     // 新增：会话列表状态
@@ -354,7 +354,17 @@ const ChatDemo: React.FC = () => {
         setIsThinking(true);
 
         const aiMessageId = crypto.randomUUID();
-        currentAnsweringMsgIdRef.current = aiMessageId;
+        setCurrentAnsweringMsgId(aiMessageId);
+
+        // 立即创建空的AI消息，显示"思考中..."，避免闪烁
+        const newAiMessage = {
+            text: '思考中...',
+            isUser: false,
+            type: 'data' as const,
+            id: aiMessageId,
+            timestamp: Date.now()
+        };
+        setMessages(prev => [...prev, newAiMessage]);
 
         setMessageThinkingLogs(prev => ({
             ...prev,
@@ -375,128 +385,116 @@ const ChatDemo: React.FC = () => {
             activeConversationId.toString(),
             agentId,
             (log: string) => {
-                const currentAiMessageId = currentAnsweringMsgIdRef.current;
-                if (currentAiMessageId) {
-                    setMessageThinkingLogs(prev => {
-                        const currentEntries = prev[currentAiMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentAiMessageId]: {
-                                content: [...currentEntries, {type: 'log' as const, content: log}],
-                                isVisible: prev[currentAiMessageId]?.isVisible || true
-                            }
-                        };
-                    });
-                }
+                const currentAiMessageId = aiMessageId;
+                setMessageThinkingLogs(prev => {
+                    const currentEntries = prev[currentAiMessageId]?.content || [];
+                    return {
+                        ...prev,
+                        [currentAiMessageId]: {
+                            content: [...currentEntries, {type: 'log' as const, content: log}],
+                            isVisible: prev[currentAiMessageId]?.isVisible || true
+                        }
+                    };
+                });
             },
             (finalAnswer: string) => {
-                const currentAiMessageId = currentAnsweringMsgIdRef.current;
-                if (currentAiMessageId) {
-                    setMessages(prev => {
-                        const existingMsgIndex = prev.findIndex(msg => msg.id === currentAiMessageId);
-                        if (existingMsgIndex >= 0) {
-                            return prev.map((msg, index) => {
-                                if (index === existingMsgIndex) {
-                                    return {...msg, text: finalAnswer};
-                                }
-                                return msg;
-                            });
-                        } else {
-                            return [...prev, {
-                                text: finalAnswer,
-                                isUser: false,
-                                type: 'data',
-                                id: currentAiMessageId,
-                                timestamp: Date.now()
-                            }];
-                        }
-                    });
-                    
-                    // 添加 finalAnswer 到思考日志中
-                    setMessageThinkingLogs(prev => {
-                        const currentEntries = prev[currentAiMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentAiMessageId]: {
-                                content: [...currentEntries, {type: 'finalAnswer' as const, content: finalAnswer}],
-                                isVisible: prev[currentAiMessageId]?.isVisible || true
+                const currentAiMessageId = aiMessageId;
+                setMessages(prev => {
+                    const existingMsgIndex = prev.findIndex(msg => msg.id === currentAiMessageId);
+                    if (existingMsgIndex >= 0) {
+                        return prev.map((msg, index) => {
+                            if (index === existingMsgIndex) {
+                                return {...msg, text: finalAnswer};
                             }
-                        };
-                    });
-                }
+                            return msg;
+                        });
+                    } else {
+                        return [...prev, {
+                            text: finalAnswer,
+                            isUser: false,
+                            type: 'data',
+                            id: currentAiMessageId,
+                            timestamp: Date.now()
+                        }];
+                    }
+                });
+
+                // 添加 finalAnswer 到思考日志中
+                setMessageThinkingLogs(prev => {
+                    const currentEntries = prev[currentAiMessageId]?.content || [];
+                    return {
+                        ...prev,
+                        [currentAiMessageId]: {
+                            content: [...currentEntries, {type: 'finalAnswer' as const, content: finalAnswer}],
+                            isVisible: prev[currentAiMessageId]?.isVisible || true
+                        }
+                    };
+                });
             },
             (think: string) => {
-                const currentAiMessageId = currentAnsweringMsgIdRef.current;
-                if (currentAiMessageId) {
-                    setMessageThinkingLogs(prev => {
-                        const currentEntries = prev[currentAiMessageId]?.content || [];
-                        const content = think.startsWith('[THINK] ') ? think.substring(8) : think;
-                        return {
-                            ...prev,
-                            [currentAiMessageId]: {
-                                content: [...currentEntries, {type: 'think' as const, content}],
-                                isVisible: prev[currentAiMessageId]?.isVisible || true
-                            }
-                        };
-                    });
-                }
+                const currentAiMessageId = aiMessageId;
+                setMessageThinkingLogs(prev => {
+                    const currentEntries = prev[currentAiMessageId]?.content || [];
+                    const content = think.startsWith('[THINK] ') ? think.substring(8) : think;
+                    return {
+                        ...prev,
+                        [currentAiMessageId]: {
+                            content: [...currentEntries, {type: 'think' as const, content}],
+                            isVisible: prev[currentAiMessageId]?.isVisible || true
+                        }
+                    };
+                });
             },
             (data: string) => {
-                const currentAiMessageId = currentAnsweringMsgIdRef.current;
-                if (currentAiMessageId) {
-                    setMessageThinkingLogs(prev => {
-                        const currentEntries = prev[currentAiMessageId]?.content || [];
-                        const content = data.startsWith('[DATA] ') ? data.substring(7) : data;
-                        return {
-                            ...prev,
-                            [currentAiMessageId]: {
-                                content: [...currentEntries, {type: 'data' as const, content}],
-                                isVisible: prev[currentAiMessageId]?.isVisible || true
-                            }
-                        };
-                    });
-                }
+                const currentAiMessageId = aiMessageId;
+                setMessageThinkingLogs(prev => {
+                    const currentEntries = prev[currentAiMessageId]?.content || [];
+                    const content = data.startsWith('[DATA] ') ? data.substring(7) : data;
+                    return {
+                        ...prev,
+                        [currentAiMessageId]: {
+                            content: [...currentEntries, {type: 'data' as const, content}],
+                            isVisible: prev[currentAiMessageId]?.isVisible || true
+                        }
+                    };
+                });
             },
             (tool: string) => {
-                const currentAiMessageId = currentAnsweringMsgIdRef.current;
-                if (currentAiMessageId) {
-                    setMessageThinkingLogs(prev => {
-                        const currentEntries = prev[currentAiMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentAiMessageId]: {
-                                content: [...currentEntries, {type: 'tool' as const, content: tool}],
-                                isVisible: prev[currentAiMessageId]?.isVisible || true
-                            }
-                        };
-                    });
-                }
+                const currentAiMessageId = aiMessageId;
+                setMessageThinkingLogs(prev => {
+                    const currentEntries = prev[currentAiMessageId]?.content || [];
+                    return {
+                        ...prev,
+                        [currentAiMessageId]: {
+                            content: [...currentEntries, {type: 'tool' as const, content: tool}],
+                            isVisible: prev[currentAiMessageId]?.isVisible || true
+                        }
+                    };
+                });
             },
             () => {
                 setIsThinking(false);
-                currentAnsweringMsgIdRef.current = null;
+                setCurrentAnsweringMsgId(null);
                 loadConversations().catch(err => console.error('刷新会话列表失败:', err));
             },
             (errorMessage: string) => {
-                const currentAiMessageId = currentAnsweringMsgIdRef.current;
-                if (currentAiMessageId) {
-                    setMessageThinkingLogs(prev => {
-                        const currentEntries = prev[currentAiMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentAiMessageId]: {
-                                content: [...currentEntries, {
-                                    type: 'error' as const,
-                                    content: `思考过程中出现错误: ${errorMessage}`
-                                }],
-                                isVisible: prev[currentAiMessageId]?.isVisible || true
-                            }
-                        };
-                    });
-                }
+                const currentAiMessageId = aiMessageId;
+                setMessageThinkingLogs(prev => {
+                    const currentEntries = prev[currentAiMessageId]?.content || [];
+                    return {
+                        ...prev,
+                        [currentAiMessageId]: {
+                            content: [...currentEntries, {
+                                type: 'error' as const,
+                                content: `思考过程中出现错误: ${errorMessage}`
+                            }],
+                            isVisible: prev[currentAiMessageId]?.isVisible || true
+                        }
+                    };
+                });
                 setError(errorMessage);
                 setIsThinking(false);
-                currentAnsweringMsgIdRef.current = null;
+                setCurrentAnsweringMsgId(null);
             }
         );
     };
@@ -792,7 +790,7 @@ const ChatDemo: React.FC = () => {
                     messages={messages}
                     messageThinkingLogs={messageThinkingLogs}
                     isThinking={isThinking}
-                    currentAnsweringMsgId={currentAnsweringMsgIdRef.current}
+                    currentAnsweringMsgId={currentAnsweringMsgId}
                     input={input}
                     onInputChange={setInput}
                     onSend={handleSendMessage}

@@ -9,6 +9,8 @@ import {
     DownOutlined,
     RightOutlined
 } from '@ant-design/icons';
+import type {ThoughtChainProps} from '@ant-design/x';
+import {ThoughtChain} from '@ant-design/x';
 
 // 类型定义
 export interface ThinkingLogEntry {
@@ -104,53 +106,47 @@ export const CollapsibleGroup: React.FC<{
 // ==================== 类型配置 ====================
 const typeConfig = {
     think: {
-        title: '🤔 思考',
-        color: '#94a3b8',
-        background: '#f1f5f9',
-        hasContainer: true,
-        border: '#e2e8f0',
-        contentStyle: {color: '#475569'}
+        title: '思考',
+        icon: '🤔',
+        description: '',
+        color: '#1677ff',
+        status: 'pending' as const
     },
     data: {
-        title: '💬 回答',
-        color: '#1976d2',
-        background: '#ffffff',
-        hasContainer: true,
-        contentStyle: {color: '#2c3e50'}
+        title: '回答',
+        icon: '💬',
+        description: '',
+        color: '#52c41a',
+        status: 'success' as const
     },
     tool: {
-        title: '🔧 工具',
-        color: '#95a5a6',
-        background: '#f5f5f5',
-        hasContainer: true,
-        contentStyle: {color: '#5d6d7e'}
+        title: '工具',
+        icon: '🔧',
+        description: '',
+        color: '#fa8c16',
+        status: 'success' as const
     },
     log: {
-        title: '',
-        color: '#b0bec5',
-        background: 'transparent',
-        hasContainer: false,
-        style: {color: '#78909c', fontStyle: 'italic', fontSize: '0.9em'}
+        title: '日志',
+        icon: '📝',
+        description: '运行日志',
+        color: '#8c8c8c',
+        status: 'default' as const
     },
     error: {
-        title: '',
-        color: '#e53935',
-        background: 'transparent',
-        hasContainer: false,
-        style: {
-            color: '#c62828',
-            fontWeight: 500,
-            background: '#ffebee',
-            padding: '2px 4px',
-            borderRadius: '3px'
-        }
+        title: '错误',
+        icon: '⚠️',
+        description: '',
+        color: '#ff4d4f',
+        status: 'error' as const
     },
     finalAnswer: {
-        title: '✅ 最终答案',
-        color: '#2e7d32',
-        background: '#f1f8e9',
-        hasContainer: true,
-        contentStyle: {color: '#1b5e20', fontWeight: 500}
+        title: '最终答案',
+        icon: '✅',
+        description: '',
+        color: '#52c41a',
+        status: 'success' as const,
+        blink: true
     }
 };
 
@@ -158,67 +154,65 @@ const typeConfig = {
 export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: boolean = false) => {
     if (!entries || entries.length === 0) return null;
 
-    const groups: Array<{ type: ThinkingLogEntry['type'], entries: ThinkingLogEntry[] }> = [];
-    let currentGroup: { type: ThinkingLogEntry['type'], entries: ThinkingLogEntry[] } | null = null;
+    // 始终合并相同类型的连续 entry，避免重复显示
+    let displayEntries = entries;
+    if (entries.length > 0) {
+        const merged: ThinkingLogEntry[] = [];
+        for (const entry of entries) {
+            const lastEntry = merged[merged.length - 1];
+            if (lastEntry && lastEntry.type === entry.type) {
+                // 检查新内容是否已经包含在上一个条目中
+                // 避免添加重复或相似的内容
+                const newContent = entry.content.trim();
+                const lastContent = lastEntry.content.trim();
 
-    entries.forEach(entry => {
-        if (!currentGroup || currentGroup.type !== entry.type) {
-            if (currentGroup) {
-                groups.push(currentGroup);
+                if (newContent && !lastContent.includes(newContent)) {
+                    // 合并相同类型的连续 entry，用换行分隔内容
+                    // 避免重复的"回答"、"工具"等条目连续显示
+                    lastEntry.content = lastEntry.content + '\n' + entry.content;
+                }
+                // 如果内容已包含或为空，跳过这个条目
+            } else {
+                merged.push({...entry});
             }
-            currentGroup = {
-                type: entry.type,
-                entries: [entry]
-            };
-        } else {
-            currentGroup.entries.push(entry);
         }
-    });
-
-    if (currentGroup) {
-        groups.push(currentGroup);
+        displayEntries = merged;
     }
 
+    // 将 entries 转换为 ThoughtChain 的 items 格式
+    const items: ThoughtChainProps['items'] = displayEntries.map((entry, index) => {
+        const config = typeConfig[entry.type] || typeConfig.log;
+        const isLastItem = index === displayEntries.length - 1;
+
+        return {
+            title: `${config.icon} ${config.title}`,
+            description: config.description,
+            icon: config.icon,
+            status: isRealTime && isLastItem ? 'pending' : config.status,
+            collapsible: true,
+            defaultCollapsed: false,
+            content: (
+                <div style={{
+                    fontSize: '12px',
+                    lineHeight: 1.6,
+                    color: '#333',
+                    whiteSpace: 'pre-wrap',
+                    padding: '8px 0'
+                }}>
+                    {entry.content}
+                </div>
+            ),
+            ...(entry.type === 'finalAnswer' && !isRealTime && {blink: true})
+        };
+    });
+
     return (
-        <>
-            {groups.map((group, groupIndex) => {
-                const config = typeConfig[group.type];
-                const content = group.entries.map(entry => entry.content).join(
-                    group.type === 'tool' ? '\n' : ''
-                );
-                const groupKey = `${group.type}-${groupIndex}`;
-                const defaultCollapsed = isRealTime ? false : (group.type === 'think' || group.type === 'tool');
-
-                if (!config.hasContainer) {
-                    return (
-                        <React.Fragment key={groupKey}>
-                            {group.entries.map((entry, entryIndex) => (
-                                <div
-                                    key={`entry-${groupIndex}-${entryIndex}`}
-                                    style={config.style}
-                                >
-                                    {entry.content}
-                                </div>
-                            ))}
-                        </React.Fragment>
-                    );
-                }
-
-                return (
-                    <CollapsibleGroup
-                        key={groupKey}
-                        type={group.type}
-                        title={config.title}
-                        color={config.color}
-                        background={config.background}
-                        border={config.border}
-                        contentStyle={config.contentStyle || {}}
-                        content={content}
-                        defaultCollapsed={defaultCollapsed}
-                    />
-                );
-            })}
-        </>
+        <div style={{marginTop: '8px'}}>
+            <ThoughtChain
+                items={items}
+                line="dashed"
+            />
+        </div>
     );
 };
 
@@ -255,7 +249,7 @@ export const ThinkingLogToggleButton: React.FC<{
                     icon={isVisible ? <EyeInvisibleOutlined/> : <EyeOutlined/>}
                     onClick={() => onToggle(messageId)}
                     style={{
-                        background: 'var(--ea-theme-background)',
+                        background: '#fff',
                         border: '1px solid #91caff',
                         borderRadius: '16px',
                         padding: isThinking ? '4px 12px' : '4px 8px',
@@ -289,7 +283,7 @@ export const ThinkingLogToggleButton: React.FC<{
                     position: 'absolute',
                     top: '-10px',
                     right: '-10px',
-                    background: 'var(--ea-theme-background)',
+                    background: '#fff',
                     border: '1px solid #91caff',
                     borderRadius: '16px',
                     padding: '4px 8px',
@@ -330,10 +324,11 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
     const hasThinkingLog = msgThinkingLog && msgThinkingLog.content.length > 0;
     const isThinkingVisible = msgThinkingLog?.isVisible || false;
 
-    // 如果是机器人的空消息且正在思考中，不显示（由 ThinkingIndicator 统一显示）
-    if (!msg.isUser && msg.text.trim() === '' && currentAnsweringMsgId === msg.id) {
-        return null;
-    }
+    // 如果是机器人的空消息或"思考中..."消息且正在思考中，正常显示消息气泡
+    // 不再返回null，避免finalAnswer更新文本时出现闪烁
+    const isThinkingMessage = !msg.isUser &&
+        (msg.text.trim() === '' || msg.text === '思考中...') &&
+        currentAnsweringMsgId === msg.id;
 
     return (
         <React.Fragment key={`msg-${msg.id}`}>
@@ -378,7 +373,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                     {/* 消息气泡 */}
                     <div
                         style={{
-                            backgroundColor: 'var(--ea-theme-background)',
+                            backgroundColor: '#fff',
                             color: '#000000',
                             padding: '16px 20px',
                             borderRadius: '18px',
@@ -405,7 +400,20 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                             />
                         )}
                         <div style={{whiteSpace: 'pre-wrap'}}>
-                            {msg.text.replace(/^\n+|\n+$/g, '')}
+                            {isThinkingMessage ? (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    color: '#666',
+                                    fontStyle: 'italic'
+                                }}>
+                                    <Spin size="small" />
+                                    {msg.text}
+                                </div>
+                            ) : (
+                                msg.text.replace(/^\n+|\n+$/g, '')
+                            )}
                         </div>
                     </div>
                 </div>
@@ -429,7 +437,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 )}
             </div>
 
-            {/* 思考过程内容 - 只在消息已完成时显示 */}
+            {/* 思考过程内容 - 显示已完成的思考过程（正在回答的由 ThinkingIndicator 显示） */}
             {!msg.isUser && hasThinkingLog && isThinkingVisible && currentAnsweringMsgId !== msg.id && (
                 <div style={{
                     marginBottom: '16px',
@@ -438,7 +446,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 }}>
                     <div
                         style={{
-                            background: 'var(--ea-theme-background)',
+                            background: '#fff',
                             borderRadius: '12px',
                             padding: '12px 16px',
                             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
@@ -460,7 +468,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                                         <span>💭 </span>
                                         <span style={{
                                             fontSize: '11px',
-                                            backgroundColor: 'var(--ea-theme-background)',
+                                            backgroundColor: '#fff',
                                             padding: '2px 4px',
                                             borderRadius: '10px'
                                         }}>
@@ -472,7 +480,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                                         <span>✅ </span>
                                         <span style={{
                                             fontSize: '11px',
-                                            backgroundColor: 'var(--ea-theme-background)',
+                                            backgroundColor: '#fff',
                                             padding: '2px 4px',
                                             borderRadius: '10px'
                                         }}>
@@ -536,56 +544,17 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
             marginBottom: '24px',
             animation: 'fadeIn 0.3s ease'
         }}>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'flex-start',
-                alignItems: 'flex-start'
-            }}>
-                <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginRight: '16px',
-                    marginTop: '4px',
-                    boxShadow: '0 4px 12px rgba(92, 116, 168, 0.3)'
-                }}>
-                    <RobotOutlined style={{color: 'white', fontSize: '18px'}}/>
-                </div>
-
-                <div style={{position: 'relative'}}>
-                    {/* 思考过程按钮 */}
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'flex-start',
-                        marginBottom: '8px'
-                    }}>
-                        <ThinkingLogToggleButton
-                            messageId={currentAnsweringMsgId}
-                            isVisible={isVisible}
-                            onToggle={onToggleThinkingLog}
-                            isThinking={true}
-                            position="panel"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* 实时思考过程内容 */}
+            {/* 实时思考过程内容 - 不显示机器人头像，因为ChatMessageItem已经显示 */}
             {isVisible && (
                 <div style={{
                     marginBottom: '16px',
-                    marginLeft: '56px',
+                    marginLeft: '56px', // 与ChatMessageItem的消息气泡对齐
                     maxWidth: '70%',
                     marginTop: '8px'
                 }}>
                     <div
                         style={{
-                            background: 'var(--ea-theme-background)',
+                            background: '#fff',
                             borderRadius: '12px',
                             padding: '12px 16px',
                             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
@@ -836,7 +805,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            background: 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)',
+            background: '#f5f5f5',
             position: 'relative'
         }}>
             {/* 聊天消息区域 */}
@@ -844,7 +813,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                 flex: 1,
                 overflowY: 'auto',
                 padding: '32px',
-                background: 'rgba(255, 255, 255, 0.85)',
+                background: '#f5f5f5',
                 backdropFilter: 'blur(10px)',
                 position: 'relative'
             }}>

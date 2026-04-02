@@ -49,7 +49,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const currentAnsweringMsgIdRef = useRef<string | null>(null);
+    const [currentAnsweringMsgId, setCurrentAnsweringMsgId] = useState<string | null>(null);
     const [messageThinkingLogs, setMessageThinkingLogs] = useState<ThinkingLogState>({});
     const {agentDetail} = useAgentConfig();
     const [conversationId, setConversationId] = useState<number | null>(null);
@@ -115,7 +115,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
         try {
             setMessages([]);
             setMessageThinkingLogs({});
-            currentAnsweringMsgIdRef.current = null;
+            setCurrentAnsweringMsgId(null);
 
             const newConversationId = await createNewConversation();
             setConversationId(newConversationId);
@@ -162,7 +162,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
 
             const agentId = getAgentId();
             const messageId = crypto.randomUUID();
-            currentAnsweringMsgIdRef.current = messageId;
+            setCurrentAnsweringMsgId(messageId);
 
             setMessageThinkingLogs(prev => ({
                 ...prev,
@@ -189,12 +189,13 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                 agentId.toString(),
                 (logText: string) => {
                     // onLog
+                    const currentMessageId = messageId;
                     setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[messageId]?.content || [];
+                        const currentLogs = prev[currentMessageId]?.content || [];
                         return {
                             ...prev,
-                            [messageId]: {
-                                ...prev[messageId],
+                            [currentMessageId]: {
+                                ...prev[currentMessageId],
                                 content: [...currentLogs, {
                                     type: 'log',
                                     content: logText,
@@ -206,18 +207,19 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                 },
                 (finalAnswer: string) => {
                     // onFinalAnswer
+                    const currentMessageId = messageId;
                     setMessages(prev => prev.map(msg =>
-                        msg.id === messageId
+                        msg.id === currentMessageId
                             ? {...msg, text: finalAnswer}
                             : msg
                     ));
 
                     setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[messageId]?.content || [];
+                        const currentLogs = prev[currentMessageId]?.content || [];
                         return {
                             ...prev,
-                            [messageId]: {
-                                ...prev[messageId],
+                            [currentMessageId]: {
+                                ...prev[currentMessageId],
                                 content: [...currentLogs, {
                                     type: 'finalAnswer',
                                     content: finalAnswer,
@@ -229,13 +231,14 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                 },
                 (thinkingText: string) => {
                     // onThink
+                    const currentMessageId = messageId;
                     const content = thinkingText.startsWith('[THINK] ') ? thinkingText.substring(8) : thinkingText;
                     setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[messageId]?.content || [];
+                        const currentLogs = prev[currentMessageId]?.content || [];
                         return {
                             ...prev,
-                            [messageId]: {
-                                ...prev[messageId],
+                            [currentMessageId]: {
+                                ...prev[currentMessageId],
                                 content: [...currentLogs, {
                                     type: 'think',
                                     content,
@@ -247,13 +250,14 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                 },
                 (data: string) => {
                     // onData
+                    const currentMessageId = messageId;
                     const content = data.startsWith('[DATA] ') ? data.substring(7) : data;
                     setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[messageId]?.content || [];
+                        const currentLogs = prev[currentMessageId]?.content || [];
                         return {
                             ...prev,
-                            [messageId]: {
-                                ...prev[messageId],
+                            [currentMessageId]: {
+                                ...prev[currentMessageId],
                                 content: [...currentLogs, {
                                     type: 'data',
                                     content,
@@ -265,12 +269,13 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                 },
                 (toolInfo: string) => {
                     // onTool
+                    const currentMessageId = messageId;
                     setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[messageId]?.content || [];
+                        const currentLogs = prev[currentMessageId]?.content || [];
                         return {
                             ...prev,
-                            [messageId]: {
-                                ...prev[messageId],
+                            [currentMessageId]: {
+                                ...prev[currentMessageId],
                                 content: [...currentLogs, {
                                     type: 'tool',
                                     content: toolInfo,
@@ -283,16 +288,17 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                 () => {
                     // onDone
                     setIsThinking(false);
-                    currentAnsweringMsgIdRef.current = null;
+                    setCurrentAnsweringMsgId(null);
                 },
                 (errorText: string) => {
                     // onError
+                    const currentMessageId = messageId;
                     setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[messageId]?.content || [];
+                        const currentLogs = prev[currentMessageId]?.content || [];
                         return {
                             ...prev,
-                            [messageId]: {
-                                ...prev[messageId],
+                            [currentMessageId]: {
+                                ...prev[currentMessageId],
                                 content: [...currentLogs, {
                                     type: 'error',
                                     content: `思考过程中出现错误: ${errorText}`,
@@ -303,7 +309,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                     });
                     setError(errorText);
                     setIsThinking(false);
-                    currentAnsweringMsgIdRef.current = null;
+                    setCurrentAnsweringMsgId(null);
                 }
             );
 
@@ -311,7 +317,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
             console.error('发送消息失败:', error);
             setError(error.message || '发送消息失败');
             setIsThinking(false);
-            currentAnsweringMsgIdRef.current = null;
+            setCurrentAnsweringMsgId(null);
             setMessages(prev => prev.filter(msg => msg.text !== ''));
         }
     };
@@ -344,7 +350,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
         setMessages([]);
         setMessageThinkingLogs({});
         setConversationId(null);
-        currentAnsweringMsgIdRef.current = null;
+        setCurrentAnsweringMsgId(null);
         message.success('对话已清空');
     };
 
@@ -433,7 +439,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                 messages={messages}
                 messageThinkingLogs={messageThinkingLogs}
                 isThinking={isThinking}
-                currentAnsweringMsgId={currentAnsweringMsgIdRef.current}
+                currentAnsweringMsgId={currentAnsweringMsgId}
                 input={input}
                 onInputChange={setInput}
                 onSend={handleSendMessage}
