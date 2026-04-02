@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.easyagent.core.mapper.EaMcpRelationDAO">
+  <resultMap id="BaseResultMap" type="com.aaa.easyagent.core.domain.DO.EaMcpRelationDO">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="agent_id" jdbcType="BIGINT" property="agentId" />
+    <result column="mcp_config_id" jdbcType="BIGINT" property="mcpConfigId" />
+    <result column="sort_order" jdbcType="INTEGER" property="sortOrder" />
+    <result column="is_active" jdbcType="BIT" property="isActive" />
+    <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
+    <result column="updated_at" jdbcType="TIMESTAMP" property="updatedAt" />
+    <result column="binding_config" jdbcType="LONGVARCHAR" property="bindingConfig" />
+  </resultMap>
+</mapper>

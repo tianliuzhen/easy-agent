@@ -167,9 +167,9 @@ export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: b
                 const lastContent = lastEntry.content.trim();
 
                 if (newContent && !lastContent.includes(newContent)) {
-                    // 合并相同类型的连续 entry，用换行分隔内容
+                    // 合并相同类型的连续 entry，直接拼接内容（流式数据块是连续的）
                     // 避免重复的"回答"、"工具"等条目连续显示
-                    lastEntry.content = lastEntry.content + '\n' + entry.content;
+                    lastEntry.content = lastEntry.content + entry.content;
                 }
                 // 如果内容已包含或为空，跳过这个条目
             } else {
@@ -183,14 +183,18 @@ export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: b
     const items: ThoughtChainProps['items'] = displayEntries.map((entry, index) => {
         const config = typeConfig[entry.type] || typeConfig.log;
         const isLastItem = index === displayEntries.length - 1;
+        // 实时模式下：如果当前条目不是最后一个，且最后一个条目与当前条目类型不同，则折叠
+        // 这样只有当下一个类型开始显示时，才折叠当前类型
+        const lastEntryType = displayEntries[displayEntries.length - 1]?.type;
+        const shouldCollapse = isRealTime && !isLastItem && entry.type !== lastEntryType;
 
         return {
+            key: `${entry.type}-${index}`,
             title: `${config.icon} ${config.title}`,
             description: config.description,
             icon: config.icon,
-            status: isRealTime && isLastItem ? 'pending' : config.status,
+            status: isRealTime && isLastItem ? 'loading' : config.status,
             collapsible: true,
-            defaultCollapsed: false,
             content: (
                 <div style={{
                     fontSize: '12px',
@@ -209,6 +213,7 @@ export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: b
     return (
         <div style={{marginTop: '8px'}}>
             <ThoughtChain
+                defaultExpandedKeys={items.map(item => item.key!)}
                 items={items}
                 line="dashed"
             />
@@ -408,7 +413,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                                     color: '#666',
                                     fontStyle: 'italic'
                                 }}>
-                                    <Spin size="small" />
+                                    <Spin size="small"/>
                                     {msg.text}
                                 </div>
                             ) : (
