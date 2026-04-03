@@ -1,15 +1,21 @@
 package com.aaa.easyagent.biz.agent.data;
 
+import com.aaa.easyagent.core.domain.DO.EaMcpConfigDO;
 import com.aaa.easyagent.core.domain.DO.EaToolConfigDO;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.core.domain.template.InputTypeSchema;
+import com.aaa.easyagent.core.domain.template.McpParamsTemplate;
 import com.aaa.easyagent.core.domain.template.ParamsTemplate;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -83,5 +89,83 @@ public class ToolDefinition<T extends ParamsTemplate> {
                 .paramsTemplate(JSON.parseObject(toolValue, toolTypeEnum.getParamsTemplate()))
                 .build();
         return toolDefinition;
+    }
+
+    /**
+     * 从 MCP 配置构建 ToolDefinition
+     *
+     * @param mcpConfig MCP 配置
+     * @return ToolDefinition
+     */
+    public static ToolDefinition<McpParamsTemplate> buildToolDefinitionFromMcp(EaMcpConfigDO mcpConfig) {
+        // 构建 McpParamsTemplate
+        McpParamsTemplate paramsTemplate = new McpParamsTemplate();
+        paramsTemplate.setServerName(mcpConfig.getServerName());
+        paramsTemplate.setServerUrl(mcpConfig.getServerUrl());
+        paramsTemplate.setTransportType(mcpConfig.getTransportType());
+        paramsTemplate.setCommand(mcpConfig.getCommand());
+        paramsTemplate.setToolName(mcpConfig.getToolName());
+        paramsTemplate.setConnectionTimeout(mcpConfig.getConnectionTimeout());
+        paramsTemplate.setMaxRetries(mcpConfig.getMaxRetries());
+
+        // 解析环境变量
+        if (StringUtils.isNotBlank(mcpConfig.getEnvVars())) {
+            try {
+                List<String> envVars = JSON.parseArray(mcpConfig.getEnvVars(), String.class);
+                paramsTemplate.setEnvVars(envVars);
+            } catch (Exception e) {
+                // 忽略解析错误
+            }
+        }
+
+        // 解析 inputSchema 为 InputTypeSchema 列表
+        List<InputTypeSchema> inputSchemas = parseMcpInputSchema(mcpConfig.getInputSchema());
+
+        return ToolDefinition.<McpParamsTemplate>builder()
+                .toolId(mcpConfig.getId())
+                .toolName(mcpConfig.getToolDisplayName() != null ? mcpConfig.getToolDisplayName() : mcpConfig.getToolName())
+                .toolDesc(mcpConfig.getToolDescription())
+                .toolType(ToolTypeEnum.MCP)
+                .inputTypeSchemas(inputSchemas)
+                .outputTypeSchema(mcpConfig.getOutputSchema())
+                .paramsTemplate(paramsTemplate)
+                .build();
+    }
+
+    /**
+     * 解析 MCP inputSchema JSON 为 InputTypeSchema 列表
+     */
+    private static List<InputTypeSchema> parseMcpInputSchema(String inputSchema) {
+        if (StringUtils.isBlank(inputSchema)) {
+            return List.of();
+        }
+
+        try {
+            JSONObject schema = JSON.parseObject(inputSchema);
+            JSONObject properties = schema.getJSONObject("properties");
+
+            if (properties == null || properties.isEmpty()) {
+                return List.of();
+            }
+
+            List<InputTypeSchema> schemas = new ArrayList<>();
+            JSONArray required = schema.getJSONArray("required");
+
+            for (String key : properties.keySet()) {
+                JSONObject prop = properties.getJSONObject(key);
+                InputTypeSchema inputTypeSchema = new InputTypeSchema();
+                inputTypeSchema.setName(key);
+                inputTypeSchema.setType(prop.getString("type"));
+                inputTypeSchema.setDescription(prop.getString("description"));
+                // inputTypeSchema.setRequired(required != null && required.contains(key));
+                // MCP 工具的 referenceValue 使用参数名直接映射
+                inputTypeSchema.setReferenceValue(key);
+                schemas.add(inputTypeSchema);
+            }
+
+            return schemas;
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 }

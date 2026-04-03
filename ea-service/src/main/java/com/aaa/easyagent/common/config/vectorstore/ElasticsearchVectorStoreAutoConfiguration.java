@@ -1,27 +1,27 @@
 package com.aaa.easyagent.common.config.vectorstore;
 
+import co.elastic.clients.transport.rest5_client.low_level.Rest5Client;
+import co.elastic.clients.transport.rest5_client.low_level.Rest5ClientBuilder;
 import io.micrometer.observation.ObservationRegistry;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.springframework.ai.autoconfigure.vectorstore.elasticsearch.ElasticsearchVectorStoreProperties;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.core5.ssl.SSLContexts;
 import org.springframework.ai.embedding.BatchingStrategy;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStore;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStoreOptions;
+import org.springframework.ai.vectorstore.elasticsearch.autoconfigure.ElasticsearchVectorStoreProperties;
 import org.springframework.ai.vectorstore.observation.VectorStoreObservationConvention;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchConnectionDetails;
-import org.springframework.boot.autoconfigure.elasticsearch.RestClientBuilderCustomizer;
+import org.springframework.boot.elasticsearch.autoconfigure.Rest5ClientBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
 
+import javax.net.ssl.SSLContext;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -55,12 +55,12 @@ public class ElasticsearchVectorStoreAutoConfiguration {
      * @param batchingStrategy
      * @return
      * es连接客户端初始化
-     * @see ElasticsearchRestClientConfigurations.RestClientConfiguration#elasticsearchRestClient(org.elasticsearch.client.RestClientBuilder)
+     *  ElasticsearchRestClientConfigurations.RestClientConfiguration#elasticsearchRestClient(org.elasticsearch.client.RestClientBuilder)
      * es连接参数初始化
-     * @see ElasticsearchRestClientConfigurations.RestClientBuilderConfiguration#elasticsearchRestClientBuilder(ElasticsearchConnectionDetails, ObjectProvider, ObjectProvider)
+     * ElasticsearchRestClientConfigurations.RestClientBuilderConfiguration#elasticsearchRestClientBuilder(ElasticsearchConnectionDetails, ObjectProvider, ObjectProvider)
      */
     @Bean
-    ElasticsearchVectorStore esVectorStore(ElasticsearchVectorStoreProperties properties, RestClient restClient,
+    ElasticsearchVectorStore esVectorStore(ElasticsearchVectorStoreProperties properties, Rest5Client restClient,
                                            EmbeddingModel ollamaEmbeddingModel, ObjectProvider<ObservationRegistry> observationRegistry,
                                            ObjectProvider<VectorStoreObservationConvention> customObservationConvention,
                                            BatchingStrategy batchingStrategy) {
@@ -86,42 +86,37 @@ public class ElasticsearchVectorStoreAutoConfiguration {
     }
 
 
+
     /**
      * 跳过es SSL的证书检查和hostname检查
      *
      * @return
      */
-    //
     @Bean
-    RestClientBuilderCustomizer restClientBuilderCustomizer() {
-        return new RestClientBuilderCustomizer() {
+    Rest5ClientBuilderCustomizer rest5ClientBuilderCustomizer() {
+        return new Rest5ClientBuilderCustomizer() {
             @Override
-            public void customize(RestClientBuilder builder) {
-
+            public void customize(Rest5ClientBuilder builder) {
             }
 
             /**
-             * 在这里加入自定义逻辑，比如跳过SSL的证书检查和hostname检查
+             * 在这里加入自定义逻辑，跳过SSL的证书检查和hostname检查
              */
             @Override
-            public void customize(HttpAsyncClientBuilder builder) {
-                SSLContextBuilder sscb = SSLContexts.custom();
+            public void customize(PoolingAsyncClientConnectionManagerBuilder builder) {
                 try {
-                    sscb.loadTrustMaterial((chain, authType) -> {
-                        // 在这里跳过证书信息校验
-                        // System.out.println("暂时isTrusted|" + authType + "|" + Arrays.toString(chain));
-                        return true;
-                    });
-                } catch (NoSuchAlgorithmException | KeyStoreException e) {
-                    e.printStackTrace();
+                    SSLContext sslContext = SSLContexts.custom()
+                            .loadTrustMaterial((chain, authType) -> true)
+                            .build();
+                    builder.setTlsStrategy(ClientTlsStrategyBuilder.create()
+                            .setSslContext(sslContext)
+                            .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                            .build());
+                } catch (NoSuchAlgorithmException | KeyManagementException e) {
+                    throw new RuntimeException("Failed to configure SSL context", e);
+                } catch (KeyStoreException e) {
+                    throw new RuntimeException(e);
                 }
-                try {
-                    builder.setSSLContext(sscb.build());
-                } catch (KeyManagementException | NoSuchAlgorithmException e) {
-                    e.printStackTrace();
-                }
-                // 这里跳过主机名称校验
-                builder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
             }
         };
     }

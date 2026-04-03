@@ -93,7 +93,7 @@ public class CommonLlmChatModel implements ChatModel {
         // 使用量计算
         CommonLlmApi.Usage usage = chatCompletion.usage;
         Usage currentChatResponseUsage = usage != null ? getDefaultUsage(usage) : new EmptyUsage();
-        Usage accumulatedUsage = UsageUtils.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
+        Usage accumulatedUsage = getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
         ChatResponse response = new ChatResponse(generations, from(chatCompletion, accumulatedUsage));
 
         // 4. functionCall递归调用
@@ -144,7 +144,10 @@ public class CommonLlmChatModel implements ChatModel {
         //         "reasoningContent", org.springframework.util.StringUtils.hasText(choice.getMessage().getReasoningContent()) ? choice.getMessage().getReasoningContent() : ""
         // );
 
-        var assistantMessage = new AssistantMessage(content, Map.of(), toolCalls);
+        var assistantMessage = AssistantMessage.builder()
+                .content(content)
+                .toolCalls(toolCalls)
+                .build();
         ChatGenerationMetadata.Builder builder = ChatGenerationMetadata.builder().finishReason(choice.getFinishReason());
         // 推理内容
         assistantMessage.getMetadata().put("reasoningContent", reasoning_content);
@@ -170,7 +173,6 @@ public class CommonLlmChatModel implements ChatModel {
             final ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
                     .prompt(prompt)
                     .provider(OpenAiApiConstants.PROVIDER_NAME)
-                    .requestOptions(Objects.requireNonNullElse(prompt.getOptions(), CommonLlmChatOptions.builder().build()))
                     .build();
 
             Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION.observation(this.observationConvention, DEFAULT_OBSERVATION_CONVENTION, () -> observationContext, this.observationRegistry);
@@ -187,7 +189,7 @@ public class CommonLlmChatModel implements ChatModel {
                             }).toList();
                     CommonLlmApi.Usage usage = chatCompletion2.getUsage();
                     Usage currentChatResponseUsage = usage != null ? getDefaultUsage(usage) : new EmptyUsage();
-                    Usage accumulatedUsage = UsageUtils.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
+                    Usage accumulatedUsage = getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
                     return new ChatResponse(generations, from(chatCompletion2, accumulatedUsage));
                 } catch (Exception e) {
                     log.error("Error processing chat completion", e);
@@ -336,6 +338,24 @@ public class CommonLlmChatModel implements ChatModel {
 
     private DefaultUsage getDefaultUsage(CommonLlmApi.Usage usage) {
         return new DefaultUsage(usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens(), usage);
+    }
+
+    /**
+     * 计算累积的使用量
+     */
+    private Usage getCumulativeUsage(Usage currentUsage, ChatResponse previousChatResponse) {
+        if (previousChatResponse == null || previousChatResponse.getMetadata() == null) {
+            return currentUsage;
+        }
+        Usage previousUsage = previousChatResponse.getMetadata().getUsage();
+        if (previousUsage == null) {
+            return currentUsage;
+        }
+        return new DefaultUsage(
+                currentUsage.getPromptTokens() + previousUsage.getPromptTokens(),
+                currentUsage.getCompletionTokens() + previousUsage.getCompletionTokens(),
+                currentUsage.getTotalTokens() + previousUsage.getTotalTokens()
+        );
     }
 
 }

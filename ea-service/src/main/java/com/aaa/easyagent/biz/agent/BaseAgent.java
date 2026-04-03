@@ -1,5 +1,6 @@
 package com.aaa.easyagent.biz.agent;
 
+import com.aaa.easyagent.biz.agent.context.FunctionCallback;
 import com.aaa.easyagent.biz.agent.context.SseHelper;
 import com.aaa.easyagent.biz.agent.data.*;
 import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
@@ -20,7 +21,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.util.StopWatch;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -219,7 +219,8 @@ public abstract class BaseAgent {
                 UUID.randomUUID().toString(),
                 functionUseAction.getAction(),
                 callToolResult));
-        ToolResponseMessage toolResponseMessage = new ToolResponseMessage(responses);
+
+        ToolResponseMessage toolResponseMessage = ToolResponseMessage.builder().responses(responses).build();
 
         /*
          * deepseek： Messages with role 'tool' must be a response to a preceding message with 'tool_calls

@@ -1,5 +1,6 @@
 package com.aaa.easyagent.biz.agent;
 
+import com.aaa.easyagent.biz.agent.context.FunctionCallback;
 import com.aaa.easyagent.biz.agent.context.SseHelper;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.AgentFinish;
@@ -10,19 +11,18 @@ import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
 import com.aaa.easyagent.biz.agent.wrapper.SceneWrapper;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
-import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -141,6 +141,9 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
         StringBuilder resStr = new StringBuilder();
         StringBuilder reasoningContent = new StringBuilder();
 
+        // 每轮对话开始时创建新的过滤器（用于流式输出时过滤XML标签）
+        XmlTagFilter thinkFilter = new XmlTagFilter();
+        XmlTagFilter dataFilter = new XmlTagFilter();
 
         if (this.agentContext.isWithStream()) {
             CountDownLatch runOver = new CountDownLatch(1);
@@ -151,12 +154,16 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
                                 // 思考
                                 String lineThinks = ChatResponseUtil.getReasoningContent(chatRes);
                                 reasoningContent.append(lineThinks);
-                                SseHelper.sendThink(sse, lineThinks);
+                                // 使用状态机过滤XML标签后发送给用户
+                                String filteredThink = thinkFilter.process(lineThinks);
+                                SseHelper.sendThink(sse, filteredThink);
 
                                 // 结果
                                 String lineResStr = ChatResponseUtil.getResStr(chatRes);
                                 resStr.append(lineResStr);
-                                SseHelper.sendData(sse, lineResStr);
+                                // 使用状态机过滤XML标签后发送给用户
+                                String filteredData = dataFilter.process(lineResStr);
+                                SseHelper.sendData(sse, filteredData);
                             }),
                             error -> {
                                 // 执行异常
@@ -330,27 +337,9 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
         SseHelper.sendTool(sse, String.format("执行结果：%s", callToolResult));
 
         ChatRecordSaver.addToolCall(functionUseAction, callToolResult);
-        if (ModelTypeEnum.deepseek == this.agentContext.getModelType()) {
-            UserMessage userMessage = new UserMessage("Observation：" + callToolResult,
-                    new ArrayList<>());
-            messages.add(userMessage);
-
-            // 所有工具结果用 role: "user" 返回，格式为 Observation: 结果
-            /*
-             * deepseek： Messages with role 'tool' must be a response to a preceding message with 'tool_calls
-             * 你当前的设计其实是 ReAct 模式的工具调用（用 XML 标签控制流程），但混合了 OpenAI 的 tool calling 格式，导致冲突。
-             * deepseek 这里不能是tool
-             */
-        } else {
-            // 添加工具执行结果记忆
-            List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>();
-            responses.add(new ToolResponseMessage.ToolResponse(
-                    UUID.randomUUID().toString(),
-                    functionUseAction.getAction(),
-                    callToolResult));
-            ToolResponseMessage toolResponseMessage = new ToolResponseMessage(responses);
-            messages.add(toolResponseMessage);
-        }
+        // ReAct 模式：使用 UserMessage 返回 Observation 结果，而不是 ToolResponseMessage
+        UserMessage userMessage = new UserMessage("Observation: " + callToolResult);
+        messages.add(userMessage);
 
 
     }
@@ -403,5 +392,48 @@ public class ReActAgentXmlExecutor extends BaseReActAgent {
         return agentOutput;
     }
 
+    /**
+     * XML标签过滤器（用于流式输出时过滤标签）
+     * 维护状态机跟踪当前是否在标签内
+     */
+    public static class XmlTagFilter {
+        private boolean insideTag = false;
+
+        /**
+         * 处理流式文本块，过滤掉XML标签
+         * @param chunk 输入的文本块
+         * @return 过滤后的文本（只包含标签外的内容）
+         *
+         * :<Que
+         * :stion>
+         */
+        public String process(String chunk) {
+            if (chunk == null || chunk.isEmpty()) {
+                return "";
+            }
+            StringBuilder result = new StringBuilder();
+            for (char c : chunk.toCharArray()) {
+                if (c == '<') {
+                    insideTag = true;
+                    continue;
+                }
+                if (c == '>') {
+                    insideTag = false;
+                    continue;
+                }
+                if (!insideTag) {
+                    result.append(c);
+                }
+            }
+            return result.toString();
+        }
+
+        /**
+         * 重置状态（每轮对话开始时调用）
+         */
+        public void reset() {
+            insideTag = false;
+        }
+    }
 
 }

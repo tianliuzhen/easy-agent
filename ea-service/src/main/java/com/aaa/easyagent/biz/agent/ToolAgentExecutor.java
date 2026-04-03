@@ -1,20 +1,21 @@
 package com.aaa.easyagent.biz.agent;
 
-import com.aaa.easyagent.biz.agent.data.AgentFinish;
-import com.aaa.easyagent.biz.agent.data.AgentOutput;
-import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
+import com.aaa.easyagent.biz.agent.context.FunctionCallback;
+import com.aaa.easyagent.biz.agent.context.FunctionCallbackAdapter;
+import com.aaa.easyagent.biz.agent.data.*;
 import com.aaa.easyagent.common.llm.common.CommonLlmChatOptions;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
-import com.aaa.easyagent.biz.agent.data.AgentContext;
-import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.model.function.FunctionCallback;
+import org.springframework.ai.tool.ToolCallback;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @author liuzhen.tian
@@ -38,9 +39,13 @@ public class ToolAgentExecutor extends BaseAgent {
         List<ToolDefinition> toolDefinitions = agentContext.getToolDefinitions();
         Map<String, FunctionCallback> callbackMap = buildToolFun(toolDefinitions);
 
-        // tool 模式
+        // tool 模式 - 将自定义 FunctionCallback 转换为 Spring AI ToolCallback
+        List<ToolCallback> toolCallbacks = callbackMap.values().stream()
+                .map(FunctionCallbackAdapter::new)
+                .collect(Collectors.toList());
+
         CommonLlmChatOptions chatOptions = CommonLlmChatOptions.builder()
-                .toolCallbacks(callbackMap.values().stream().toList())
+                .toolCallbacks(toolCallbacks)
                 .internalToolExecutionEnabled(false) // 禁用内部工具执行
                 .build();
 

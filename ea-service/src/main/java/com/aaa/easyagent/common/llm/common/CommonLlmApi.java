@@ -5,7 +5,6 @@ package com.aaa.easyagent.common.llm.common;
  * @version 1.0 CommonLlmApi.java  2025/6/8 19:16
  */
 
-import com.aaa.easyagent.common.llm.deepseek.OpenAiApi;
 import com.aaa.easyagent.common.util.JacksonUtil;
 import com.fasterxml.jackson.annotation.*;
 import io.netty.channel.ChannelOption;
@@ -14,6 +13,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.model.ModelOptionsUtils;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +41,7 @@ public class CommonLlmApi {
 
     public CommonLlmApi(CommonLLmProperties properties) {
         this.properties = properties;
-        
+
         // 配置HttpClient用于WebClient，添加超时设置
         HttpClient webClientHttp = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30000) // 连接超时30秒
@@ -54,10 +54,10 @@ public class CommonLlmApi {
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .clientConnector(new ReactorClientHttpConnector(webClientHttp))
                 .build();
-                
+
         // 配置HttpComponentsClientHttpRequestFactory用于RestClient，添加超时配置
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
-        factory.setConnectTimeout(30000); // 连接超时30秒
+        factory.setConnectionRequestTimeout(30000); // 连接超时30秒
         factory.setReadTimeout(300000); // 读取超时5分钟
 
         // 配置RestClient，添加超时配置
@@ -164,7 +164,7 @@ public class CommonLlmApi {
     }
 
     /**
-     * @see OpenAiApi.ChatCompletion
+     *  OpenAiApi.ChatCompletion
      */
     // @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -191,7 +191,7 @@ public class CommonLlmApi {
             private Integer index;
             private ChatCompletionMessage message;
             /**
-             * @see OpenAiApi.ChatCompletionFinishReason
+             * OpenAiApi.ChatCompletionFinishReason
              */
             private String finishReason;
 
@@ -202,7 +202,7 @@ public class CommonLlmApi {
             private ChatCompletionMessage delta;
 
             @JsonProperty("logprobs")
-            private OpenAiApi.LogProbs logprobs;
+            private LogProbs logprobs;
         }
 
 
@@ -230,7 +230,7 @@ public class CommonLlmApi {
     }
 
     /**
-     * @see OpenAiApi.ChatCompletionMessage
+     *OpenAiApi.ChatCompletionMessage
      */
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -480,6 +480,152 @@ public class CommonLlmApi {
 
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static record AudioParameters(Voice voice,AudioResponseFormat format) {
+        public AudioParameters(@JsonProperty("voice")Voice voice, @JsonProperty("format")AudioResponseFormat format) {
+            this.voice = voice;
+            this.format = format;
+        }
+
+        @JsonProperty("voice")
+        public AudioParameters.Voice voice() {
+            return this.voice;
+        }
+
+        @JsonProperty("format")
+        public AudioParameters.AudioResponseFormat format() {
+            return this.format;
+        }
+
+        public static enum Voice {
+            @JsonProperty("alloy")
+            ALLOY,
+            @JsonProperty("ash")
+            ASH,
+            @JsonProperty("ballad")
+            BALLAD,
+            @JsonProperty("coral")
+            CORAL,
+            @JsonProperty("echo")
+            ECHO,
+            @JsonProperty("fable")
+            FABLE,
+            @JsonProperty("onyx")
+            ONYX,
+            @JsonProperty("nova")
+            NOVA,
+            @JsonProperty("sage")
+            SAGE,
+            @JsonProperty("shimmer")
+            SHIMMER;
+        }
+
+        public static enum AudioResponseFormat {
+            @JsonProperty("mp3")
+            MP3,
+            @JsonProperty("flac")
+            FLAC,
+            @JsonProperty("opus")
+            OPUS,
+            @JsonProperty("pcm16")
+            PCM16,
+            @JsonProperty("wav")
+            WAV;
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static record StreamOptions(Boolean includeUsage) {
+        public static CommonLlmApi.StreamOptions INCLUDE_USAGE = new CommonLlmApi.StreamOptions(true);
+
+        public StreamOptions(@JsonProperty("include_usage") Boolean includeUsage) {
+            this.includeUsage = includeUsage;
+        }
+
+        @JsonProperty("include_usage")
+        public Boolean includeUsage() {
+            return this.includeUsage;
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static record WebSearchOptions(
+            OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize searchContextSize, OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation userLocation) {
+        public WebSearchOptions(@JsonProperty("search_context_size") OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize searchContextSize, @JsonProperty("user_location") OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation userLocation) {
+            this.searchContextSize = searchContextSize;
+            this.userLocation = userLocation;
+        }
+
+        @JsonProperty("search_context_size")
+        public OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize searchContextSize() {
+            return this.searchContextSize;
+        }
+
+        @JsonProperty("user_location")
+        public OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation userLocation() {
+            return this.userLocation;
+        }
+
+        public static enum SearchContextSize {
+            @JsonProperty("low")
+            LOW,
+            @JsonProperty("medium")
+            MEDIUM,
+            @JsonProperty("high")
+            HIGH;
+        }
+
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public static record UserLocation(String type, OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation.Approximate approximate) {
+            public UserLocation(@JsonProperty("type") String type, @JsonProperty("approximate") OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation.Approximate approximate) {
+                this.type = type;
+                this.approximate = approximate;
+            }
+
+            @JsonProperty("type")
+            public String type() {
+                return this.type;
+            }
+
+            @JsonProperty("approximate")
+            public OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation.Approximate approximate() {
+                return this.approximate;
+            }
+
+            @JsonInclude(JsonInclude.Include.NON_NULL)
+            public static record Approximate(String city, String country, String region, String timezone) {
+                public Approximate(@JsonProperty("city") String city, @JsonProperty("country") String country, @JsonProperty("region") String region, @JsonProperty("timezone") String timezone) {
+                    this.city = city;
+                    this.country = country;
+                    this.region = region;
+                    this.timezone = timezone;
+                }
+
+                @JsonProperty("city")
+                public String city() {
+                    return this.city;
+                }
+
+                @JsonProperty("country")
+                public String country() {
+                    return this.country;
+                }
+
+                @JsonProperty("region")
+                public String region() {
+                    return this.region;
+                }
+
+                @JsonProperty("timezone")
+                public String timezone() {
+                    return this.timezone;
+                }
+            }
+        }
+    }
+
+
+
     /**
      * Log probability information for the choice.
      *
@@ -533,5 +679,7 @@ public class CommonLlmApi {
         }
 
     }
+
+
 
 }

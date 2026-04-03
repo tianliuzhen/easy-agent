@@ -26,4 +26,19 @@
     <result column="last_error" jdbcType="LONGVARCHAR" property="lastError" />
     <result column="description" jdbcType="LONGVARCHAR" property="description" />
   </resultMap>
+
+  <!-- 根据服务器名称查询 MCP 配置 -->
+  <select id="selectByServerName" resultMap="BaseResultMap">
+    SELECT * FROM ea_mcp_config
+    WHERE server_name = #{serverName}
+    ORDER BY created_at DESC
+  </select>
+
+  <!-- 根据服务器名称和工具名称查询 MCP 配置 -->
+  <select id="selectByServerNameAndToolName" resultMap="BaseResultMap">
+    SELECT * FROM ea_mcp_config
+    WHERE server_name = #{serverName}
+      AND tool_name = #{toolName}
+    ORDER BY created_at DESC
+  </select>
 </mapper>

@@ -8,7 +8,6 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
-import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiImageModel;
@@ -79,7 +78,7 @@ public class OpenApiChatController {
         ChatResponse response = this.chatModel.call(
                 new Prompt(userMessage,
                         OpenAiChatOptions.builder()
-                                .function("currentWeather")
+                                .toolNames("currentWeather")
                                 .build()
                 )
         ); // Enable the function
@@ -92,7 +91,7 @@ public class OpenApiChatController {
         record QueryDateRequest(@JsonPropertyDescription("type类型只能是[黄金,白银]") String type) {
         }
 
-        FunctionCallback weatherTool = FunctionToolCallback.builder("queryMetalPrice",(request, toolContext) -> {
+        FunctionToolCallback<Object, String> build = FunctionToolCallback.builder("queryMetalPrice", (request, toolContext) -> {
                     if (request.equals("黄金")) {
                         return "600人民币";
                     }
@@ -103,7 +102,7 @@ public class OpenApiChatController {
                 .build();
 
         OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
-                .functionCallbacks(List.of(weatherTool))
+                .toolCallbacks(List.of(build))
                 .build();
         ChatResponse response = this.chatModel.call(new Prompt(userMessage, chatOptions));
         return ChatResponseUtil.getResStr(response);
@@ -122,10 +121,10 @@ public class OpenApiChatController {
         ImageResponse response = imageModel.call(
                 new ImagePrompt("A light cream colored mini golden doodle",
                         OpenAiImageOptions.builder()
-                                .withQuality("hd")
-                                .withN(4)
-                                .withHeight(1024)
-                                .withWidth(1024).build())
+                                .quality("hd")
+                                .N(4)
+                                .height(1024)
+                                .width(1024).build())
 
         );
         return response;

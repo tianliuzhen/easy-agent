@@ -1,21 +1,28 @@
 package com.aaa.easyagent.core.service.impl;
 
 import com.aaa.easyagent.common.util.BeanConvertUtil;
+import com.aaa.easyagent.core.domain.DO.EaMcpConfigDO;
 import com.aaa.easyagent.core.domain.DO.EaToolConfigDO;
 import com.aaa.easyagent.core.domain.DO.EaToolRelationDO;
+import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.core.domain.request.EaToolConfigReq;
 import com.aaa.easyagent.core.domain.request.ToolBindRequest;
 import com.aaa.easyagent.core.domain.request.ToolUnbindRequest;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
+import com.aaa.easyagent.core.domain.template.McpParamsTemplate;
 import com.aaa.easyagent.core.mapper.EaToolConfigDAO;
 import com.aaa.easyagent.core.mapper.EaToolRelationDAO;
+import com.aaa.easyagent.core.service.McpToolIntegrationService;
 import com.aaa.easyagent.core.service.ToolMangerService;
+import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tk.mybatis.mapper.entity.Example;
 import tk.mybatis.mapper.weekend.WeekendSqlsUtils;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,6 +39,9 @@ public class ToolMangerServiceImpl implements ToolMangerService {
 
     @Resource
     private EaToolRelationDAO eaToolRelationDAO;
+
+    @Resource
+    private McpToolIntegrationService mcpToolIntegrationService;
 
     @Override
     public List<EaToolConfigResult> getDefaultTools() {
@@ -83,23 +93,75 @@ public class ToolMangerServiceImpl implements ToolMangerService {
                 .build();
         List<EaToolRelationDO> relations = eaToolRelationDAO.selectByExample(relationExample);
 
-        if (relations.isEmpty()) {
-            return List.of();
-        }
-
         // 2. 获取所有关联的工具配置ID
         List<Long> toolConfigIds = relations.stream()
                 .map(EaToolRelationDO::getToolConfigId)
                 .collect(Collectors.toList());
 
-        // 3. 查询对应的工具配置
-        Example toolExample = new Example.Builder(EaToolConfigDO.class)
-                .where(WeekendSqlsUtils.andIn(EaToolConfigDO::getId, toolConfigIds))
-                .build();
-        List<EaToolConfigDO> toolConfigs = eaToolConfigDAO.selectByExample(toolExample);
+        List<EaToolConfigResult> results = new ArrayList<>();
 
-        // 4. 转换为结果对象
-        return BeanConvertUtil.beanTo(toolConfigs, EaToolConfigResult.class);
+        // 3. 查询对应的工具配置（HTTP、SQL 等传统工具）
+        if (!toolConfigIds.isEmpty()) {
+            Example toolExample = new Example.Builder(EaToolConfigDO.class)
+                    .where(WeekendSqlsUtils.andIn(EaToolConfigDO::getId, toolConfigIds))
+                    .build();
+            List<EaToolConfigDO> toolConfigs = eaToolConfigDAO.selectByExample(toolExample);
+            results.addAll(BeanConvertUtil.beanTo(toolConfigs, EaToolConfigResult.class));
+        }
+
+        // 4. 查询 MCP 工具
+        List<EaMcpConfigDO> mcpConfigs = mcpToolIntegrationService.getBoundMcpConfigsByAgentId(agentId);
+        for (EaMcpConfigDO mcpConfig : mcpConfigs) {
+            EaToolConfigResult mcpToolResult = convertMcpConfigToResult(mcpConfig);
+            results.add(mcpToolResult);
+        }
+
+        return results;
+    }
+
+    /**
+     * 将 MCP 配置转换为 EaToolConfigResult
+     */
+    private EaToolConfigResult convertMcpConfigToResult(EaMcpConfigDO mcpConfig) {
+        EaToolConfigResult result = new EaToolConfigResult();
+        result.setId(mcpConfig.getId());
+        result.setToolType(ToolTypeEnum.MCP.getType());
+        result.setToolInstanceName(mcpConfig.getToolDisplayName() != null ?
+                mcpConfig.getToolDisplayName() : mcpConfig.getToolName());
+        result.setToolInstanceDesc(mcpConfig.getToolDescription());
+        result.setInputTemplate(mcpConfig.getInputSchema());
+        result.setOutTemplate(mcpConfig.getOutputSchema());
+        result.setToolValue(buildMcpToolValue(mcpConfig));
+        result.setIsActive("active".equals(mcpConfig.getStatus()));
+        result.setCreatedAt(mcpConfig.getCreatedAt());
+        result.setUpdatedAt(mcpConfig.getUpdatedAt());
+        return result;
+    }
+
+    /**
+     * 构建 MCP 工具的 toolValue JSON
+     */
+    private String buildMcpToolValue(EaMcpConfigDO mcpConfig) {
+        McpParamsTemplate paramsTemplate = new McpParamsTemplate();
+        paramsTemplate.setServerName(mcpConfig.getServerName());
+        paramsTemplate.setServerUrl(mcpConfig.getServerUrl());
+        paramsTemplate.setTransportType(mcpConfig.getTransportType());
+        paramsTemplate.setCommand(mcpConfig.getCommand());
+        paramsTemplate.setToolName(mcpConfig.getToolName());
+        paramsTemplate.setConnectionTimeout(mcpConfig.getConnectionTimeout());
+        paramsTemplate.setMaxRetries(mcpConfig.getMaxRetries());
+
+        // 解析环境变量
+        if (StringUtils.isNotBlank(mcpConfig.getEnvVars())) {
+            try {
+                List<String> envVars = JSON.parseArray(mcpConfig.getEnvVars(), String.class);
+                paramsTemplate.setEnvVars(envVars);
+            } catch (Exception e) {
+                // 忽略解析错误
+            }
+        }
+
+        return JSON.toJSONString(paramsTemplate);
     }
 
     @Override

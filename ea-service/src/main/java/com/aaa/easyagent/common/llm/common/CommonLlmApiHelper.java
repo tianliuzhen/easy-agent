@@ -1,6 +1,6 @@
 package com.aaa.easyagent.common.llm.common;
 
-import com.aaa.easyagent.common.llm.deepseek.OpenAiApi;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
@@ -84,8 +84,7 @@ public class CommonLlmApiHelper {
         Integer index = (current.getIndex() != null ? current.getIndex() : previous.getIndex());
 
         CommonLlmApi.ChatCompletionMessage message = merge(previous.getDelta(), current.getDelta());
-
-        OpenAiApi.LogProbs logprobs = (current.getLogprobs() != null ? current.getLogprobs() : previous.getLogprobs());
+        CommonLlmApi.LogProbs logprobs = (current.getLogprobs() != null ? current.getLogprobs() : previous.getLogprobs());
         return new CommonLlmApi.ChatCompletion.Choice(index, null, finishReason, message, logprobs);
     }
 

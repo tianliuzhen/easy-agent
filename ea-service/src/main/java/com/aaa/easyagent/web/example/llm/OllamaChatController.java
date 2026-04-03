@@ -3,7 +3,6 @@ package com.aaa.easyagent.web.example.llm;
 import com.aaa.easyagent.common.document.load.EsDocumentService;
 import com.aaa.easyagent.common.document.load.LocalDocumentService;
 import com.aaa.easyagent.common.document.load.RedisDocumentService;
-import com.aaa.easyagent.common.llm.common.CommonLlmChatOptions;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import com.aaa.easyagent.web.example.sse.SseEmitterUTF8;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -20,6 +19,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.ollama.OllamaChatModel;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,8 +35,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY;
-import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY;
 
 /**
  * @author liuzhen.tian
@@ -55,7 +53,6 @@ public class OllamaChatController {
 
     // 初始化基于内存的对话记忆
     private final ChatMemory inMemoryChatMemory;
-
 
 
     @GetMapping("/ai/generate")
@@ -108,7 +105,7 @@ public class OllamaChatController {
         ChatResponse response = this.chatModel.call(
                 new Prompt(userMessage,
                         OpenAiChatOptions.builder()
-                                .function("currentWeather")
+                                .toolNames("currentWeather")
                                 .build()
                 )
         ); // Enable the function
@@ -134,7 +131,7 @@ public class OllamaChatController {
 
 
         OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
-                .functionCallbacks(List.of(weatherTool))
+                .toolCallbacks(List.of(weatherTool))
                 .build();
         ChatResponse response = this.chatModel.call(new Prompt(userMessage, chatOptions));
         return ChatResponseUtil.getResStr(response);
@@ -151,10 +148,10 @@ public class OllamaChatController {
         // 提示词模板
         PromptTemplate promptTemplate = new PromptTemplate("""
                 {userMessage}
-                                
+                
                 请参考以下信息回答问题:
                 {documentList}
-                 """);
+                """);
 
         // 组装提示词
         Prompt prompt = promptTemplate.create(Map.of("userMessage", msg, "documentList", documentList));
@@ -170,8 +167,9 @@ public class OllamaChatController {
             @RequestParam(value = "msg", defaultValue = "你好") String msg) {
 
         // 创建AI模型客户端
+
         ChatClient chatClient = ChatClient.builder(chatModel)
-                .defaultAdvisors(new MessageChatMemoryAdvisor(inMemoryChatMemory))
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(inMemoryChatMemory).build())
                 .build();
 
         // 对话记忆的唯一标识
@@ -183,8 +181,8 @@ public class OllamaChatController {
                 .system("system")
                 .user(msg)
                 .advisors(spec -> {
-                    spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, conversationIdStr)
-                            .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10);
+                    // spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, conversationIdStr)
+                    //         .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10);
                 })
                 .call()
                 .chatResponse();
@@ -210,15 +208,18 @@ public class OllamaChatController {
         new Thread(() -> {
             // 创建AI模型客户端
             ChatClient chatClient = ChatClient.builder(chatModel)
-                    .defaultAdvisors(new MessageChatMemoryAdvisor(inMemoryChatMemory))
+                    .defaultAdvisors(MessageChatMemoryAdvisor.builder(inMemoryChatMemory).build())
                     .build();
 
             // 发送第一个请求
             Flux<ChatResponse> stream = chatClient
                     .prompt()
                     .user(msg)
-                    .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, finalConversationId)
-                            .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
+                    .advisors(
+                            spec ->
+                                    spec.param("CHAT_MEMORY_CONVERSATION_ID_KEY", finalConversationId)
+                            .param("CHAT_MEMORY_RETRIEVE_SIZE_KEY", 10)
+                    )
                     .stream().chatResponse();
 
 
@@ -252,7 +253,8 @@ public class OllamaChatController {
         record QueryDateRequest(@JsonPropertyDescription("type类型只能是[黄金,白银]") String type) {
         }
 
-        FunctionToolCallback<QueryDateRequest, String> weatherTool = FunctionToolCallback.<QueryDateRequest, String>builder("queryMetalPrice", (request, toolContext) -> {
+        FunctionToolCallback<QueryDateRequest, String> weatherTool =
+                FunctionToolCallback.<QueryDateRequest, String>builder("queryMetalPrice", (request, toolContext) -> {
                     if ("黄金".equals(request.type)) {
                         return "600人民币";
                     }
@@ -263,8 +265,8 @@ public class OllamaChatController {
                 .inputType(QueryDateRequest.class)
                 .build();
 
-        CommonLlmChatOptions chatOptions = CommonLlmChatOptions.builder()
-                .toolCallbacks(List.of(weatherTool))
+        OllamaChatOptions chatOptions = OllamaChatOptions.builder()
+                .toolCallbacks(weatherTool)
                 .build();
         Flux<ChatResponse> stream = this.chatModel.stream(new Prompt(userMessage, chatOptions));
         stream.subscribe(e -> {

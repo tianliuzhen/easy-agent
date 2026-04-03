@@ -1,16 +1,16 @@
 package com.aaa.easyagent.biz.agent;
 
+import com.aaa.easyagent.biz.agent.context.FunctionCallback;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.AgentOutput;
 import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
 import com.aaa.easyagent.biz.agent.parser.AgentOutputParser;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
-import com.aaa.easyagent.biz.agent.data.AgentContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.util.CollectionUtils;
 
 import java.util.Collection;

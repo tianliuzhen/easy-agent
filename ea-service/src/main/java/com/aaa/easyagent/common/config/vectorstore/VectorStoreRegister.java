@@ -1,18 +1,18 @@
 package com.aaa.easyagent.common.config.vectorstore;
 
+import co.elastic.clients.transport.rest5_client.low_level.Rest5Client;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.elasticsearch.client.RestClient;
-import org.springframework.ai.autoconfigure.vectorstore.elasticsearch.ElasticsearchVectorStoreProperties;
 import org.springframework.ai.embedding.BatchingStrategy;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStore;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStoreOptions;
+import org.springframework.ai.vectorstore.elasticsearch.autoconfigure.ElasticsearchVectorStoreProperties;
 import org.springframework.ai.vectorstore.observation.VectorStoreObservationConvention;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 public class VectorStoreRegister {
 
     final ElasticsearchVectorStoreProperties properties;
-    final RestClient restClient;
+    final Rest5Client restClient;
     final EmbeddingModel ollamaEmbeddingModel;
     final ObjectProvider<ObservationRegistry> observationRegistry;
     final ObjectProvider<VectorStoreObservationConvention> customObservationConvention;

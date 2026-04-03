@@ -5,16 +5,13 @@ package com.aaa.easyagent.common.llm.common;
  * @version 1.0 CommonLlmChatOptions.java  2025/6/8 14:14
  */
 
-import com.aaa.easyagent.common.llm.deepseek.OpenAiApi;
-import com.aaa.easyagent.common.llm.deepseek.OpenAiApi.ChatCompletionRequest.AudioParameters;
-import com.aaa.easyagent.common.llm.deepseek.OpenAiApi.ChatCompletionRequest.StreamOptions;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.ai.model.ModelOptionsUtils;
-import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.lang.Nullable;
@@ -96,7 +93,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
      * and is not supported for streaming completions.
 
      */
-    private @JsonProperty("audio") AudioParameters outputAudio;
+    private @JsonProperty("audio") CommonLlmApi.AudioParameters outputAudio;
 
     /**
      * Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they
@@ -111,7 +108,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
     /**
      * Options for streaming response. Included in the API only if streaming-mode completion is requested.
      */
-    private @JsonProperty("stream_options") StreamOptions streamOptions;
+    private @JsonProperty("stream_options") CommonLlmApi.StreamOptions streamOptions;
     /**
      * This feature is in Beta. If specified, our system will make a best effort to sample
      * deterministically, such that repeated requests with the same seed and parameters should return the same result.
@@ -145,7 +142,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
      * function and instead generates a message. auto means the model can pick between generating a message or calling a
      * function. Specifying a particular function via {"type: "function", "function": {"name": "my_function"}} forces
      * the model to call that function. none is the default when no functions are present. auto is the default if
-     * functions are present. Use the {@link ToolChoiceBuilder} to create a tool choice object.
+     * functions are present. Use the {@link } to create a tool choice object.
      */
     private @JsonProperty("tool_choice") Object toolChoice;
     /**
@@ -178,7 +175,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
      * Collection of {@link ToolCallback}s to be used for tool calling in the chat completion requests.
      */
     @JsonIgnore
-    private List<FunctionCallback> toolCallbacks = new ArrayList<>();
+    private List<ToolCallback> toolCallbacks = new ArrayList<>();
 
     /**
      * Collection of tool names to be resolved at runtime and used for tool calling in the chat completion requests.
@@ -203,12 +200,12 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
 
     // @formatter:on
 
-    public static  CommonLlmChatOptions.Builder builder() {
-        return new  CommonLlmChatOptions.Builder();
+    public static CommonLlmChatOptions.Builder builder() {
+        return new CommonLlmChatOptions.Builder();
     }
 
     public static CommonLlmChatOptions fromOptions(CommonLlmChatOptions fromOptions) {
-        return  CommonLlmChatOptions.builder()
+        return CommonLlmChatOptions.builder()
                 .model(fromOptions.getModel())
                 .frequencyPenalty(fromOptions.getFrequencyPenalty())
                 .logitBias(fromOptions.getLogitBias())
@@ -246,7 +243,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
     }
 
     public void setStreamUsage(Boolean enableStreamUsage) {
-        this.streamOptions = (enableStreamUsage) ? StreamOptions.INCLUDE_USAGE : null;
+        this.streamOptions = (enableStreamUsage) ? CommonLlmApi.StreamOptions.INCLUDE_USAGE : null;
     }
 
     @Override
@@ -324,11 +321,11 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         this.outputModalities = modalities;
     }
 
-    public AudioParameters getOutputAudio() {
+    public CommonLlmApi.AudioParameters getOutputAudio() {
         return this.outputAudio;
     }
 
-    public void setOutputAudio(AudioParameters audio) {
+    public void setOutputAudio(CommonLlmApi.AudioParameters audio) {
         this.outputAudio = audio;
     }
 
@@ -349,11 +346,11 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         this.responseFormat = responseFormat;
     }
 
-    public StreamOptions getStreamOptions() {
+    public CommonLlmApi.StreamOptions getStreamOptions() {
         return this.streamOptions;
     }
 
-    public void setStreamOptions(StreamOptions streamOptions) {
+    public void setStreamOptions(CommonLlmApi.StreamOptions streamOptions) {
         this.streamOptions = streamOptions;
     }
 
@@ -418,7 +415,6 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         this.toolChoice = toolChoice;
     }
 
-    @Override
     @Deprecated
     @JsonIgnore
     public Boolean getProxyToolCalls() {
@@ -427,7 +423,6 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
 
     @Deprecated
     @JsonIgnore
-    @Override
     public void setProxyToolCalls(Boolean proxyToolCalls) {
         this.internalToolExecutionEnabled = proxyToolCalls != null ? !proxyToolCalls : null;
     }
@@ -450,13 +445,12 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
 
     @Override
     @JsonIgnore
-    public List<FunctionCallback> getToolCallbacks() {
+    public List<ToolCallback> getToolCallbacks() {
         return this.toolCallbacks;
     }
 
-    @Override
     @JsonIgnore
-    public void setToolCallbacks(List<FunctionCallback> toolCallbacks) {
+    public void setToolCallbacks(List<ToolCallback> toolCallbacks) {
         Assert.notNull(toolCallbacks, "toolCallbacks cannot be null");
         Assert.noNullElements(toolCallbacks, "toolCallbacks cannot contain null elements");
         this.toolCallbacks = toolCallbacks;
@@ -478,6 +472,10 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
     }
 
     @Override
+    public Boolean getInternalToolExecutionEnabled() {
+        return null;
+    }
+
     @Nullable
     @JsonIgnore
     public Boolean isInternalToolExecutionEnabled() {
@@ -490,28 +488,24 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         this.internalToolExecutionEnabled = internalToolExecutionEnabled;
     }
 
-    @Override
     @Deprecated
     @JsonIgnore
-    public List<FunctionCallback> getFunctionCallbacks() {
+    public List<ToolCallback> getFunctionCallbacks() {
         return this.getToolCallbacks();
     }
 
-    @Override
     @Deprecated
     @JsonIgnore
-    public void setFunctionCallbacks(List<FunctionCallback> functionCallbacks) {
+    public void setFunctionCallbacks(List<ToolCallback> functionCallbacks) {
         this.setToolCallbacks(functionCallbacks);
     }
 
-    @Override
     @Deprecated
     @JsonIgnore
     public Set<String> getFunctions() {
         return this.getToolNames();
     }
 
-    @Override
     @Deprecated
     @JsonIgnore
     public void setFunctions(Set<String> functionNames) {
@@ -570,7 +564,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
 
     @Override
     public CommonLlmChatOptions copy() {
-        return  CommonLlmChatOptions.fromOptions(this);
+        return CommonLlmChatOptions.fromOptions(this);
     }
 
     @Override
@@ -591,7 +585,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-     CommonLlmChatOptions other = (CommonLlmChatOptions) o;
+        CommonLlmChatOptions other = (CommonLlmChatOptions) o;
         return Objects.equals(this.model, other.model) && Objects.equals(this.frequencyPenalty, other.frequencyPenalty)
                 && Objects.equals(this.logitBias, other.logitBias) && Objects.equals(this.logprobs, other.logprobs)
                 && Objects.equals(this.topLogprobs, other.topLogprobs)
@@ -632,193 +626,192 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
             this.options = options;
         }
 
-        public  CommonLlmChatOptions.Builder model(String model) {
+        public CommonLlmChatOptions.Builder model(String model) {
             this.options.model = model;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder model(OpenAiApi.ChatModel openAiChatModel) {
+        public CommonLlmChatOptions.Builder model(OpenAiApi.ChatModel openAiChatModel) {
             this.options.model = openAiChatModel.getName();
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder frequencyPenalty(Double frequencyPenalty) {
+        public CommonLlmChatOptions.Builder frequencyPenalty(Double frequencyPenalty) {
             this.options.frequencyPenalty = frequencyPenalty;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder logitBias(Map<String, Integer> logitBias) {
+        public CommonLlmChatOptions.Builder logitBias(Map<String, Integer> logitBias) {
             this.options.logitBias = logitBias;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder logprobs(Boolean logprobs) {
+        public CommonLlmChatOptions.Builder logprobs(Boolean logprobs) {
             this.options.logprobs = logprobs;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder topLogprobs(Integer topLogprobs) {
+        public CommonLlmChatOptions.Builder topLogprobs(Integer topLogprobs) {
             this.options.topLogprobs = topLogprobs;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder maxTokens(Integer maxTokens) {
+        public CommonLlmChatOptions.Builder maxTokens(Integer maxTokens) {
             this.options.maxTokens = maxTokens;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder maxCompletionTokens(Integer maxCompletionTokens) {
+        public CommonLlmChatOptions.Builder maxCompletionTokens(Integer maxCompletionTokens) {
             this.options.maxCompletionTokens = maxCompletionTokens;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder N(Integer n) {
+        public CommonLlmChatOptions.Builder N(Integer n) {
             this.options.n = n;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder outputModalities(List<String> modalities) {
+        public CommonLlmChatOptions.Builder outputModalities(List<String> modalities) {
             this.options.outputModalities = modalities;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder outputAudio(AudioParameters audio) {
+        public CommonLlmChatOptions.Builder outputAudio(CommonLlmApi.AudioParameters audio) {
             this.options.outputAudio = audio;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder presencePenalty(Double presencePenalty) {
+        public CommonLlmChatOptions.Builder presencePenalty(Double presencePenalty) {
             this.options.presencePenalty = presencePenalty;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder responseFormat(ResponseFormat responseFormat) {
+        public CommonLlmChatOptions.Builder responseFormat(ResponseFormat responseFormat) {
             this.options.responseFormat = responseFormat;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder streamUsage(boolean enableStreamUsage) {
-            this.options.streamOptions = (enableStreamUsage) ? StreamOptions.INCLUDE_USAGE : null;
+        public CommonLlmChatOptions.Builder streamUsage(boolean enableStreamUsage) {
+            this.options.streamOptions = (enableStreamUsage) ? CommonLlmApi.StreamOptions.INCLUDE_USAGE : null;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder seed(Integer seed) {
+        public CommonLlmChatOptions.Builder seed(Integer seed) {
             this.options.seed = seed;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder stop(List<String> stop) {
+        public CommonLlmChatOptions.Builder stop(List<String> stop) {
             this.options.stop = stop;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder temperature(Double temperature) {
+        public CommonLlmChatOptions.Builder temperature(Double temperature) {
             this.options.temperature = temperature;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder topP(Double topP) {
+        public CommonLlmChatOptions.Builder topP(Double topP) {
             this.options.topP = topP;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder tools(List<OpenAiApi.FunctionTool> tools) {
+        public CommonLlmChatOptions.Builder tools(List<OpenAiApi.FunctionTool> tools) {
             this.options.tools = tools;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder toolChoice(Object toolChoice) {
+        public CommonLlmChatOptions.Builder toolChoice(Object toolChoice) {
             this.options.toolChoice = toolChoice;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder user(String user) {
+        public CommonLlmChatOptions.Builder user(String user) {
             this.options.user = user;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder parallelToolCalls(Boolean parallelToolCalls) {
+        public CommonLlmChatOptions.Builder parallelToolCalls(Boolean parallelToolCalls) {
             this.options.parallelToolCalls = parallelToolCalls;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder toolCallbacks(List<FunctionCallback> toolCallbacks) {
+        public CommonLlmChatOptions.Builder toolCallbacks(List<ToolCallback> toolCallbacks) {
             this.options.setToolCallbacks(toolCallbacks);
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder toolCallbacks(FunctionCallback... toolCallbacks) {
+        public CommonLlmChatOptions.Builder toolCallbacks(ToolCallback... toolCallbacks) {
             Assert.notNull(toolCallbacks, "toolCallbacks cannot be null");
             this.options.toolCallbacks.addAll(Arrays.asList(toolCallbacks));
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder toolNames(Set<String> toolNames) {
+        public CommonLlmChatOptions.Builder toolNames(Set<String> toolNames) {
             Assert.notNull(toolNames, "toolNames cannot be null");
             this.options.setToolNames(toolNames);
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder toolNames(String... toolNames) {
+        public CommonLlmChatOptions.Builder toolNames(String... toolNames) {
             Assert.notNull(toolNames, "toolNames cannot be null");
             this.options.toolNames.addAll(Set.of(toolNames));
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder internalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
+        public CommonLlmChatOptions.Builder internalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
             this.options.setInternalToolExecutionEnabled(internalToolExecutionEnabled);
             return this;
         }
 
         @Deprecated
-        public  CommonLlmChatOptions.Builder functionCallbacks(List<FunctionCallback> functionCallbacks) {
+        public CommonLlmChatOptions.Builder functionCallbacks(List<ToolCallback> functionCallbacks) {
             return toolCallbacks(functionCallbacks);
         }
 
         @Deprecated
-        public  CommonLlmChatOptions.Builder functions(Set<String> functionNames) {
+        public CommonLlmChatOptions.Builder functions(Set<String> functionNames) {
             return toolNames(functionNames);
         }
 
         @Deprecated
-        public  CommonLlmChatOptions.Builder function(String functionName) {
+        public CommonLlmChatOptions.Builder function(String functionName) {
             return toolNames(functionName);
         }
 
         @Deprecated
-        public  CommonLlmChatOptions.Builder proxyToolCalls(Boolean proxyToolCalls) {
+        public CommonLlmChatOptions.Builder proxyToolCalls(Boolean proxyToolCalls) {
             if (proxyToolCalls != null) {
                 this.options.setInternalToolExecutionEnabled(!proxyToolCalls);
             }
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder httpHeaders(Map<String, String> httpHeaders) {
+        public CommonLlmChatOptions.Builder httpHeaders(Map<String, String> httpHeaders) {
             this.options.httpHeaders = httpHeaders;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder toolContext(Map<String, Object> toolContext) {
+        public CommonLlmChatOptions.Builder toolContext(Map<String, Object> toolContext) {
             if (this.options.toolContext == null) {
                 this.options.toolContext = toolContext;
-            }
-            else {
+            } else {
                 this.options.toolContext.putAll(toolContext);
             }
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder store(Boolean store) {
+        public CommonLlmChatOptions.Builder store(Boolean store) {
             this.options.store = store;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder metadata(Map<String, String> metadata) {
+        public CommonLlmChatOptions.Builder metadata(Map<String, String> metadata) {
             this.options.metadata = metadata;
             return this;
         }
 
-        public  CommonLlmChatOptions.Builder reasoningEffort(String reasoningEffort) {
+        public CommonLlmChatOptions.Builder reasoningEffort(String reasoningEffort) {
             this.options.reasoningEffort = reasoningEffort;
             return this;
         }
