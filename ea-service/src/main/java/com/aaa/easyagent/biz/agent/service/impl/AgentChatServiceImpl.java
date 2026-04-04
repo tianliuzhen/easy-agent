@@ -1,6 +1,6 @@
 package com.aaa.easyagent.biz.agent.service.impl;
 
-import com.aaa.easyagent.biz.agent.ReActAgentXmlExecutor;
+import com.aaa.easyagent.biz.agent.ReActAgentExecutor;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
@@ -77,7 +77,7 @@ public class AgentChatServiceImpl implements AgentChatService {
         ChatRecordSaver.startNewConversation(agentContext, question);
 
         // 执行Agent
-        String result = new ReActAgentXmlExecutor(agentContext).exec(question);
+        String result = new ReActAgentExecutor(agentContext).exec(question);
 
         // 保存聊天记录（注意：这里需要从Agent执行过程中获取思考过程和工具调用信息）
         // 实际的保存逻辑在ChatRecordSaverService中通过ThreadLocal收集

@@ -102,6 +102,27 @@ public class ChatRecordSaver {
         }
     }
 
+    // 需要过滤的ReAct标签
+    private static final String[] FILTER_TAGS = {"Question", "Thought", "Action", "ActionInput", "Observation", "FinalAnswer"};
+
+    /**
+     * 过滤特定的XML标签
+     * @param content 原始内容
+     * @return 过滤后的内容
+     */
+    private static String filterXmlTags(String content) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+        String result = content;
+        for (String tag : FILTER_TAGS) {
+            // 过滤开始标签和结束标签（支持标签内有空格）
+            result = result.replaceAll("<\\s*" + tag + "\\s*[^>]*>", "");
+            result = result.replaceAll("</\\s*" + tag + "\\s*>", "");
+        }
+        return result.trim();
+    }
+
     /**
      * 添加思考过程日志
      *
@@ -109,7 +130,8 @@ public class ChatRecordSaver {
      */
     public static void addThinking(String thinkingLog) {
         if (thinkingLog != null && !thinkingLog.trim().isEmpty()) {
-            messageContext.get().add(new ChatContext(ChatContextTypeEnum.thinking, thinkingLog));
+            String cleanThinking = filterXmlTags(thinkingLog);
+            messageContext.get().add(new ChatContext(ChatContextTypeEnum.thinking, cleanThinking));
         }
     }
 
@@ -131,7 +153,8 @@ public class ChatRecordSaver {
      */
     public static void addData(String data) {
         if (data != null && !data.trim().isEmpty()) {
-            messageContext.get().add(new ChatContext(ChatContextTypeEnum.data, data));
+            String cleanData = filterXmlTags(data);
+            messageContext.get().add(new ChatContext(ChatContextTypeEnum.data, cleanData));
         }
     }
 

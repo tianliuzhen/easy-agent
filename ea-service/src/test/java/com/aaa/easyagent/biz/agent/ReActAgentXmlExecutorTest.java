@@ -12,7 +12,7 @@ class ReActAgentXmlExecutorTest {
                 <Thought>我已经获得了白银价格信息，现在可以给出最终答案。</Thought>
                 <Final Answer>白银目前的价格是20元每克。</Final Answer>
                 """;
-        ReActAgentXmlExecutor.parseXmlResponse(s);
+        ReActAgentExecutor.parseXmlResponse(s);
     }
 
 }

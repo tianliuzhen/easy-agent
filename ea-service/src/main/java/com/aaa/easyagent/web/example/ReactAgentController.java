@@ -1,7 +1,7 @@
 package com.aaa.easyagent.web.example;
 
+import com.aaa.easyagent.biz.agent.ReActAgentOldExecutor;
 import com.aaa.easyagent.biz.agent.ReActAgentExecutor;
-import com.aaa.easyagent.biz.agent.ReActAgentXmlExecutor;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.AgentModelConfig;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
@@ -63,7 +63,7 @@ public class ReactAgentController {
         // 工具决策-tool
         agentContext.setToolRunMode(ToolRunMode.Tool);
 
-        new ReActAgentExecutor(agentContext).exec("查询北京当前时间");
+        new ReActAgentOldExecutor(agentContext).exec("查询北京当前时间");
     }
     @GetMapping(value = "/testXml")
     public void testXml() {
@@ -107,7 +107,7 @@ public class ReactAgentController {
         // 工具决策-tool
         agentContext.setToolRunMode(ToolRunMode.Tool);
 
-        new ReActAgentXmlExecutor(agentContext).exec("查询黄金的价格");
+        new ReActAgentExecutor(agentContext).exec("查询黄金的价格");
     }
 
     @GetMapping(value = "/test2")
@@ -142,7 +142,7 @@ public class ReactAgentController {
         agentContext.setModelType(ModelTypeEnum.siliconflow);
 
 
-        new ReActAgentExecutor(agentContext).exec("查询当前时间");
+        new ReActAgentOldExecutor(agentContext).exec("查询当前时间");
     }
 
 }
