@@ -1,11 +1,16 @@
 package com.aaa.easyagent.core.service.impl;
 
+import com.aaa.easyagent.common.context.UserContextHolder;
+import com.aaa.easyagent.common.util.JacksonUtil;
+import com.aaa.easyagent.common.util.McpUtils;
 import com.aaa.easyagent.core.domain.DO.EaMcpConfigDO;
+import com.aaa.easyagent.core.domain.enums.McpTransportTypeEnum;
 import com.aaa.easyagent.core.domain.request.McpServerConfigRequest;
 import com.aaa.easyagent.core.domain.result.McpServerConfigResult;
 import com.aaa.easyagent.core.domain.result.McpToolInfoResult;
 import com.aaa.easyagent.core.mapper.EaMcpConfigDAO;
 import com.aaa.easyagent.core.service.McpServerConfigService;
+import tk.mybatis.mapper.entity.Example;
 import com.alibaba.fastjson.JSON;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
@@ -42,6 +47,7 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
     @Resource
     private EaMcpConfigDAO mcpConfigDAO;
 
+
     @Override
     @Transactional
     public Long createConfig(McpServerConfigRequest request) {
@@ -63,6 +69,7 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
         config.setDescription(request.getDescription());
         config.setCreatedAt(new Date());
         config.setUpdatedAt(new Date());
+        config.setUserId(UserContextHolder.getUserId());
 
         mcpConfigDAO.insertSelective(config);
         return config.getId();
@@ -121,24 +128,27 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
 
     @Override
     public List<McpServerConfigResult> listConfigsByServerName(String serverName) {
-        List<EaMcpConfigDO> configs = mcpConfigDAO.selectByServerName(serverName);
+        Example example = new Example(EaMcpConfigDO.class);
+        example.createCriteria().andEqualTo("serverName", serverName);
+        example.orderBy("createdAt").desc();
+        List<EaMcpConfigDO> configs = mcpConfigDAO.selectByExample(example);
         return configs.stream()
                 .map(this::convertToResult)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<McpToolInfoResult> testConnection(Long id) {
+    public List<McpToolInfoResult> fetchToolsFromServer(Long id) {
         EaMcpConfigDO config = mcpConfigDAO.selectByPrimaryKey(id);
         if (config == null) {
             throw new RuntimeException("MCP 配置不存在: id=" + id);
         }
 
-        return doTestConnection(config);
+        return doFetchToolsFromServer(config);
     }
 
     @Override
-    public List<McpToolInfoResult> testConnection(McpServerConfigRequest request) {
+    public List<McpToolInfoResult> fetchToolsFromServer(McpServerConfigRequest request) {
         EaMcpConfigDO tempConfig = new EaMcpConfigDO();
         tempConfig.setServerName(request.getServerName());
         tempConfig.setServerUrl(request.getServerUrl());
@@ -148,10 +158,10 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
         tempConfig.setConnectionTimeout(request.getConnectionTimeout());
         tempConfig.setMaxRetries(request.getMaxRetries());
 
-        return doTestConnection(tempConfig);
+        return doFetchToolsFromServer(tempConfig);
     }
 
-    private List<McpToolInfoResult> doTestConnection(EaMcpConfigDO config) {
+    private List<McpToolInfoResult> doFetchToolsFromServer(EaMcpConfigDO config) {
         McpSyncClient client = null;
         try {
             client = createTempClient(config);
@@ -189,7 +199,38 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
 
     @Override
     public List<McpToolInfoResult> listTools(Long id) {
-        return testConnection(id);
+        return fetchToolsFromServer(id);
+    }
+
+    @Override
+    public EaMcpConfigDO getMcpConfig(String serverName, String toolName) {
+        if (StringUtils.isBlank(serverName)) {
+            return null;
+        }
+
+        // 优先使用 serverName + toolName 查询
+        if (StringUtils.isNotBlank(toolName)) {
+            Example example = new Example(EaMcpConfigDO.class);
+            example.createCriteria()
+                    .andEqualTo("serverName", serverName)
+                    .andEqualTo("toolName", toolName);
+            example.orderBy("createdAt").desc();
+            List<EaMcpConfigDO> configs = mcpConfigDAO.selectByExample(example);
+            if (configs != null && !configs.isEmpty()) {
+                return configs.get(0);
+            }
+        }
+
+        // 仅使用 serverName 查询
+        Example example = new Example(EaMcpConfigDO.class);
+        example.createCriteria().andEqualTo("serverName", serverName);
+        example.orderBy("createdAt").desc();
+        List<EaMcpConfigDO> configs = mcpConfigDAO.selectByExample(example);
+        if (configs != null && !configs.isEmpty()) {
+            return configs.get(0);
+        }
+
+        return null;
     }
 
     @Override
@@ -200,7 +241,7 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
             throw new RuntimeException("MCP 配置不存在: id=" + id);
         }
 
-        List<McpToolInfoResult> tools = testConnection(id);
+        List<McpToolInfoResult> tools = fetchToolsFromServer(id);
         if (tools == null || tools.isEmpty()) {
             return 0;
         }
@@ -208,10 +249,13 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
         int count = 0;
         for (McpToolInfoResult tool : tools) {
             // 检查是否已存在
-            List<EaMcpConfigDO> existing = mcpConfigDAO.selectByServerNameAndToolName(
-                    config.getServerName(), tool.getName());
+            Example checkExample = new Example(EaMcpConfigDO.class);
+            checkExample.createCriteria()
+                    .andEqualTo("serverName", config.getServerName())
+                    .andEqualTo("toolName", tool.getName());
+            List<EaMcpConfigDO> existingList = mcpConfigDAO.selectByExample(checkExample);
 
-            if (existing == null || existing.isEmpty()) {
+            if (existingList == null || existingList.isEmpty()) {
                 // 创建新的工具配置
                 EaMcpConfigDO newConfig = new EaMcpConfigDO();
                 newConfig.setServerName(config.getServerName());
@@ -244,7 +288,7 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
         String transportType = config.getTransportType();
         Integer timeout = config.getConnectionTimeout() != null ? config.getConnectionTimeout() : 30;
 
-        McpTransportType type = parseTransportType(transportType);
+        McpTransportTypeEnum type = McpUtils.parseTransportType(transportType);
         return switch (type) {
             case STDIO -> createStdioClient(config, timeout);
             case SSE -> createSseClient(config, timeout);
@@ -263,7 +307,7 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
         if (StringUtils.isNotBlank(config.getEnvVars())) {
             try {
                 List<String> envList = JSON.parseArray(config.getEnvVars(), String.class);
-                envVars = parseEnvVars(envList);
+                envVars = McpUtils.parseEnvVars(envList);
             } catch (Exception e) {
                 log.warn("解析环境变量失败: {}", config.getEnvVars());
             }
@@ -306,8 +350,8 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
             throw new RuntimeException("Streamable HTTP 模式需要配置 Server URL");
         }
 
-        String endpoint = extractEndpointFromUrl(config.getServerUrl());
-        String baseUrl = extractBaseUrl(config.getServerUrl());
+        String endpoint = McpUtils.extractEndpointFromUrl(config.getServerUrl());
+        String baseUrl = McpUtils.extractBaseUrl(config.getServerUrl());
 
         HttpClientStreamableHttpTransport transport = HttpClientStreamableHttpTransport
                 .builder(baseUrl)
@@ -322,61 +366,6 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
         return client;
     }
 
-    private McpTransportType parseTransportType(String transportType) {
-        if (StringUtils.isBlank(transportType)) {
-            return McpTransportType.STREAMABLE;
-        }
-        return switch (transportType.toUpperCase()) {
-            case "STDIO" -> McpTransportType.STDIO;
-            case "SSE", "HTTP" -> McpTransportType.SSE;
-            case "STREAMABLE", "STREAMABLE_HTTP" -> McpTransportType.STREAMABLE;
-            default -> McpTransportType.STREAMABLE;
-        };
-    }
-
-    private String extractBaseUrl(String serverUrl) {
-        if (serverUrl == null || serverUrl.isEmpty()) {
-            return serverUrl;
-        }
-        int lastSlashIndex = serverUrl.lastIndexOf('/');
-        if (lastSlashIndex > 8) {
-            return serverUrl.substring(0, lastSlashIndex + 1);
-        }
-        return serverUrl.endsWith("/") ? serverUrl : serverUrl + "/";
-    }
-
-    private String extractEndpointFromUrl(String serverUrl) {
-        if (serverUrl == null || serverUrl.isEmpty()) {
-            return "mcp";
-        }
-        String withoutProtocol = serverUrl.replaceFirst("^https?://", "");
-        int firstSlashIndex = withoutProtocol.indexOf('/');
-        if (firstSlashIndex > 0 && firstSlashIndex < withoutProtocol.length() - 1) {
-            String endpoint = withoutProtocol.substring(firstSlashIndex + 1);
-            return endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
-        }
-        return "mcp";
-    }
-
-    /**
-     * MCP 传输类型枚举
-     */
-    private enum McpTransportType {
-        STDIO, SSE, STREAMABLE
-    }
-
-    private Map<String, String> parseEnvVars(List<String> envVars) {
-        if (envVars == null || envVars.isEmpty()) {
-            return Map.of();
-        }
-        return envVars.stream()
-                .map(env -> env.split("=", 2))
-                .filter(parts -> parts.length == 2)
-                .collect(java.util.HashMap::new,
-                        (m, parts) -> m.put(parts[0].trim(), parts[1].trim()),
-                        java.util.HashMap::putAll);
-    }
-
     private List<McpToolInfoResult> convertToToolInfoList(List<McpSchema.Tool> tools) {
         if (tools == null) {
             return new ArrayList<>();
@@ -388,11 +377,24 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
                     result.setName(tool.name());
                     result.setDescription(tool.description());
                     result.setInputSchema(tool.inputSchema() != null ?
-                            JSON.toJSONString(tool.inputSchema()) : null);
+                            JacksonUtil.beanToStr(tool.inputSchema()) : null);
+                    // MCP Server 可能没有返回 outputSchema，提供一个默认的
+                    result.setOutputSchema(tool.outputSchema() != null ?
+                            JacksonUtil.beanToStr(tool.outputSchema()) : getDefaultOutputSchema());
                     result.setIsConfigured(false);
                     return result;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取默认的输出参数 Schema
+     * 当 MCP Server 没有提供 outputSchema 时使用
+     */
+    private String getDefaultOutputSchema() {
+        return """
+                {}
+                """;
     }
 
     private McpServerConfigResult convertToResult(EaMcpConfigDO config) {
@@ -417,6 +419,33 @@ public class McpServerConfigServiceImpl implements McpServerConfigService {
         result.setDescription(config.getDescription());
         result.setCreatedAt(config.getCreatedAt());
         result.setUpdatedAt(config.getUpdatedAt());
+        // 查询工具列表
+        result.setTools(getToolsForConfig(config));
         return result;
+    }
+
+    /**
+     * 获取指定配置的工具列表
+     */
+    private List<McpToolInfoResult> getToolsForConfig(EaMcpConfigDO config) {
+        try {
+            McpSyncClient client = null;
+            try {
+                client = createTempClient(config);
+                McpSchema.ListToolsResult toolsResult = client.listTools();
+                return convertToToolInfoList(toolsResult.tools());
+            } finally {
+                if (client != null) {
+                    try {
+                        client.closeGracefully();
+                    } catch (Exception e) {
+                        log.warn("关闭 MCP Client 失败", e);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("获取 MCP Server 工具列表失败: serverName={}", config.getServerName(), e);
+            return null;
+        }
     }
 }

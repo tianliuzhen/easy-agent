@@ -118,7 +118,7 @@ const AgentConfigContent: React.FC = () => {
                         padding: '0px',
                         display: 'flex',
                         flexDirection: 'column',
-                        background: '#e1ecf7',
+                        background: 'var(--ea-theme-background)',
                     }}>
                     <GlobalStyles/>
 

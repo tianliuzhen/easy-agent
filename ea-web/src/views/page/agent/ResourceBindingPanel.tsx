@@ -8,13 +8,14 @@ import MCPSkillList from './mcp/MCPSkillList';
 import AddResourceModal from './common/AddResourceModal';
 import {knowledgeBaseApi} from '../../api/KnowledgeBaseApi';
 import {eaToolApi} from '../../api/EaToolApi';
+import {mcpApi} from '../../api/McpApi';
 
 interface ResourceBindingPanelProps {
     agentId?: number;
     className?: string;
 }
 
-type ResourceType = 'knowledge' | 'tool' | 'mcp';
+type ResourceType = 'knowledge' | 'tool' | 'mcp' | 'skill';
 
 const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, className}) => {
     const [activeKeys, setActiveKeys] = useState<string[]>([]); // 默认全部折叠
@@ -43,16 +44,17 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
         }
 
         try {
-            // 并行获取知识库和工具数量
-            const [knowledgeResponse, toolResponse] = await Promise.all([
+            // 并行获取知识库、工具和MCP数量
+            const [knowledgeResponse, toolResponse, mcpResponse] = await Promise.all([
                 knowledgeBaseApi.listByAgentId(agentId.toString()),
-                eaToolApi.listBoundToolsByAgentId(agentId.toString())
+                eaToolApi.listBoundToolsByAgentId(agentId.toString()),
+                mcpApi.listBoundMcpByAgentId(agentId.toString())
             ]);
 
             setResourceCounts({
                 knowledge: knowledgeResponse.success ? (knowledgeResponse.data?.length || 0) : 0,
                 tool: toolResponse.success ? (toolResponse.data?.length || 0) : 0,
-                mcp: 0 // MCP暂时设为0，如果有API可以获取
+                mcp: mcpResponse.success ? (mcpResponse.data?.length || 0) : 0
             });
         } catch (error) {
             console.error('加载资源数量失败:', error);
@@ -139,7 +141,7 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
             case 'tool':
                 return '工具';
             case 'mcp':
-                return 'MCP Skill';
+                return 'MCP';
             default:
                 return '资源';
         }
@@ -274,7 +276,7 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
             extra: <span style={{fontSize: '12px', color: '#666'}}>模型上下文协议技能</span>
         },
         {
-            key: 'Skill',
+            key: 'skill',
             label: (
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
@@ -299,7 +301,7 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
-                            handleAddResource('mcp');
+                            handleAddResource('skill');
                         }}
                         title="添加 Skill"
                     />
@@ -333,7 +335,14 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
             }}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                     <div>
-                        <h3 style={{margin: 0, fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <h3 style={{
+                            margin: 0,
+                            fontSize: '16px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
                             <AppstoreOutlined style={{color: '#1890ff', fontSize: '18px'}}/>
                             资源绑定
                         </h3>

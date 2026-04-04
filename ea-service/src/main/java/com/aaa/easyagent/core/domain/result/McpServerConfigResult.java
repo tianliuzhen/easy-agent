@@ -3,6 +3,7 @@ package com.aaa.easyagent.core.domain.result;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * MCP Server 配置结果
@@ -112,4 +113,9 @@ public class McpServerConfigResult {
      * 更新时间
      */
     private Date updatedAt;
+
+    /**
+     * 工具列表（从MCP Server查询得到）
+     */
+    private List<McpToolInfoResult> tools;
 }

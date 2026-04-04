@@ -97,6 +97,9 @@ export const sendMessage = (
                     onData(jsonData.content);
                 } else if (jsonData.type === 'tool') {
                     onTool(jsonData.content);
+                } else if (jsonData.type === 'error') {
+                    isClosed = true;
+                    onError(jsonData.content);
                 } else {
                     // 处理未知类型的数据
                     console.warn('未知的数据类型:', jsonData.type, jsonData);

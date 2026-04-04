@@ -1,5 +1,6 @@
 package com.aaa.easyagent.web.biz.agent;
 
+import com.aaa.easyagent.biz.agent.context.SseHelper;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.EaAgentReq;
@@ -125,6 +126,8 @@ public class EaAgentController {
                 agentChatService.streamChatWith(request.getSessionId(), request.getMsg(), request.getAgentId(), sseEmitter);
             } catch (Throwable e) {
                 log.error("streamChatWithPost:{}", e.getMessage(), e);
+                SseHelper.sendError(sseEmitter, "系统异常：" + e.getMessage());
+                sseEmitter.complete();
             } finally {
                 // 清理线程上下文
                 org.springframework.security.core.context.SecurityContextHolder.clearContext();

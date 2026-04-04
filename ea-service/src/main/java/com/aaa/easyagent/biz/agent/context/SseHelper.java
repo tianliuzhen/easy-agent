@@ -84,7 +84,7 @@ public class SseHelper {
      */
     public static void sendError(SseEmitter sseEmitter, Object... message) {
         // 在消息前添加[ERROR]前缀用于前端识别
-        doSend(sseEmitter, message, "log");
+        doSend(sseEmitter, message, "error");
 
     }
 

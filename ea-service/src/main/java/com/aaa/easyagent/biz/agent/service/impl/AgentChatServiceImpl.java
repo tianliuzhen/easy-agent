@@ -10,6 +10,7 @@ import com.aaa.easyagent.core.domain.enums.ToolRunMode;
 import com.aaa.easyagent.core.domain.result.EaAgentResult;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
 import com.aaa.easyagent.core.service.AgentManagerService;
+import com.aaa.easyagent.core.service.McpToolIntegrationService;
 import com.aaa.easyagent.core.service.ToolMangerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author liuzhen.tian
@@ -29,6 +31,7 @@ public class AgentChatServiceImpl implements AgentChatService {
 
     private final AgentManagerService agentManagerService;
     private final ToolMangerService toolMangerService;
+    private final McpToolIntegrationService mcpToolIntegrationService;
 
 
     /**
@@ -62,9 +65,12 @@ public class AgentChatServiceImpl implements AgentChatService {
 
         // 工具信息
         List<EaToolConfigResult> eaToolConfigResults = toolMangerService.listBoundToolsByAgentId(agent.getId());
-        List<ToolDefinition> toolDefinitions = eaToolConfigResults.stream().map(ToolDefinition::buildToolDefinition).toList();
+        List<ToolDefinition> toolDefinitions = eaToolConfigResults.stream().map(ToolDefinition::buildToolDefinition).collect(Collectors.toList());
         agentContext.setToolDefinitions(toolDefinitions);
 
+        // 集成mcp
+        List<ToolDefinition<?>> mcpToolDefinitions = mcpToolIntegrationService.getMcpToolsForAgent(agent.getId());
+        agentContext.getToolDefinitions().addAll(mcpToolDefinitions);
 
         // 工具决策-tool
         agentContext.setToolRunMode(ToolRunMode.Tool);

@@ -28,8 +28,8 @@ public class EaToolConfigDO {
     /**
      * agentId
      */
-    @Column(name = "agent_id")
-    private Long agentId;
+    @Column(name = "user_id")
+    private Long userId;
 
     /**
      * 工具类型 (SQL, HTTP, MCP, GRPC等)

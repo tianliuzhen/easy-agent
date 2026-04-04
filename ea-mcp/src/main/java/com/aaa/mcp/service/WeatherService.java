@@ -1,8 +1,11 @@
 package com.aaa.mcp.service;
 
+import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
@@ -16,7 +19,11 @@ public class WeatherService {
     private final RestTemplate restTemplate;
 
     public WeatherService() {
-        this.restTemplate = new RestTemplate();
+        // 配置超时时间，避免 SSL 握手超时
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(30000); // 连接超时 30 秒
+        factory.setReadTimeout(30000);    // 读取超时 30 秒
+        this.restTemplate = new RestTemplate(factory);
     }
 
     /**
@@ -95,12 +102,24 @@ public class WeatherService {
 
     // ========== 数据类 ==========
 
+    @JsonClassDescription("天气查询响应结果")
     public record WeatherResponse(
+        @JsonPropertyDescription("城市名称")
         String city,
+
+        @JsonPropertyDescription("天气描述，如：晴朗、多云、小雨等")
         String description,
+
+        @JsonPropertyDescription("温度，单位：摄氏度")
         Double temperature,
+
+        @JsonPropertyDescription("湿度，单位：百分比")
         Integer humidity,
+
+        @JsonPropertyDescription("风速，单位：公里/小时")
         Double windSpeed,
+
+        @JsonPropertyDescription("时区")
         String timezone
     ) {
         @Override

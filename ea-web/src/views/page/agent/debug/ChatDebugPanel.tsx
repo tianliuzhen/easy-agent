@@ -301,7 +301,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                                 ...prev[currentMessageId],
                                 content: [...currentLogs, {
                                     type: 'error',
-                                    content: `思考过程中出现错误: ${errorText}`,
+                                    content: `${errorText}`,
                                     timestamp: Date.now()
                                 }]
                             }

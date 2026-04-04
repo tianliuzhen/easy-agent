@@ -17,6 +17,8 @@ import ChatModelConfig from './page/ChatModelConfig';
 import User from './page/User';
 import ToolManager from './page/ToolManager';
 import KnowledgeBaseList from './page/agent/knowledge/KnowledgeBaseList';
+import MCPMarket from './page/mcp/MCPMarket';
+import MyMCP from './page/mcp/MyMCP';
 import logo from '../assets/eaLogo.png';
 import AuthGuard from '../components/AuthGuard';
 import {authApi} from './api/AuthApi';
@@ -73,7 +75,8 @@ const routes = [
         icon: <ApiOutlined/>,
         label: 'MCP 管理',
         children: [
-            {key: '6', label: 'mcp 配置', path: '/tool/option6', component: <AuthGuard><Option6/></AuthGuard>},
+            {key: '6', label: '我的mcp', path: '/page/mcp/my', component: <AuthGuard><MyMCP/></AuthGuard>},
+            {key: '7', label: 'mcp市场', path: '/page/mcp/market', component: <AuthGuard><MCPMarket/></AuthGuard>},
         ]
     },
     {
@@ -98,11 +101,6 @@ const routes = [
         ]
     },
 ];
-
-// 示例组件
-function Option6() {
-    return <div>MCP 配置页面 - 待开发</div>
-}
 
 function Home() {
     return <div>欢迎欢迎</div>

@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import {knowledgeBaseApi} from '../../../api/KnowledgeBaseApi';
 import {eaToolApi} from '../../../api/EaToolApi';
+import {mcpApi} from '../../../api/McpApi';
 
 const {TextArea} = Input;
 const {Option} = Select;
@@ -60,6 +61,17 @@ interface ToolItem {
     lastUsed?: string;
 }
 
+interface McpItem {
+    id: number;
+    serverName: string;
+    description?: string;
+    provider?: string;
+    version?: string;
+    status?: string;
+    capabilities?: string[];
+    lastUpdated?: string;
+}
+
 const AddResourceModal: React.FC<AddResourceModalProps> = ({
                                                                visible,
                                                                type,
@@ -75,8 +87,11 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
     const [availableKnowledgeBases, setAvailableKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
     const [availableTools, setAvailableTools] = useState<ToolItem[]>([]);
     const [myTools, setMyTools] = useState<ToolItem[]>([]);
+    const [officialMcps, setOfficialMcps] = useState<McpItem[]>([]);
+    const [myMcps, setMyMcps] = useState<McpItem[]>([]);
     const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<number | null>(null);
     const [selectedTool, setSelectedTool] = useState<number | null>(null);
+    const [selectedMcp, setSelectedMcp] = useState<number | null>(null);
     const [searchLoading, setSearchLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
     const [resourceMode, setResourceMode] = useState<'official' | 'my'>('official');
@@ -102,6 +117,13 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
                     loadOfficialTools();
                 } else {
                     loadMyTools();
+                }
+            } else if (type === 'mcp') {
+                // 根据 resourceMode 加载对应的MCP列表
+                if (resourceMode === 'official') {
+                    loadOfficialMcps();
+                } else {
+                    loadMyMcps();
                 }
             }
         }
@@ -161,11 +183,11 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
 
     // 加载我的工具
     const loadMyTools = async () => {
-        if (type !== 'tool' || !agentId) return;
+        if (type !== 'tool') return;
 
         setSearchLoading(true);
         try {
-            const response = await eaToolApi.listBoundToolsByAgentId(agentId.toString());
+            const response = await eaToolApi.getToolConfigByUserId();
             if (response.success && response.data) {
                 setMyTools(response.data);
             } else {
@@ -184,10 +206,62 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
     // 处理我的工具模式切换
     const handleResourceModeChange = (mode: 'official' | 'my') => {
         setResourceMode(mode);
-        if (mode === 'my') {
-            loadMyTools();
-        } else {
-            loadOfficialTools();
+        if (type === 'tool') {
+            if (mode === 'my') {
+                loadMyTools();
+            } else {
+                loadOfficialTools();
+            }
+        } else if (type === 'mcp') {
+            if (mode === 'my') {
+                loadMyMcps();
+            } else {
+                loadOfficialMcps();
+            }
+        }
+    };
+
+    // 加载官方MCP
+    const loadOfficialMcps = async () => {
+        if (type !== 'mcp') return;
+
+        setSearchLoading(true);
+        try {
+            const response = await mcpApi.getOfficialMcpConfigs();
+            if (response.success && response.data) {
+                setOfficialMcps(response.data);
+            } else {
+                message.error(`加载官方MCP失败：${response.message || '未知错误'}`);
+                setOfficialMcps([]);
+            }
+        } catch (error) {
+            console.error('加载官方MCP失败:', error);
+            message.error('加载官方MCP失败');
+            setOfficialMcps([]);
+        } finally {
+            setSearchLoading(false);
+        }
+    };
+
+    // 加载我的MCP
+    const loadMyMcps = async () => {
+        if (type !== 'mcp') return;
+
+        setSearchLoading(true);
+        try {
+            const response = await mcpApi.getMcpConfigByUserId();
+            if (response.success && response.data) {
+                setMyMcps(response.data);
+            } else {
+                message.error(`加载我的MCP失败：${response.message || '未知错误'}`);
+                setMyMcps([]);
+            }
+        } catch (error) {
+            console.error('加载我的MCP失败:', error);
+            message.error('加载我的MCP失败');
+            setMyMcps([]);
+        } finally {
+            setSearchLoading(false);
         }
     };
 
@@ -196,7 +270,8 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
         const typeNames = {
             'knowledge': '知识库',
             'tool': '工具',
-            'mcp': 'MCP Skill'
+            'mcp': 'MCP',
+            'skill': 'SKILL'
         };
 
         if (type === 'knowledge' && knowledgeBaseMode === 'link') {
@@ -327,89 +402,111 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
     const handleSubmit = async () => {
         try {
             setLoading(true);
-
-            if (type === 'knowledge' || type === 'tool') {
-                if (knowledgeBaseMode === 'link') {
-                    // 关联现有资源
-                    if (type === 'knowledge') {
-                        if (!selectedKnowledgeBase) {
-                            message.error('请选择一个知识库');
-                            return;
-                        }
-
-                        const selectedKb = availableKnowledgeBases.find(kb => kb.id === selectedKnowledgeBase);
-                        if (!selectedKb) {
-                            message.error('选择的知识库不存在');
-                            return;
-                        }
-
-                        // 调用绑定API
-                        const bindRequest = {
-                            agentId: agentId?.toString() || '',
-                            knowledgeBaseId: selectedKnowledgeBase,
-                            kbName: selectedKb.kbName,
-                            creator: 'system' // 这里应该从用户上下文获取
-                        };
-
-                        const response = await knowledgeBaseApi.bind(bindRequest);
-                        if (response.success) {
-                            message.success(`知识库 "${selectedKb.kbName}" 关联成功`);
-                            onSuccess(type);
-                            onClose();
-                        } else {
-                            message.error(`关联失败: ${response.message}`);
-                        }
-                    } else if (type === 'tool') {
-                        if (!selectedTool) {
-                            message.error('请选择一个工具');
-                            return;
-                        }
-
-                        // 根据当前模式选择数据源
-                        const toolSource = resourceMode === 'official' ? availableTools : myTools;
-                        const selectedToolItem = toolSource.find(tool => tool.id === selectedTool);
-
-                        if (!selectedToolItem) {
-                            message.error('选择的工具不存在');
-                            return;
-                        }
-
-                        // 调用绑定 API
-                        const bindRequest = {
-                            agentId: agentId?.toString() || '',
-                            toolConfigId: selectedTool,
-                            toolName: selectedToolItem.toolInstanceName || selectedToolItem.name,
-                            creator: 'system' // 这里应该从用户上下文获取
-                        };
-
-                        const response = await eaToolApi.bindTool(bindRequest);
-                        if (response.success) {
-                            message.success(`工具 "${selectedToolItem.toolInstanceName || selectedToolItem.name}" 关联成功`);
-                            onSuccess(type);
-                            onClose();
-                        } else {
-                            message.error(`关联失败：${response.message}`);
-                        }
+    
+            if (type === 'knowledge' || type === 'tool' || type === 'mcp') {
+                // 关联现有资源
+                if (type === 'knowledge') {
+                    if (!selectedKnowledgeBase) {
+                        message.error('请选择一个知识库');
+                        return;
                     }
-                } else {
-                    // 创建新资源（已禁用）
-                    message.warning(`创建新${type === 'knowledge' ? '知识库' : '工具'}功能已禁用，请使用"关联现有${type === 'knowledge' ? '知识库' : '工具'}"功能`);
-                    return;
+    
+                    const selectedKb = availableKnowledgeBases.find(kb => kb.id === selectedKnowledgeBase);
+                    if (!selectedKb) {
+                        message.error('选择的知识库不存在');
+                        return;
+                    }
+    
+                    // 调用绑定API
+                    const bindRequest = {
+                        agentId: agentId?.toString() || '',
+                        knowledgeBaseId: selectedKnowledgeBase,
+                        kbName: selectedKb.kbName,
+                        creator: 'system' // 这里应该从用户上下文获取
+                    };
+    
+                    const response = await knowledgeBaseApi.bind(bindRequest);
+                    if (response.success) {
+                        message.success(`知识库 "${selectedKb.kbName}" 关联成功`);
+                        onSuccess(type);
+                        onClose();
+                    } else {
+                        message.error(`关联失败: ${response.message}`);
+                    }
+                } else if (type === 'tool') {
+                    if (!selectedTool) {
+                        message.error('请选择一个工具');
+                        return;
+                    }
+    
+                    // 根据当前模式选择数据源
+                    const toolSource = resourceMode === 'official' ? availableTools : myTools;
+                    const selectedToolItem = toolSource.find(tool => tool.id === selectedTool);
+    
+                    if (!selectedToolItem) {
+                        message.error('选择的工具不存在');
+                        return;
+                    }
+    
+                    // 调用绑定 API
+                    const bindRequest = {
+                        agentId: agentId?.toString() || '',
+                        toolConfigId: selectedTool,
+                        toolName: selectedToolItem.toolInstanceName || selectedToolItem.name,
+                        creator: 'system' // 这里应该从用户上下文获取
+                    };
+    
+                    const response = await eaToolApi.bindTool(bindRequest);
+                    if (response.success) {
+                        message.success(`工具 "${selectedToolItem.toolInstanceName || selectedToolItem.name}" 关联成功`);
+                        onSuccess(type);
+                        onClose();
+                    } else {
+                        message.error(`关联失败：${response.message}`);
+                    }
+                } else if (type === 'mcp') {
+                    if (!selectedMcp) {
+                        message.error('请选择一个MCP');
+                        return;
+                    }
+    
+                    const selectedMcpItem = (resourceMode === 'official' ? officialMcps : myMcps).find(mcp => mcp.id === selectedMcp);
+                    if (!selectedMcpItem) {
+                        message.error('选择的MCP不存在');
+                        return;
+                    }
+    
+                    // 调用绑定 API
+                    const bindRequest = {
+                        agentId: agentId?.toString() || '',
+                        mcpConfigId: selectedMcp,
+                        mcpName: selectedMcpItem.serverName,
+                        creator: 'system'
+                    };
+    
+                    const response = await mcpApi.bindMcp(bindRequest);
+                    if (response.success) {
+                        message.success(`MCP "${selectedMcpItem.serverName}" 关联成功`);
+                        onSuccess(type);
+                        onClose();
+                    } else {
+                        message.error(`关联失败：${response.message}`);
+                    }
                 }
             } else {
                 // 创建新资源（MCP）
                 const values = await form.validateFields();
-
+    
                 // 这里可以调用API添加资源
                 // await resourceApi.addResource({
                 //     ...values,
                 //     agentId,
                 //     type
                 // });
-
+    
                 // 模拟API调用
                 await new Promise(resolve => setTimeout(resolve, 1000));
-
+    
                 message.success(`${getModalTitle()}添加成功`);
                 onSuccess(type);
                 onClose();
@@ -441,7 +538,7 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
 
     // 渲染资源模式选择
     const renderResourceModeSelector = () => {
-        if ((type !== 'knowledge' && type !== 'tool') || !allowCreateKnowledge) return null;
+        if ((type !== 'knowledge' && type !== 'tool' && type !== 'mcp') || !allowCreateKnowledge) return null;
 
         if (type === 'knowledge') {
             const resourceName = '知识库';
@@ -482,6 +579,24 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
                     </Radio.Group>
                 </div>
             );
+        } else if (type === 'mcp') {
+            // MCP类型使用 mode 选择
+            return (
+                <div style={{marginBottom: '16px'}}>
+                    <Radio.Group
+                        value={resourceMode}
+                        onChange={(e) => handleResourceModeChange(e.target.value)}
+                        style={{width: '100%'}}
+                    >
+                        <Radio.Button value="official" style={{width: '50%', textAlign: 'center'}}>
+                            <CloudServerOutlined/> 官方MCP
+                        </Radio.Button>
+                        <Radio.Button value="my" style={{width: '50%', textAlign: 'center'}}>
+                            <DatabaseOutlined/> 我的MCP
+                        </Radio.Button>
+                    </Radio.Group>
+                </div>
+            );
         }
 
         return null;
@@ -491,15 +606,15 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
     const getToolIcon = (toolType: string) => {
         switch (toolType) {
             case 'SQL':
-                return <DatabaseOutlined style={{ color: '#52c41a', marginRight: '8px' }} />;
+                return <DatabaseOutlined style={{color: '#52c41a', marginRight: '8px'}}/>;
             case 'HTTP':
-                return <ApiOutlined style={{ color: '#1890ff', marginRight: '8px' }} />;
+                return <ApiOutlined style={{color: '#1890ff', marginRight: '8px'}}/>;
             case 'MCP':
-                return <CloudServerOutlined style={{ color: '#fa8c16', marginRight: '8px' }} />;
+                return <CloudServerOutlined style={{color: '#fa8c16', marginRight: '8px'}}/>;
             case 'GRPC':
-                return <CloudServerOutlined style={{ color: '#722ed1', marginRight: '8px' }} />;
+                return <CloudServerOutlined style={{color: '#722ed1', marginRight: '8px'}}/>;
             default:
-                return <ApiOutlined style={{ color: '#8c8c8c', marginRight: '8px' }} />;
+                return <ApiOutlined style={{color: '#8c8c8c', marginRight: '8px'}}/>;
         }
     };
 
@@ -520,14 +635,14 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
         return status === 'active' ? 'green' : 'red';
     };
 
-    // 渲染资源列表（知识库或工具）
+    // 渲染资源列表（知识库、工具或MCP）
     const renderResourceList = () => {
-        if (type !== 'knowledge' && type !== 'tool') return null;
+        if (type !== 'knowledge' && type !== 'tool' && type !== 'mcp') return null;
 
         if (searchLoading) {
             return (
                 <div style={{textAlign: 'center', padding: '40px 0'}}>
-                    <div>加载{type === 'knowledge' ? '知识库' : '工具'}中...</div>
+                    <div>加载{type === 'knowledge' ? '知识库' : (type === 'tool' ? '工具' : 'MCP')}中...</div>
                 </div>
             );
         }
@@ -552,6 +667,22 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
             return (
                 <div style={{textAlign: 'center', padding: '40px 0', color: '#999'}}>
                     暂无我的工具
+                </div>
+            );
+        }
+
+        if (type === 'mcp' && resourceMode === 'official' && officialMcps.length === 0) {
+            return (
+                <div style={{textAlign: 'center', padding: '40px 0', color: '#999'}}>
+                    暂无官方MCP
+                </div>
+            );
+        }
+
+        if (type === 'mcp' && resourceMode === 'my' && myMcps.length === 0) {
+            return (
+                <div style={{textAlign: 'center', padding: '40px 0', color: '#999'}}>
+                    暂无我的MCP
                 </div>
             );
         }
@@ -678,17 +809,87 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
             );
         };
 
-        const dataSource = type === 'knowledge' ? availableKnowledgeBases : (resourceMode === 'official' ? availableTools : myTools);
-        const searchPlaceholder = type === 'knowledge' ? '搜索知识库名称或描述' : '搜索工具名称或描述';
+        const renderMcpItem = (item: McpItem) => (
+            <List.Item style={{padding: '0', border: 'none', marginBottom: '5px', marginTop: '5px'}}>
+                <Card
+                    size="small"
+                    style={{
+                        width: '100%',
+                        cursor: 'pointer',
+                        borderColor: selectedMcp === item.id ? '#1890ff' : '#f0f0f0',
+                        backgroundColor: selectedMcp === item.id ? '#e6f7ff' : '#fff'
+                    }}
+                    onClick={() => setSelectedMcp(item.id)}
+                >
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start'
+                    }}>
+                        <div style={{flex: 1, display: 'flex', flexDirection: 'column'}}>
+                            <div style={{display: 'flex', alignItems: 'center', marginBottom: '8px'}}>
+                                <CloudServerOutlined style={{color: '#fa8c16', marginRight: '8px'}} />
+                                <h4 style={{margin: 0, fontSize: '14px', fontWeight: 600}}>
+                                    {item.serverName}
+                                </h4>
+                                <Tag
+                                    color={item.status === 'active' ? 'green' : 'red'}
+                                    style={{marginLeft: '8px', fontSize: '11px'}}
+                                >
+                                    {item.status === 'active' ? '启用' : '停用'}
+                                </Tag>
+                                {item.provider && (
+                                    <Tag
+                                        color="purple"
+                                        style={{marginLeft: '4px', fontSize: '11px'}}
+                                    >
+                                        {item.provider}
+                                    </Tag>
+                                )}
+                                {item.version && (
+                                    <Tag
+                                        style={{marginLeft: '4px', fontSize: '11px'}}
+                                    >
+                                        v{item.version}
+                                    </Tag>
+                                )}
+                                <span style={{marginLeft: 'auto', fontSize: '11px', color: '#999'}}>
+                                    更新：{item.lastUpdated}
+                                </span>
+                            </div>
+
+                            <p style={{
+                                margin: '0 0 8px 0',
+                                fontSize: '12px',
+                                color: '#666',
+                                lineHeight: '1.4'
+                            }}>
+                                {item.description}
+                            </p>
+                        </div>
+                    </div>
+                </Card>
+            </List.Item>
+        );
+
+        const dataSource = type === 'knowledge' ? availableKnowledgeBases : 
+                          (type === 'tool' ? (resourceMode === 'official' ? availableTools : myTools) : (resourceMode === 'official' ? officialMcps : myMcps));
+        const searchPlaceholder = type === 'knowledge' ? '搜索知识库名称或描述' : 
+                                 (type === 'tool' ? '搜索工具名称或描述' : '搜索MCP名称或描述');
         const filterFunc = type === 'knowledge'
             ? (item: KnowledgeBaseItem) =>
                 !searchText ||
                 item.kbName.toLowerCase().includes(searchText.toLowerCase()) ||
                 (item.description && item.description.toLowerCase().includes(searchText.toLowerCase()))
-            : (item: ToolItem) =>
+            : type === 'tool'
+            ? (item: ToolItem) =>
                 !searchText ||
                 (item.toolInstanceName || item.name || '').toLowerCase().includes(searchText.toLowerCase()) ||
-                (item.toolInstanceDesc || item.description || '').toLowerCase().includes(searchText.toLowerCase());
+                (item.toolInstanceDesc || item.description || '').toLowerCase().includes(searchText.toLowerCase())
+            : (item: McpItem) =>
+                !searchText ||
+                item.serverName.toLowerCase().includes(searchText.toLowerCase()) ||
+                (item.description && item.description.toLowerCase().includes(searchText.toLowerCase()));
 
         return (
             <div>
@@ -702,7 +903,8 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
                 <List
                     dataSource={dataSource.filter(filterFunc as any)}
                     renderItem={(item: any) =>
-                        type === 'knowledge' ? renderKnowledgeBaseItem(item) : renderToolItem(item)
+                        type === 'knowledge' ? renderKnowledgeBaseItem(item) : 
+                        (type === 'tool' ? renderToolItem(item) : renderMcpItem(item))
                     }
                     style={{margin: '0px', maxHeight: '500px', overflowY: 'auto'}}
                 />
@@ -827,11 +1029,13 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
         >
             {renderResourceModeSelector()}
 
-            {(type === 'knowledge' || type === 'tool') && (!allowCreateKnowledge || knowledgeBaseMode === 'link') ? (
+            {(type === 'knowledge' || type === 'tool' || type === 'mcp') && (!allowCreateKnowledge || knowledgeBaseMode === 'link') ? (
                 <div style={{marginTop: '16px'}}>
                     <div style={{marginBottom: '8px', fontWeight: 500, color: '#333'}}>
                         {type === 'knowledge' ? '选择要关联的知识库：' :
-                         (resourceMode === 'official' ? '选择要关联的官方工具：' : '选择我的工具：')}
+                            (type === 'tool' ? 
+                                (resourceMode === 'official' ? '选择要关联的官方工具：' : '选择我的工具：') :
+                                '选择要关联的MCP：')}
                     </div>
                     {renderResourceList()}
                 </div>

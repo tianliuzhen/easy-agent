@@ -336,7 +336,7 @@ public class ReActAgentExecutor extends BaseReActAgent {
             throw new AgentToolException("无法匹配 toolFunction");
         }
 
-        SseHelper.sendTool(sse, String.format("正在执行工具：%s，\n工具入参：%s", functionUseAction.getAction(), functionUseAction.getActionInput()));
+        SseHelper.sendTool(sse, String.format("正在执行工具：%s \n工具入参：%s", functionUseAction.getAction(), functionUseAction.getActionInput()));
         String callToolResult = functionToolCallback.call(functionUseAction.getActionInput());
         SseHelper.sendTool(sse, String.format("\n执行结果：%s", callToolResult));
 

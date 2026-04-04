@@ -1,5 +1,6 @@
 package com.aaa.easyagent.core.service.impl;
 
+import com.aaa.easyagent.common.context.UserContextHolder;
 import com.aaa.easyagent.common.util.BeanConvertUtil;
 import com.aaa.easyagent.core.domain.DO.EaMcpConfigDO;
 import com.aaa.easyagent.core.domain.DO.EaToolConfigDO;
@@ -47,16 +48,16 @@ public class ToolMangerServiceImpl implements ToolMangerService {
     public List<EaToolConfigResult> getDefaultTools() {
         List<EaToolConfigDO> selectByWeekendSql = eaToolConfigDAO.selectByExample(
                 new Example.Builder(EaToolConfigDO.class)
-                        .where(WeekendSqlsUtils.andEqualTo(EaToolConfigDO::getAgentId, 0L))
+                        .where(WeekendSqlsUtils.andEqualTo(EaToolConfigDO::getUserId, 0L))
                         .build());
         return BeanConvertUtil.beanTo(selectByWeekendSql, EaToolConfigResult.class);
     }
 
     @Override
-    public List<EaToolConfigResult> getToolConfigByAgentId(Long agentId) {
+    public List<EaToolConfigResult> getToolConfigByUserId() {
         List<EaToolConfigDO> selectByWeekendSql = eaToolConfigDAO.selectByExample(
                 new Example.Builder(EaToolConfigDO.class)
-                        .where(WeekendSqlsUtils.andEqualTo(EaToolConfigDO::getAgentId, agentId))
+                        .where(WeekendSqlsUtils.andEqualTo(EaToolConfigDO::getUserId, UserContextHolder.getUserId()))
                         .build());
         return BeanConvertUtil.beanTo(selectByWeekendSql, EaToolConfigResult.class);
     }
@@ -109,12 +110,6 @@ public class ToolMangerServiceImpl implements ToolMangerService {
             results.addAll(BeanConvertUtil.beanTo(toolConfigs, EaToolConfigResult.class));
         }
 
-        // 4. 查询 MCP 工具
-        List<EaMcpConfigDO> mcpConfigs = mcpToolIntegrationService.getBoundMcpConfigsByAgentId(agentId);
-        for (EaMcpConfigDO mcpConfig : mcpConfigs) {
-            EaToolConfigResult mcpToolResult = convertMcpConfigToResult(mcpConfig);
-            results.add(mcpToolResult);
-        }
 
         return results;
     }

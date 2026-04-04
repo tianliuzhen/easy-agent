@@ -48,9 +48,9 @@ public class ToolManagerController {
      * @param agentId Agent标识
      * @return 工具配置结果列表
      */
-    @GetMapping("getToolConfigByAgentId/{agentId}")
-    public BaseResult getToolConfigByAgentId(@PathVariable Long agentId) {
-        List<EaToolConfigResult> toolConfigByAgentId = toolMangerService.getToolConfigByAgentId(agentId);
+    @GetMapping("getToolConfigByUserId")
+    public BaseResult getToolConfigByAgentId() {
+        List<EaToolConfigResult> toolConfigByAgentId = toolMangerService.getToolConfigByUserId();
         return BaseResult.buildSuc(toolConfigByAgentId);
     }
 

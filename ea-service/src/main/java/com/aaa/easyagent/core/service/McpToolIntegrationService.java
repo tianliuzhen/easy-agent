@@ -5,6 +5,8 @@ import com.aaa.easyagent.core.domain.DO.EaMcpConfigDO;
 import com.aaa.easyagent.core.domain.DO.EaMcpRelationDO;
 import com.aaa.easyagent.core.domain.DO.EaToolConfigDO;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
+import com.aaa.easyagent.core.domain.result.McpServerConfigResult;
+import com.aaa.easyagent.core.domain.result.McpToolInfoResult;
 import com.aaa.easyagent.core.domain.template.InputTypeSchema;
 import com.aaa.easyagent.core.domain.template.McpParamsTemplate;
 import com.aaa.easyagent.core.mapper.EaMcpConfigDAO;
@@ -15,6 +17,7 @@ import com.alibaba.fastjson.JSONObject;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import tk.mybatis.mapper.entity.Example;
 
@@ -35,13 +38,17 @@ import java.util.stream.Collectors;
 public class McpToolIntegrationService {
 
     @Resource
-    private EaMcpConfigDAO mcpConfigDAO;
+    private EaMcpConfigDAO eaMcpConfigDAO;
 
     @Resource
     private EaMcpRelationDAO mcpRelationDAO;
 
+    @Resource
+    private McpServerConfigService mcpServerConfigService;
+
     /**
      * 将 MCP 配置转换为 ToolDefinition 列表
+     * 通过调用 fetchToolsFromServer 获取真实的工具列表（包含 inputSchema 和 outputSchema）
      *
      * @param agentId Agent ID
      * @return ToolDefinition 列表
@@ -65,12 +72,67 @@ public class McpToolIntegrationService {
 
         Example configExample = new Example(EaMcpConfigDO.class);
         configExample.createCriteria().andIn("id", mcpConfigIds);
-        List<EaMcpConfigDO> configs = mcpConfigDAO.selectByExample(configExample);
+        List<EaMcpConfigDO> configs = eaMcpConfigDAO.selectByExample(configExample);
 
-        // 3. 转换为 ToolDefinition
-        return configs.stream()
-                .map(this::convertToToolDefinition)
-                .collect(Collectors.toList());
+        // 3. 对每个配置调用 fetchToolsFromServer 获取工具列表，并转换为 ToolDefinition
+        List<ToolDefinition<?>> allTools = new ArrayList<>();
+        for (EaMcpConfigDO config : configs) {
+            try {
+                // 调用 fetchToolsFromServer 获取真实的工具列表
+                List<McpToolInfoResult> tools = mcpServerConfigService.fetchToolsFromServer(config.getId());
+                if (tools != null && !tools.isEmpty()) {
+                    // 将每个工具转换为 ToolDefinition
+                    for (McpToolInfoResult tool : tools) {
+                        ToolDefinition<?> toolDef = convertMcpToolToToolDefinition(config, tool);
+                        allTools.add(toolDef);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("获取 MCP 工具列表失败: configId={}, serverName={}", config.getId(), config.getServerName(), e);
+                // 如果 fetchToolsFromServer 失败，回退到使用配置中的单个工具
+                allTools.add(convertToToolDefinition(config));
+            }
+        }
+
+        return allTools;
+    }
+
+    /**
+     * 将 MCP 工具信息转换为 ToolDefinition
+     */
+    private ToolDefinition<McpParamsTemplate> convertMcpToolToToolDefinition(EaMcpConfigDO config, McpToolInfoResult tool) {
+        // 构建 McpParamsTemplate
+        McpParamsTemplate paramsTemplate = new McpParamsTemplate();
+        paramsTemplate.setServerName(config.getServerName());
+        paramsTemplate.setServerUrl(config.getServerUrl());
+        paramsTemplate.setTransportType(config.getTransportType());
+        paramsTemplate.setCommand(config.getCommand());
+        paramsTemplate.setToolName(tool.getName()); // 使用工具的真实名称
+        paramsTemplate.setConnectionTimeout(config.getConnectionTimeout());
+        paramsTemplate.setMaxRetries(config.getMaxRetries());
+
+        // 解析环境变量
+        if (StringUtils.isNotBlank(config.getEnvVars())) {
+            try {
+                List<String> envVars = JSON.parseArray(config.getEnvVars(), String.class);
+                paramsTemplate.setEnvVars(envVars);
+            } catch (Exception e) {
+                log.warn("解析环境变量失败: {}", config.getEnvVars());
+            }
+        }
+
+        // 解析 inputSchema 为 InputTypeSchema 列表
+        List<InputTypeSchema> inputSchemas = parseInputSchema(tool.getInputSchema());
+
+        return ToolDefinition.<McpParamsTemplate>builder()
+                .toolId(config.getId())
+                .toolName(tool.getName())
+                .toolDesc(tool.getDescription())
+                .toolType(ToolTypeEnum.MCP)
+                .inputTypeSchemas(inputSchemas)
+                .outputTypeSchema(tool.getOutputSchema())
+                .paramsTemplate(paramsTemplate)
+                .build();
     }
 
     /**
@@ -140,7 +202,7 @@ public class McpToolIntegrationService {
      */
     public boolean bindMcpToolToAgent(Long agentId, Long mcpConfigId, String bindingConfig) {
         // 检查 MCP 配置是否存在
-        EaMcpConfigDO config = mcpConfigDAO.selectByPrimaryKey(mcpConfigId);
+        EaMcpConfigDO config = eaMcpConfigDAO.selectByPrimaryKey(mcpConfigId);
         if (config == null) {
             throw new RuntimeException("MCP 配置不存在: id=" + mcpConfigId);
         }
@@ -190,12 +252,47 @@ public class McpToolIntegrationService {
     }
 
     /**
+     * 获取所有MCP配置列表
+     *
+     * @return MCP配置结果列表
+     */
+    public List<McpServerConfigResult> getAllMcpConfigs() {
+        List<EaMcpConfigDO> configs = eaMcpConfigDAO.selectAll();
+        return configs.stream()
+                .map(config -> {
+                    McpServerConfigResult result = new McpServerConfigResult();
+                    BeanUtils.copyProperties(config, result);
+                    return result;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取官方MCP配置列表（user_id = 0）
+     *
+     * @return 官方MCP配置结果列表
+     */
+    public List<McpServerConfigResult> getOfficialMcpConfigs() {
+        Example example = new Example(EaMcpConfigDO.class);
+        example.createCriteria().andEqualTo("userId", 0);
+        List<EaMcpConfigDO> configs = eaMcpConfigDAO.selectByExample(example);
+        
+        return configs.stream()
+                .map(config -> {
+                    McpServerConfigResult result = new McpServerConfigResult();
+                    BeanUtils.copyProperties(config, result);
+                    return result;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 获取 Agent 绑定的 MCP 工具列表
      *
      * @param agentId Agent ID
-     * @return MCP 配置列表
+     * @return MCP 配置结果列表
      */
-    public List<EaMcpConfigDO> getBoundMcpConfigsByAgentId(Long agentId) {
+    public List<McpServerConfigResult> getBoundMcpConfigsByAgentId(Long agentId) {
         // 1. 查询绑定关系
         Example relationExample = new Example(EaMcpRelationDO.class);
         relationExample.createCriteria()
@@ -214,7 +311,16 @@ public class McpToolIntegrationService {
 
         Example configExample = new Example(EaMcpConfigDO.class);
         configExample.createCriteria().andIn("id", mcpConfigIds);
-        return mcpConfigDAO.selectByExample(configExample);
+        List<EaMcpConfigDO> configs = eaMcpConfigDAO.selectByExample(configExample);
+
+        // 3. 转换为 Result
+        return configs.stream()
+                .map(config -> {
+                    McpServerConfigResult result = new McpServerConfigResult();
+                    BeanUtils.copyProperties(config, result);
+                    return result;
+                })
+                .collect(Collectors.toList());
     }
 
     /**

@@ -26,6 +26,12 @@ public class EaMcpConfigDO {
     private Long id;
 
     /**
+     * 用户Id
+     */
+    @Column(name = "user_id")
+    private String userId;
+
+    /**
      * 服务器名称
      */
     @Column(name = "server_name")

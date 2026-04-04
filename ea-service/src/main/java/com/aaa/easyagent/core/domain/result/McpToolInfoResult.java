@@ -27,6 +27,11 @@ public class McpToolInfoResult {
     private String inputSchema;
 
     /**
+     * 输出参数 Schema
+     */
+    private String outputSchema;
+
+    /**
      * 是否已在本地配置
      */
     private Boolean isConfigured;

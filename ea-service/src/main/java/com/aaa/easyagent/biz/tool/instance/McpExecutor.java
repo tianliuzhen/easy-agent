@@ -4,10 +4,12 @@ import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.biz.function.ToolTypeChooser;
 import com.aaa.easyagent.biz.tool.ToolExecutor;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
+import com.aaa.easyagent.common.util.McpUtils;
 import com.aaa.easyagent.core.domain.DO.EaMcpConfigDO;
+import com.aaa.easyagent.core.domain.enums.McpTransportTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.core.domain.template.McpParamsTemplate;
-import com.aaa.easyagent.core.mapper.EaMcpConfigDAO;
+import com.aaa.easyagent.core.service.McpServerConfigService;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import io.modelcontextprotocol.client.McpClient;
@@ -30,15 +32,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * MCP 传输类型枚举
- */
-enum McpTransportType {
-    STDIO,      // 本地进程通信
-    SSE,        // 传统 SSE (已废弃但兼容)
-    STREAMABLE  // 新的 Streamable HTTP
-}
-
-/**
  * MCP 工具执行器
  * 支持 STDIO 和 SSE 两种传输方式连接 MCP Server
  *
@@ -51,7 +44,7 @@ enum McpTransportType {
 public class McpExecutor implements ToolExecutor<McpParamsTemplate> {
 
     @Autowired
-    private EaMcpConfigDAO mcpConfigDAO;
+    private McpServerConfigService mcpServerConfigService;
 
     /**
      * MCP Client 连接池缓存
@@ -117,28 +110,13 @@ public class McpExecutor implements ToolExecutor<McpParamsTemplate> {
     }
 
     /**
-     * 从数据库获取 MCP 配置
+     * 从 Service 获取 MCP 配置
      */
     private EaMcpConfigDO getMcpConfig(McpParamsTemplate paramsTemplate) {
-        // 优先使用 serverName + toolName 查询
-        if (StringUtils.isNotBlank(paramsTemplate.getServerName()) &&
-                StringUtils.isNotBlank(paramsTemplate.getToolName())) {
-            List<EaMcpConfigDO> configs = mcpConfigDAO.selectByServerNameAndToolName(
-                    paramsTemplate.getServerName(), paramsTemplate.getToolName());
-            if (configs != null && !configs.isEmpty()) {
-                return configs.get(0);
-            }
-        }
-
-        // 仅使用 serverName 查询
-        if (StringUtils.isNotBlank(paramsTemplate.getServerName())) {
-            List<EaMcpConfigDO> configs = mcpConfigDAO.selectByServerName(paramsTemplate.getServerName());
-            if (configs != null && !configs.isEmpty()) {
-                return configs.get(0);
-            }
-        }
-
-        return null;
+        return mcpServerConfigService.getMcpConfig(
+                paramsTemplate.getServerName(),
+                paramsTemplate.getToolName()
+        );
     }
 
     /**
@@ -162,12 +140,12 @@ public class McpExecutor implements ToolExecutor<McpParamsTemplate> {
             String command = StringUtils.isNotBlank(paramsTemplate.getCommand())
                     ? paramsTemplate.getCommand()
                     : mcpConfig.getCommand();
-            return mcpConfig.getServerName() + "_STDIO_" + command;
+            return McpUtils.buildCacheKey(mcpConfig.getServerName(), transportType, command);
         } else {
             String serverUrl = StringUtils.isNotBlank(paramsTemplate.getServerUrl())
                     ? paramsTemplate.getServerUrl()
                     : mcpConfig.getServerUrl();
-            return mcpConfig.getServerName() + "_SSE_" + serverUrl;
+            return McpUtils.buildCacheKey(mcpConfig.getServerName(), transportType, serverUrl);
         }
     }
 
@@ -187,7 +165,7 @@ public class McpExecutor implements ToolExecutor<McpParamsTemplate> {
                 mcpConfig.getServerName(), transportType, timeout);
 
         try {
-            McpTransportType type = parseTransportType(transportType);
+            McpTransportTypeEnum type = parseTransportType(transportType);
             return switch (type) {
                 case STDIO -> createStdioClient(mcpConfig, paramsTemplate, timeout);
                 case SSE -> createSseClient(mcpConfig, paramsTemplate, timeout);
@@ -202,17 +180,8 @@ public class McpExecutor implements ToolExecutor<McpParamsTemplate> {
     /**
      * 解析传输类型字符串为枚举
      */
-    private McpTransportType parseTransportType(String transportType) {
-        if (StringUtils.isBlank(transportType)) {
-            return McpTransportType.STREAMABLE; // 默认使用新的 Streamable HTTP
-        }
-
-        return switch (transportType.toUpperCase()) {
-            case "STDIO" -> McpTransportType.STDIO;
-            case "SSE", "HTTP" -> McpTransportType.SSE;
-            case "STREAMABLE", "STREAMABLE_HTTP" -> McpTransportType.STREAMABLE;
-            default -> McpTransportType.STREAMABLE; // 默认使用新的 Streamable HTTP
-        };
+    private McpTransportTypeEnum parseTransportType(String transportType) {
+        return McpUtils.parseTransportType(transportType);
     }
 
     /**
@@ -237,7 +206,7 @@ public class McpExecutor implements ToolExecutor<McpParamsTemplate> {
             try {
                 List<String> envList = JSON.parseArray(mcpConfig.getEnvVars(), String.class);
                 if (envList != null) {
-                    envVars = parseEnvVars(envList);
+                    envVars = McpUtils.parseEnvVars(envList);
                 }
             } catch (Exception e) {
                 log.warn("解析环境变量失败: {}", mcpConfig.getEnvVars());
@@ -307,8 +276,8 @@ public class McpExecutor implements ToolExecutor<McpParamsTemplate> {
 
         // 从 URL 解析 endpoint，默认使用 /mcp
         // 例如: http://localhost:8083/api/mcp -> endpoint = api/mcp
-        String endpoint = extractEndpointFromUrl(serverUrl);
-        String baseUrl = extractBaseUrl(serverUrl);
+        String endpoint = McpUtils.extractEndpointFromUrl(serverUrl);
+        String baseUrl = McpUtils.extractBaseUrl(serverUrl);
 
         HttpClientStreamableHttpTransport transport = HttpClientStreamableHttpTransport
                 .builder(baseUrl)
@@ -323,61 +292,6 @@ public class McpExecutor implements ToolExecutor<McpParamsTemplate> {
         client.initialize();
 
         return client;
-    }
-
-    /**
-     * 从完整 URL 提取基础 URL
-     * 例如: http://localhost:8083/api/mcp -> http://localhost:8083/
-     */
-    private String extractBaseUrl(String serverUrl) {
-        if (serverUrl == null || serverUrl.isEmpty()) {
-            return serverUrl;
-        }
-
-        // 移除末尾的路径部分
-        int lastSlashIndex = serverUrl.lastIndexOf('/');
-        if (lastSlashIndex > 8) { // 跳过 http:// 或 https://
-            return serverUrl.substring(0, lastSlashIndex + 1);
-        }
-        return serverUrl.endsWith("/") ? serverUrl : serverUrl + "/";
-    }
-
-    /**
-     * 从完整 URL 提取 endpoint
-     * 例如: http://localhost:8083/api/mcp -> api/mcp
-     */
-    private String extractEndpointFromUrl(String serverUrl) {
-        if (serverUrl == null || serverUrl.isEmpty()) {
-            return "mcp";
-        }
-
-        // 移除协议部分
-        String withoutProtocol = serverUrl.replaceFirst("^https?://", "");
-
-        // 找到第一个 / 之后的路径
-        int firstSlashIndex = withoutProtocol.indexOf('/');
-        if (firstSlashIndex > 0 && firstSlashIndex < withoutProtocol.length() - 1) {
-            String endpoint = withoutProtocol.substring(firstSlashIndex + 1);
-            // 移除末尾的 /
-            return endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
-        }
-
-        return "mcp"; // 默认 endpoint
-    }
-
-    /**
-     * 解析环境变量列表为 Map
-     */
-    private Map<String, String> parseEnvVars(List<String> envVars) {
-        if (envVars == null || envVars.isEmpty()) {
-            return Map.of();
-        }
-        return envVars.stream()
-                .map(env -> env.split("=", 2))
-                .filter(parts -> parts.length == 2)
-                .collect(java.util.HashMap::new,
-                        (m, parts) -> m.put(parts[0].trim(), parts[1].trim()),
-                        java.util.HashMap::putAll);
     }
 
     /**

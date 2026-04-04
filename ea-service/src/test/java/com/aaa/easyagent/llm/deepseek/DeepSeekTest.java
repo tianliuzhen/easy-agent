@@ -56,6 +56,7 @@ public class DeepSeekTest {
 
     /**
      * 测试1：同步对话
+     * 这个能否优雅的集成：com.aaa.mcp.WeatherServiceTest#streamableHTTP()
      */
     public static void testSyncChat() {
         System.out.println("========== 同步对话测试 ==========");

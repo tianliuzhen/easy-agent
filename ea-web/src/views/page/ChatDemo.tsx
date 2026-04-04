@@ -486,7 +486,7 @@ const ChatDemo: React.FC = () => {
                         [currentAiMessageId]: {
                             content: [...currentEntries, {
                                 type: 'error' as const,
-                                content: `思考过程中出现错误: ${errorMessage}`
+                                content: `${errorMessage}`
                             }],
                             isVisible: prev[currentAiMessageId]?.isVisible || true
                         }

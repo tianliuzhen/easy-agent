@@ -136,6 +136,17 @@ export const eaToolApi = {
   },
 
   /**
+   * 根据用户ID获取工具配置列表
+   * @returns 工具配置结果列表
+   */
+  getToolConfigByUserId: async (): Promise<BaseResult> => {
+    const response = await fetch(`${API_BASE_URL}/eaAgent/tool/getToolConfigByUserId/`, {
+      method: 'GET',
+    });
+    return response.json();
+  },
+
+  /**
    * 根据Agent ID获取已绑定的工具列表
    * @param agentId Agent标识
    * @returns 已绑定的工具配置列表

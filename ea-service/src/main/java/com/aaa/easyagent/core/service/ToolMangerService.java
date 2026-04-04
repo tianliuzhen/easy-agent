@@ -28,7 +28,7 @@ public interface ToolMangerService {
      * @param agentId 智能体ID，用于查询关联的工具配置
      * @return 工具配置结果列表，包含所有与指定智能体关联的工具配置信息
      */
-    List<EaToolConfigResult> getToolConfigByAgentId(Long agentId);
+    List<EaToolConfigResult> getToolConfigByUserId();
 
     /**
      * 根据智能体ID获取已绑定的工具列表

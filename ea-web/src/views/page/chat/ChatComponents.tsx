@@ -1,14 +1,16 @@
-import React, { useRef, useEffect } from 'react';
-import { Button, Input, Spin, Tooltip } from 'antd';
+import React, {useRef, useEffect, useState} from 'react';
+import {Button, Input, Spin, Tooltip, Drawer, Typography} from 'antd';
 import {
     SendOutlined,
     RobotOutlined,
     UserOutlined,
     EyeOutlined,
     EyeInvisibleOutlined,
+    CodeOutlined,
+    EditOutlined,
 } from '@ant-design/icons';
-import type { ThoughtChainProps } from '@ant-design/x';
-import { ThoughtChain } from '@ant-design/x';
+import type {ThoughtChainProps} from '@ant-design/x';
+import {ThoughtChain, Think} from '@ant-design/x';
 
 // ==================== 类型定义 ====================
 export interface ThinkingLogEntry {
@@ -34,12 +36,137 @@ export interface ChatMessage {
 
 // ==================== 类型配置 ====================
 const typeConfig = {
-    think: { title: '思考', icon: '🤔', description: '', color: '#1677ff', status: 'pending' as const },
-    data: { title: '回答', icon: '💬', description: '', color: '#52c41a', status: 'success' as const },
-    tool: { title: '工具', icon: '🔧', description: '', color: '#fa8c16', status: 'success' as const },
-    log: { title: '日志', icon: '📝', description: '运行日志', color: '#8c8c8c', status: 'default' as const },
-    error: { title: '错误', icon: '⚠️', description: '', color: '#ff4d4f', status: 'error' as const },
-    finalAnswer: { title: '最终答案', icon: '✅', description: '', color: '#52c41a', status: 'success' as const },
+    think: {title: '思考', icon: '🤔', description: '', color: '#1677ff', status: 'pending' as const},
+    data: {title: '回答', icon: '💬', description: '', color: '#52c41a', status: 'success' as const},
+    tool: {title: '工具', icon: '🎰', description: '', color: '#fa8c16', status: 'success' as const},
+    log: {title: '日志', icon: '📝', description: '运行日志', color: '#8c8c8c', status: 'default' as const},
+    error: {title: '错误', icon: '⚠️', description: '', color: '#ff4d4f', status: 'error' as const},
+    finalAnswer: {title: '最终答案', icon: '✅', description: '', color: '#52c41a', status: 'success' as const},
+};
+
+// ==================== 工具详情抽屉组件 ====================
+interface ToolDetailDrawerProps {
+    entry: ThinkingLogEntry;
+    open: boolean;
+    onClose: () => void;
+}
+
+const {Text} = Typography;
+
+// 解析工具内容，提取工具名称、输入参数和输出参数
+const parseToolContent = (content: string) => {
+    const toolNameMatch = content.match(/工具名称:\s*(.+)/);
+    const inputMatch = content.match(/输入参数:\s*(\{[^}]+\})/);
+    const outputMatch = content.match(/输出参数:\s*(\{[^}]+\})/);
+
+    return {
+        toolName: toolNameMatch ? toolNameMatch[1].trim() : '',
+        inputParams: inputMatch ? inputMatch[1] : '',
+        outputParams: outputMatch ? outputMatch[1] : '',
+    };
+};
+
+// JSON 展示组件
+const JsonDisplay: React.FC<{data: string; title: string}> = ({data, title}) => {
+    if (!data) return null;
+
+    let formattedJson = data;
+    try {
+        formattedJson = JSON.stringify(JSON.parse(data), null, 2);
+    } catch {
+        // 解析失败则使用原始数据
+    }
+
+    return (
+        <div style={{marginBottom: '16px'}}>
+            <div style={{
+                fontSize: '13px',
+                color: '#666',
+                marginBottom: '8px',
+                fontWeight: 500,
+            }}>
+                {title}
+            </div>
+            <pre style={{
+                background: '#f6f8fa',
+                border: '1px solid #e8e8e8',
+                borderRadius: '6px',
+                padding: '12px',
+                fontSize: '12px',
+                lineHeight: 1.6,
+                color: '#333',
+                fontFamily: '"SF Mono", Monaco, Inconsolata, "Fira Code", monospace',
+                overflow: 'auto',
+                margin: 0,
+            }}>
+                <code>{formattedJson}</code>
+            </pre>
+        </div>
+    );
+};
+
+const ToolDetailDrawer: React.FC<ToolDetailDrawerProps> = ({entry, open, onClose}) => {
+    const config = typeConfig[entry.type] || typeConfig.log;
+    const {toolName, inputParams, outputParams} = parseToolContent(entry.content);
+
+    return (
+        <Drawer
+            title={
+                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <span>{config.icon}</span>
+                    <span>{config.title}详情</span>
+                </div>
+            }
+            placement="right"
+            onClose={onClose}
+            open={open}
+            width={560}
+            bodyStyle={{padding: '16px', background: '#f5f5f5'}}
+        >
+            <div style={{
+                background: '#fff',
+                borderRadius: '8px',
+                padding: '20px',
+                maxHeight: 'calc(100vh - 140px)',
+                overflowY: 'auto',
+            }}>
+                {/* 工具名称 */}
+                {toolName && (
+                    <div style={{marginBottom: '20px'}}>
+                            工具名称：
+                        <Text strong style={{fontSize: '15px', color: '#000000'}}>
+                            {toolName}
+                        </Text>
+                    </div>
+                )}
+
+                {/* 输入参数 */}
+                {inputParams && <JsonDisplay data={inputParams} title="输入参数：" />}
+
+                {/* 输出参数 */}
+                {outputParams && <JsonDisplay data={outputParams} title="输出参数：" />}
+
+                {/* 如果没有解析到任何内容，显示原始内容 */}
+                {!toolName && !inputParams && !outputParams && (
+                    <pre style={{
+                        background: '#f6f8fa',
+                        border: '1px solid #e8e8e8',
+                        borderRadius: '6px',
+                        padding: '12px',
+                        fontSize: '12px',
+                        lineHeight: 1.6,
+                        color: '#333',
+                        fontFamily: 'monospace',
+                        overflow: 'auto',
+                        margin: 0,
+                        whiteSpace: 'pre-wrap',
+                    }}>
+                        {entry.content}
+                    </pre>
+                )}
+            </div>
+        </Drawer>
+    );
 };
 
 // ==================== 渲染思考内容 ====================
@@ -56,13 +183,24 @@ export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: b
             // 因为流式数据是连续的，直接追加即可
             lastEntry.content = lastEntry.content + entry.content;
         } else {
-            merged.push({ ...entry });
+            merged.push({...entry});
         }
     }
+
+    return <ThinkingContentList merged={merged} isRealTime={isRealTime} />;
+};
+
+// 思考内容列表组件（内部使用，支持抽屉状态管理）
+const ThinkingContentList: React.FC<{merged: ThinkingLogEntry[], isRealTime: boolean}> = ({merged, isRealTime}) => {
+    const [drawerState, setDrawerState] = useState<{open: boolean; entry: ThinkingLogEntry | null}>({
+        open: false,
+        entry: null,
+    });
 
     const items: ThoughtChainProps['items'] = merged.map((entry, index) => {
         const config = typeConfig[entry.type] || typeConfig.log;
         const isLastItem = index === merged.length - 1;
+        const isTool = entry.type === 'tool';
 
         return {
             key: `${entry.type}-${index}`,
@@ -70,9 +208,27 @@ export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: b
             description: config.description,
             icon: config.icon,
             status: isRealTime && isLastItem ? 'loading' : config.status,
-            collapsible: true,
-            content: (
-                <div style={{ fontSize: '12px', lineHeight: 1.6, color: '#333', whiteSpace: 'pre-wrap', padding: '8px 0' }}>
+            collapsible: !isTool, // 工具类型默认不折叠，点击展开抽屉
+            onExpand: isTool
+                ? () => setDrawerState({open: true, entry})
+                : undefined,
+            content: isTool ? (
+                <div onClick={() => setDrawerState({open: true, entry})} style={{cursor: 'pointer'}}>
+                    <ThoughtChain.Item
+                        variant="solid"
+                        icon={<CodeOutlined   />}
+                        title={parseToolContent(entry.content).toolName || 'Executing command'}
+                        description=" Executing command"
+                    />
+                </div>
+            ) : (
+                <div style={{
+                    fontSize: '12px',
+                    lineHeight: 1.6,
+                    color: '#333',
+                    whiteSpace: 'pre-wrap',
+                    padding: '8px 0'
+                }}>
                     {entry.content}
                 </div>
             ),
@@ -80,8 +236,21 @@ export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: b
     });
 
     return (
-        <div style={{ marginTop: '8px' }}>
-            <ThoughtChain defaultExpandedKeys={items.map(item => item.key!)} items={items} line="dashed" />
+        <div style={{marginTop: '8px'}}>
+            <ThoughtChain
+                defaultExpandedKeys={items
+                    .filter(item => item.collapsible !== false)
+                    .map(item => item.key!)}
+                items={items}
+                line="dashed"
+            />
+            {drawerState.entry && (
+                <ToolDetailDrawer
+                    entry={drawerState.entry}
+                    open={drawerState.open}
+                    onClose={() => setDrawerState({open: false, entry: null})}
+                />
+            )}
         </div>
     );
 };
@@ -91,12 +260,12 @@ export const ThinkingLogToggleButton: React.FC<{
     messageId: string;
     isVisible: boolean;
     onToggle: (messageId: string) => void;
-}> = ({ messageId, isVisible, onToggle }) => (
+}> = ({messageId, isVisible, onToggle}) => (
     <Tooltip title={isVisible ? "隐藏思考过程" : "显示思考过程"}>
         <Button
             type="text"
             size="small"
-            icon={isVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+            icon={isVisible ? <EyeInvisibleOutlined/> : <EyeOutlined/>}
             onClick={(e) => {
                 e.stopPropagation();
                 onToggle(messageId);
@@ -133,12 +302,12 @@ export interface ChatMessageItemProps {
 }
 
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
-    msg,
-    messageThinkingLogs,
-    onToggleThinkingLog,
-    renderThinkingContentFn,
-    currentAnsweringMsgId,
-}) => {
+                                                                    msg,
+                                                                    messageThinkingLogs,
+                                                                    onToggleThinkingLog,
+                                                                    renderThinkingContentFn,
+                                                                    currentAnsweringMsgId,
+                                                                }) => {
     const msgThinkingLog = messageThinkingLogs[msg.id];
     const hasThinkingLog = msgThinkingLog && msgThinkingLog.content.length > 0;
     const isThinkingVisible = msgThinkingLog?.isVisible || false;
@@ -167,12 +336,12 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 animation: 'fadeIn 0.3s ease',
             }}>
                 {!msg.isUser && (
-                    <div style={{ ...avatarStyle, marginRight: '16px', marginTop: '4px' }}>
-                        <RobotOutlined style={{ color: 'white', fontSize: '18px' }} />
+                    <div style={{...avatarStyle, marginRight: '16px', marginTop: '4px'}}>
+                        <RobotOutlined style={{color: 'white', fontSize: '18px'}}/>
                     </div>
                 )}
 
-                <div style={{ position: 'relative' }}>
+                <div style={{position: 'relative'}}>
                     <div style={{
                         backgroundColor: '#fff',
                         color: '#000',
@@ -196,10 +365,10 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                                 onToggle={onToggleThinkingLog}
                             />
                         )}
-                        <div style={{ whiteSpace: 'pre-wrap' }}>
+                        <div style={{whiteSpace: 'pre-wrap'}}>
                             {isThinkingMessage ? (
                                 <>
-                                    <Spin size="small" />
+                                    <Spin size="small"/>
                                     {msg.text}
                                 </>
                             ) : (
@@ -210,15 +379,15 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 </div>
 
                 {msg.isUser && (
-                    <div style={{ ...avatarStyle, marginLeft: '16px', marginTop: '4px' }}>
-                        <UserOutlined style={{ color: 'white', fontSize: '18px' }} />
+                    <div style={{...avatarStyle, marginLeft: '16px', marginTop: '4px'}}>
+                        <UserOutlined style={{color: 'white', fontSize: '18px'}}/>
                     </div>
                 )}
             </div>
 
             {/* 已完成的思考过程 */}
             {!msg.isUser && hasThinkingLog && isThinkingVisible && currentAnsweringMsgId !== msg.id && (
-                <div style={{ marginBottom: '16px', marginLeft: '56px', maxWidth: '70%' }}>
+                <div style={{marginBottom: '16px', marginLeft: '56px', maxWidth: '70%'}}>
                     <div style={{
                         background: '#fff',
                         borderRadius: '12px',
@@ -234,9 +403,14 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                             fontWeight: 500,
                             marginBottom: '8px',
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <div style={{display: 'flex', alignItems: 'center'}}>
                                 <span>✅ </span>
-                                <span style={{ fontSize: '11px', backgroundColor: '#fff', padding: '2px 4px', borderRadius: '10px' }}>
+                                <span style={{
+                                    fontSize: '11px',
+                                    backgroundColor: '#fff',
+                                    padding: '2px 4px',
+                                    borderRadius: '10px'
+                                }}>
                                     已完成
                                 </span>
                             </div>
@@ -244,9 +418,9 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                                 <Button
                                     type="text"
                                     size="small"
-                                    icon={<EyeInvisibleOutlined />}
+                                    icon={<EyeInvisibleOutlined/>}
                                     onClick={() => onToggleThinkingLog(msg.id)}
-                                    style={{ fontSize: '12px', padding: '0 4px', height: '20px' }}
+                                    style={{fontSize: '12px', padding: '0 4px', height: '20px'}}
                                 />
                             </Tooltip>
                         </div>
@@ -277,12 +451,12 @@ export interface ThinkingIndicatorProps {
 }
 
 export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
-    messageThinkingLogs,
-    currentAnsweringMsgId,
-    onToggleThinkingLog,
-    renderThinkingContentFn,
-    thinkingContentRef,
-}) => {
+                                                                        messageThinkingLogs,
+                                                                        currentAnsweringMsgId,
+                                                                        onToggleThinkingLog,
+                                                                        renderThinkingContentFn,
+                                                                        thinkingContentRef,
+                                                                    }) => {
     if (!currentAnsweringMsgId || !messageThinkingLogs[currentAnsweringMsgId]) {
         return null;
     }
@@ -291,9 +465,9 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
     const content = messageThinkingLogs[currentAnsweringMsgId]?.content || [];
 
     return (
-        <div style={{ marginBottom: '24px', animation: 'fadeIn 0.3s ease' }}>
+        <div style={{marginBottom: '24px', animation: 'fadeIn 0.3s ease'}}>
             {isVisible && (
-                <div style={{ marginBottom: '16px', marginLeft: '56px', maxWidth: '70%', marginTop: '8px' }}>
+                <div style={{marginBottom: '16px', marginLeft: '56px', maxWidth: '70%', marginTop: '8px'}}>
                     <div style={{
                         background: '#fff',
                         borderRadius: '12px',
@@ -305,22 +479,16 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            fontSize: '13px',
-                            color: '#fa8c16',
-                            fontWeight: 500,
                             marginBottom: '8px',
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>💭 分析中</span>
-                                <Spin size="small" />
-                            </div>
+                            <Think title="拼命分析中🚀🚀🚀..." blink loading/>
                             <Tooltip title="隐藏">
                                 <Button
                                     type="text"
                                     size="small"
-                                    icon={<EyeInvisibleOutlined />}
+                                    icon={<EyeInvisibleOutlined/>}
                                     onClick={() => onToggleThinkingLog(currentAnsweringMsgId!)}
-                                    style={{ fontSize: '12px', padding: '0 4px', height: '20px' }}
+                                    style={{fontSize: '12px', padding: '0 4px', height: '20px'}}
                                 />
                             </Tooltip>
                         </div>
@@ -355,14 +523,14 @@ export interface ChatInputAreaProps {
 }
 
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
-    value,
-    onChange,
-    onSend,
-    onKeyPress,
-    disabled = false,
-    placeholder = "输入您的问题...（按 Enter 发送，Shift + Enter 换行）",
-}) => {
-    const { TextArea } = Input;
+                                                                value,
+                                                                onChange,
+                                                                onSend,
+                                                                onKeyPress,
+                                                                disabled = false,
+                                                                placeholder = "输入您的问题...（按 Enter 发送，Shift + Enter 换行）",
+                                                            }) => {
+    const {TextArea} = Input;
 
     return (
         <div style={{
@@ -371,7 +539,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             borderTop: '1px solid #e8e8e8',
             boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.06)',
         }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'stretch', width: '100%' }}>
+            <div style={{display: 'flex', gap: '12px', alignItems: 'stretch', width: '100%'}}>
                 <TextArea
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
@@ -394,7 +562,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                     type="primary"
                     onClick={onSend}
                     disabled={disabled || value.trim() === ''}
-                    icon={<SendOutlined style={{ fontSize: '20px' }} />}
+                    icon={<SendOutlined style={{fontSize: '20px'}}/>}
                     style={{
                         height: '60px',
                         width: '60px',
@@ -421,10 +589,10 @@ export interface ChatEmptyStateProps {
 }
 
 export const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({
-    agentName = 'EasyAgent',
-    title = '开始新的对话',
-    subtitle = '在下方输入您的消息，智能助手将为您解答',
-}) => (
+                                                                  agentName = 'EasyAgent',
+                                                                  title = '开始新的对话',
+                                                                  subtitle = '在下方输入您的消息，智能助手将为您解答',
+                                                              }) => (
     <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -444,10 +612,10 @@ export const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({
             marginBottom: '24px',
             boxShadow: '0 8px 24px rgba(92, 116, 168, 0.3)',
         }}>
-            <RobotOutlined style={{ color: 'white', fontSize: '32px' }} />
+            <RobotOutlined style={{color: 'white', fontSize: '32px'}}/>
         </div>
-        <div style={{ fontSize: '18px', marginBottom: '8px', color: '#333' }}>{title}</div>
-        <div style={{ fontSize: '14px', color: '#666' }}>{subtitle}</div>
+        <div style={{fontSize: '18px', marginBottom: '8px', color: '#333'}}>{title}</div>
+        <div style={{fontSize: '14px', color: '#666'}}>{subtitle}</div>
     </div>
 );
 
@@ -470,28 +638,28 @@ export interface ChatRightPanelProps {
 }
 
 export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
-    messages,
-    messageThinkingLogs,
-    isThinking,
-    currentAnsweringMsgId,
-    input,
-    onInputChange,
-    onSend,
-    onKeyPress,
-    onToggleThinkingLog,
-    agentName = 'EasyAgent',
-    conversationId,
-    error,
-    emptyTitle = '开始新的对话',
-    emptySubtitle = '在下方输入您的消息，智能助手将为您解答',
-}) => {
+                                                                  messages,
+                                                                  messageThinkingLogs,
+                                                                  isThinking,
+                                                                  currentAnsweringMsgId,
+                                                                  input,
+                                                                  onInputChange,
+                                                                  onSend,
+                                                                  onKeyPress,
+                                                                  onToggleThinkingLog,
+                                                                  agentName = 'EasyAgent',
+                                                                  conversationId,
+                                                                  error,
+                                                                  emptyTitle = '开始新的对话',
+                                                                  emptySubtitle = '在下方输入您的消息，智能助手将为您解答',
+                                                              }) => {
     const chatMessagesEndRef = useRef<HTMLDivElement>(null);
     const thinkingContentRef = useRef<HTMLDivElement>(null);
     const prevThinkingContentLengthRef = useRef<number>(0);
 
     // 自动滚动到底部
     useEffect(() => {
-        chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        chatMessagesEndRef.current?.scrollIntoView({behavior: 'smooth'});
     }, [messages, isThinking]);
 
     // 思考内容自动滚动到底部
@@ -543,7 +711,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                 )}
 
                 {messages.length === 0 ? (
-                    <ChatEmptyState agentName={agentName} title={emptyTitle} subtitle={emptySubtitle} />
+                    <ChatEmptyState agentName={agentName} title={emptyTitle} subtitle={emptySubtitle}/>
                 ) : (
                     <>
                         {messages.map((msg) => (
@@ -563,7 +731,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                             renderThinkingContentFn={renderThinkingContent}
                             thinkingContentRef={thinkingContentRef}
                         />
-                        <div ref={chatMessagesEndRef} />
+                        <div ref={chatMessagesEndRef}/>
                     </>
                 )}
 
@@ -580,7 +748,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                         gap: '8px',
                         marginTop: '16px',
                     }}>
-                        <span style={{ fontSize: '16px' }}>⚠️</span>
+                        <span style={{fontSize: '16px'}}>⚠️</span>
                         {error}
                     </div>
                 )}
