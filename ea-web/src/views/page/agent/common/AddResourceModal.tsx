@@ -12,6 +12,7 @@ import {
 import {knowledgeBaseApi} from '../../../api/KnowledgeBaseApi';
 import {eaToolApi} from '../../../api/EaToolApi';
 import {mcpApi} from '../../../api/McpApi';
+import {skillApi} from '../../../api/SkillApi';
 
 const {TextArea} = Input;
 const {Option} = Select;
@@ -19,10 +20,10 @@ const {TabPane} = Tabs;
 
 interface AddResourceModalProps {
     visible: boolean;
-    type: 'knowledge' | 'tool' | 'mcp';
+    type: 'knowledge' | 'tool' | 'mcp' | 'skill';
     agentId?: number;
     onClose: () => void;
-    onSuccess: (type: 'knowledge' | 'tool' | 'mcp') => void;
+    onSuccess: (type: 'knowledge' | 'tool' | 'mcp' | 'skill') => void;
     // 是否允许创建新知识库（默认true，在Agent配置中设为false）
     allowCreateKnowledge?: boolean;
 }
@@ -72,6 +73,20 @@ interface McpItem {
     lastUpdated?: string;
 }
 
+interface SkillItem {
+    id: number;
+    skillName: string;
+    skillDisplayName: string;
+    skillDescription: string;
+    skillType: string;
+    skillCategory: string;
+    skillIcon: string;
+    skillVersion: string;
+    skillProvider: string;
+    skillCapabilities: string[];
+    status: string;
+}
+
 const AddResourceModal: React.FC<AddResourceModalProps> = ({
                                                                visible,
                                                                type,
@@ -89,9 +104,12 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
     const [myTools, setMyTools] = useState<ToolItem[]>([]);
     const [officialMcps, setOfficialMcps] = useState<McpItem[]>([]);
     const [myMcps, setMyMcps] = useState<McpItem[]>([]);
+    const [officialSkills, setOfficialSkills] = useState<SkillItem[]>([]);
+    const [mySkills, setMySkills] = useState<SkillItem[]>([]);
     const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<number | null>(null);
     const [selectedTool, setSelectedTool] = useState<number | null>(null);
     const [selectedMcp, setSelectedMcp] = useState<number | null>(null);
+    const [selectedSkill, setSelectedSkill] = useState<number | null>(null);
     const [searchLoading, setSearchLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
     const [resourceMode, setResourceMode] = useState<'official' | 'my'>('official');

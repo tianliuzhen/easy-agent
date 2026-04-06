@@ -7,7 +7,8 @@ import {
     ToolOutlined,
     ApiOutlined,
     LogoutOutlined,
-    BookOutlined
+    BookOutlined,
+    ThunderboltOutlined
 } from '@ant-design/icons';
 import type {MenuProps} from 'antd';
 import {Breadcrumb, Layout, Menu, theme, Avatar, Dropdown, message, Space} from 'antd';
@@ -19,6 +20,8 @@ import ToolManager from './page/ToolManager';
 import KnowledgeBaseList from './page/agent/knowledge/KnowledgeBaseList';
 import MCPMarket from './page/mcp/MCPMarket';
 import MyMCP from './page/mcp/MyMCP';
+import SkillMarket from './page/skill/SkillMarket';
+import MySkill from './page/skill/MySkill';
 import logo from '../assets/eaLogo.png';
 import AuthGuard from '../components/AuthGuard';
 import {authApi} from './api/AuthApi';
@@ -77,6 +80,15 @@ const routes = [
         children: [
             {key: '6', label: '我的mcp', path: '/page/mcp/my', component: <AuthGuard><MyMCP/></AuthGuard>},
             {key: '7', label: 'mcp市场', path: '/page/mcp/market', component: <AuthGuard><MCPMarket/></AuthGuard>},
+        ]
+    },
+    {
+        key: 'sub7',
+        icon: <ThunderboltOutlined/>,
+        label: 'Skill 技能',
+        children: [
+            {key: '8', label: '我的Skill', path: '/page/skill/my', component: <AuthGuard><MySkill/></AuthGuard>},
+            {key: '9', label: 'Skill市场', path: '/page/skill/market', component: <AuthGuard><SkillMarket/></AuthGuard>},
         ]
     },
     {
