@@ -5,10 +5,13 @@ import {PlusCircleFilled, ReloadOutlined, AppstoreOutlined} from '@ant-design/ic
 import AgentKnowledgeBinding from './knowledge/AgentKnowledgeBinding';
 import AgentToolBinding from './tool/AgentToolBinding';
 import MCPSkillList from './mcp/MCPSkillList';
+import SkillList from './skill/SkillList';
+import SkillSelector from './skill/SkillSelector';
 import AddResourceModal from './common/AddResourceModal';
 import {knowledgeBaseApi} from '../../api/KnowledgeBaseApi';
 import {eaToolApi} from '../../api/EaToolApi';
 import {mcpApi} from '../../api/McpApi';
+import {skillApi} from '../../api/SkillApi';
 
 interface ResourceBindingPanelProps {
     agentId?: number;
@@ -21,6 +24,7 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
     const [activeKeys, setActiveKeys] = useState<string[]>([]); // 默认全部折叠
     const [isLoading, setIsLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
+    const [skillSelectorVisible, setSkillSelectorVisible] = useState(false);
     const [modalType, setModalType] = useState<ResourceType>('knowledge');
     const [refreshKey, setRefreshKey] = useState(0);
 
@@ -28,7 +32,8 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
     const [resourceCounts, setResourceCounts] = useState({
         knowledge: 0,
         tool: 0,
-        mcp: 0
+        mcp: 0,
+        skill: 0
     });
 
     // 加载资源数量的函数
@@ -38,23 +43,26 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
             setResourceCounts({
                 knowledge: 0,
                 tool: 0,
-                mcp: 0
+                mcp: 0,
+                skill: 0
             });
             return;
         }
 
         try {
-            // 并行获取知识库、工具和MCP数量
-            const [knowledgeResponse, toolResponse, mcpResponse] = await Promise.all([
+            // 并行获取知识库、工具、MCP和Skill数量
+            const [knowledgeResponse, toolResponse, mcpResponse, skillResponse] = await Promise.all([
                 knowledgeBaseApi.listByAgentId(agentId.toString()),
                 eaToolApi.listBoundToolsByAgentId(agentId.toString()),
-                mcpApi.listBoundMcpByAgentId(agentId.toString())
+                mcpApi.listBoundMcpByAgentId(agentId.toString()),
+                skillApi.listBoundSkillsByAgentId(agentId.toString())
             ]);
 
             setResourceCounts({
                 knowledge: knowledgeResponse.success ? (knowledgeResponse.data?.length || 0) : 0,
                 tool: toolResponse.success ? (toolResponse.data?.length || 0) : 0,
-                mcp: mcpResponse.success ? (mcpResponse.data?.length || 0) : 0
+                mcp: mcpResponse.success ? (mcpResponse.data?.length || 0) : 0,
+                skill: skillResponse.success ? (skillResponse.data?.length || 0) : 0
             });
         } catch (error) {
             console.error('加载资源数量失败:', error);
@@ -97,6 +105,14 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
         }));
     };
 
+    // 处理 Skill 数量更新
+    const handleSkillCountUpdate = (count: number) => {
+        setResourceCounts(prev => ({
+            ...prev,
+            skill: count
+        }));
+    };
+
     // 刷新所有资源
     const handleRefreshAll = () => {
         setIsLoading(true);
@@ -114,8 +130,12 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
 
     // 打开添加资源模态框
     const handleAddResource = (type: ResourceType) => {
-        setModalType(type);
-        setModalVisible(true);
+        if (type === 'skill') {
+            setSkillSelectorVisible(true);
+        } else {
+            setModalType(type);
+            setModalVisible(true);
+        }
     };
 
     // 关闭模态框
@@ -273,7 +293,7 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                     onCountUpdate={handleMCPCountUpdate}
                 />
             ),
-            extra: <span style={{fontSize: '12px', color: '#666'}}>模型上下文协议技能</span>
+            extra: <span style={{fontSize: '12px', color: '#666'}}>模型上下文协议</span>
         },
         {
             key: 'skill',
@@ -282,8 +302,8 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                         <span>Skills</span>
                         <span style={{
-                            background: resourceCounts.mcp > 0 ? '#722ed1' : '#f0f0f0',
-                            color: resourceCounts.mcp > 0 ? '#fff' : '#666',
+                            background: resourceCounts.skill > 0 ? '#722ed1' : '#f0f0f0',
+                            color: resourceCounts.skill > 0 ? '#fff' : '#666',
                             padding: '1px 6px',
                             borderRadius: '4px',
                             fontSize: '11px',
@@ -292,7 +312,7 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                             textAlign: 'center',
                             display: 'inline-block'
                         }}>
-                            {resourceCounts.mcp}
+                            {resourceCounts.skill}
                         </span>
                     </div>
                     <Button
@@ -308,14 +328,14 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                 </div>
             ),
             children: (
-                <MCPSkillList
+                <SkillList
                     agentId={agentId}
                     refreshKey={refreshKey}
                     onRefresh={() => setRefreshKey(prev => prev + 1)}
-                    onCountUpdate={handleMCPCountUpdate}
+                    onCountUpdate={handleSkillCountUpdate}
                 />
             ),
-            extra: <span style={{fontSize: '12px', color: '#666'}}>模型上下文协议技能</span>
+            extra: <span style={{fontSize: '12px', color: '#666'}}>技能配置</span>
         }
     ];
 
@@ -386,6 +406,19 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                 agentId={agentId}
                 onClose={handleModalClose}
                 onSuccess={handleResourceAdded}
+            />
+
+            {/* Skill 选择器 */}
+            <SkillSelector
+                visible={skillSelectorVisible}
+                agentId={agentId}
+                onCancel={() => setSkillSelectorVisible(false)}
+                onSuccess={() => {
+                    setSkillSelectorVisible(false);
+                    setRefreshKey(prev => prev + 1);
+                    message.success('Skill 添加成功');
+                    loadResourceCounts();
+                }}
             />
         </div>
     );

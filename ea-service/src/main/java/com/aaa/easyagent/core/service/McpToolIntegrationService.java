@@ -90,7 +90,7 @@ public class McpToolIntegrationService {
             } catch (Exception e) {
                 log.warn("获取 MCP 工具列表失败: configId={}, serverName={}", config.getId(), config.getServerName(), e);
                 // 如果 fetchToolsFromServer 失败，回退到使用配置中的单个工具
-                allTools.add(convertToToolDefinition(config));
+                // allTools.add(convertToToolDefinition(config));
             }
         }
 
@@ -276,7 +276,7 @@ public class McpToolIntegrationService {
         Example example = new Example(EaMcpConfigDO.class);
         example.createCriteria().andEqualTo("userId", 0);
         List<EaMcpConfigDO> configs = eaMcpConfigDAO.selectByExample(example);
-        
+
         return configs.stream()
                 .map(config -> {
                     McpServerConfigResult result = new McpServerConfigResult();
