@@ -196,6 +196,11 @@ public class CommonLlmChatModel implements ChatModel {
                 }
             }));
 
+            // fixme 暂时先不走下面
+            if (true){
+                return chatResponse;
+            }
+
             // @formatter:off
             Flux<ChatResponse> flux = chatResponse.flatMap(response -> {
                         if (prompt.getOptions() != null &&

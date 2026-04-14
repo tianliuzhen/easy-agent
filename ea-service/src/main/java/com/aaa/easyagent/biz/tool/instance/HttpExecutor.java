@@ -4,7 +4,7 @@ import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.biz.function.ToolTypeChooser;
 import com.aaa.easyagent.biz.tool.ToolExecutor;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
-import com.aaa.easyagent.common.util.WebClientUtil;
+import com.aaa.easyagent.common.util.HttpClientUtil;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.core.domain.template.HttpReqParamsTemplate;
 import com.aaa.easyagent.core.domain.template.InputTypeSchema;
@@ -13,7 +13,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.JSONPath;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -99,11 +98,10 @@ public class HttpExecutor implements ToolExecutor<HttpReqParamsTemplate> {
         }
 
         // String res = WebClientUtil.get("http://localhost:8080/example/getCurrentDate", String.class);
-        HttpMethod httpMethod = HttpMethod.valueOf(paramsTemplate.getMethod().toUpperCase());
-
+        HttpClientUtil.HttpMethod httpMethod = HttpClientUtil.HttpMethod.valueOf(paramsTemplate.getMethod().toUpperCase());
         log.info("HttpExecutor call: url:{} \n header:{} \n requestParam:{} \n requestBody:{}",
                 paramsTemplate.getUrl(), headers, requestParams, requestBody);
-        String res = WebClientUtil.exchange(httpMethod,
+        String res = HttpClientUtil.request(httpMethod,
                 paramsTemplate.getUrl(),
                 headers,
                 requestParams,

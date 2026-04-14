@@ -274,9 +274,8 @@ public abstract class BaseAgent {
         prompt.getInstructions().add(toolResponseMessage);
     }
 
-    protected void addAssistantMessage(String chatResponse) {
-        AssistantMessage toolResponseMessage = new AssistantMessage(chatResponse);
-        prompt.getInstructions().add(toolResponseMessage);
+    protected void addMessage(Message chatResponse) {
+        prompt.getInstructions().add(chatResponse);
     }
 
     protected void addAssistantMessage(AgentOutput agentOutput) {
