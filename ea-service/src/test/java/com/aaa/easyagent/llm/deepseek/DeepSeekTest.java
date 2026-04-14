@@ -4,19 +4,28 @@ package com.aaa.easyagent.llm.deepseek;
  * @version 1.0 DeepSeekTest.java  2026/4/4 16:50
  */
 
+import com.aaa.easyagent.common.util.ChatResponseUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.ai.deepseek.DeepSeekChatOptions;
 import org.springframework.ai.deepseek.api.DeepSeekApi;
+import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import reactor.core.publisher.Flux;
 
+import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * DeepSeek API 集成测试类
@@ -261,19 +270,77 @@ public class DeepSeekTest {
         System.out.println("========== 获取完整响应对象 ==========");
 
         DeepSeekChatModel chatModel = createChatModel();
-        ChatClient chatClient = ChatClient.builder(chatModel).build();
 
-        String userMessage = "说一句问候语";
+        // 配置工具
+        ToolCallback[] toolCallbacks = ToolCallbacks.from(new WeatherTools());
 
-        ChatResponse response = chatClient.prompt()
-                .user(userMessage)
-                .call()
-                .chatResponse();
 
-        System.out.println("用户: " + userMessage);
-        System.out.println("响应内容: " + response.getResult().getOutput().getText());
-        System.out.println("模型: " + response.getMetadata().getModel());
-        System.out.println("Token使用: " + response.getMetadata().getUsage());
+        // 创建带工具的 Prompt
+        Prompt prompt = new Prompt(
+                List.of(new UserMessage("查询北京的天气")),
+                DeepSeekChatOptions.builder()
+                        .model(DeepSeekApi.DEFAULT_CHAT_MODEL)
+                        .temperature(0.7)
+                        .toolCallbacks(toolCallbacks)  // 直接传对象，自动识别 @Tool 方法
+                        .build()
+        );
+
+        // 流式调用
+        Flux<ChatResponse> stream = chatModel.stream(prompt);
+
+        // 收集结果
+        CountDownLatch latch = new CountDownLatch(1);
+        StringBuilder fullResponse = new StringBuilder();
+
+        stream.subscribe(
+                response -> {
+                    // 检查是否有工具调用
+
+                    // 获取内容
+                    String content = ChatResponseUtil.getResStr(response);
+                    if (content != null && !content.isEmpty()) {
+
+                        fullResponse.append(content);
+                    }
+                },
+                error -> {
+                    System.err.println("错误: " + error.getMessage());
+                    latch.countDown();
+                },
+                () -> {
+                    System.out.println("\n========== 流式输出完成 ==========");
+                    System.out.println("完整响应: " + fullResponse.toString());
+                    latch.countDown();
+                }
+        );
+
+        try {
+            latch.await(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        System.out.print(fullResponse);
+    }
+
+    /**
+     * 天气查询工具类
+     */
+    public static class WeatherTools {
+
+        @Tool(description = "查询指定城市的天气信息，返回温度、天气状况等")
+        public String queryWeather(
+                @ToolParam(description = "城市名称，如：北京、上海、深圳") String city,
+                @ToolParam(description = "查询日期，格式yyyy-MM-dd，默认为今天", required = false) String date) {
+
+            // 模拟天气查询逻辑
+            if ("北京".equals(city)) {
+                return "北京今天晴天，温度25°C，空气质量良好";
+            } else if ("上海".equals(city)) {
+                return "上海今天多云，温度22°C，湿度较高";
+            }
+            return city + "天气：晴，温度20-28°C";
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.aaa.easyagent.biz.agent.service.impl;
 
 import com.aaa.easyagent.biz.agent.ReActAgentExecutor;
+import com.aaa.easyagent.biz.agent.ToolAgentExecutor;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
@@ -73,7 +74,8 @@ public class AgentChatServiceImpl implements AgentChatService {
         agentContext.getToolDefinitions().addAll(mcpToolDefinitions);
 
         // 工具决策-tool
-        agentContext.setToolRunMode(ToolRunMode.Tool);
+        ToolRunMode runMode = ToolRunMode.getByMode(agent.getToolRunMode());
+        agentContext.setToolRunMode(runMode);
 
         // sse
         agentContext.setSseEmitter(sseEmitter);
@@ -82,8 +84,15 @@ public class AgentChatServiceImpl implements AgentChatService {
         // 开始新的聊天会话并保存到数据库
         ChatRecordSaver.startNewConversation(agentContext, question);
 
+        String result = null;
         // 执行Agent
-        String result = new ReActAgentExecutor(agentContext).exec(question);
+        if (runMode == ToolRunMode.ReAct) {
+            // 传统的ReAct模式
+            result = new ReActAgentExecutor(agentContext).exec(question);
+        }else {
+            // 大模型的tool模式
+            result = new ToolAgentExecutor(agentContext).exec(question);
+        }
 
         // 保存聊天记录（注意：这里需要从Agent执行过程中获取思考过程和工具调用信息）
         // 实际的保存逻辑在ChatRecordSaverService中通过ThreadLocal收集

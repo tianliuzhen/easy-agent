@@ -9,4 +9,15 @@ package com.aaa.easyagent.core.domain.enums;
 public enum ToolRunMode {
     ReAct,
     Tool
+
+    ;
+
+    public static ToolRunMode getByMode(String mode) {
+        for (ToolRunMode value : values()) {
+            if (value.name().equals(mode)) {
+                return value;
+            }
+        }
+        return null;
+    }
 }
