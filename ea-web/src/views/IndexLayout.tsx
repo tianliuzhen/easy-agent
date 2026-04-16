@@ -17,6 +17,10 @@ import AgentManager from './page/AgentManager';
 import ChatModelConfig from './page/ChatModelConfig';
 import User from './page/User';
 import ToolManager from './page/ToolManager';
+import SQLConfig from './page/agent/tool/SQLConfig';
+import HTTPConfig from './page/agent/tool/HTTPConfig';
+import MCPConfig from './page/agent/tool/MCPConfig';
+import GRPCConfig from './page/agent/tool/GRPCConfig';
 import KnowledgeBaseList from './page/agent/knowledge/KnowledgeBaseList';
 import MCPMarket from './page/mcp/MCPMarket';
 import MyMCP from './page/mcp/MyMCP';
@@ -68,10 +72,9 @@ const routes = [
         icon: <ToolOutlined/>,
         label: '工具管理',
         children: [
-            {key: '5', label: '默认工具', path: '/toolManager', component: <AuthGuard><ToolManager/></AuthGuard>},
+            {key: '5', label: '默认工具', path: '/toolManager', component: <AuthGuard><ToolManager mode="default" /></AuthGuard>},
+            {key: '10', label: '我的工具', path: '/myToolManager', component: <AuthGuard><ToolManager mode="my" /></AuthGuard>},
         ],
-        // 添加默认工具的独立组件引用，用于直接渲染
-        toolComponent: <AuthGuard><ToolManager/></AuthGuard>
     },
     {
         key: 'sub6',
@@ -99,7 +102,7 @@ const routes = [
             {
                 key: '2',
                 label: '模型配置',
-                path: '/page/ToolManager',
+                path: '/page/chatModelConfig',
                 component: <AuthGuard><ChatModelConfig/></AuthGuard>
             },
         ]
@@ -127,7 +130,7 @@ const AppLayout = () => {
         phone?: string
     } | null>(null);
     const {
-        token: {colorBgContainer, borderRadiusLG},
+        token: {borderRadiusLG},
     } = theme.useToken();
     const location = useLocation();
     const navigate = useNavigate();
@@ -196,29 +199,36 @@ const AppLayout = () => {
     const getBreadcrumbItems = () => {
         const breadcrumbs: { title: string }[] = [];
 
-        // 添加首页
-        // breadcrumbs.push({ title: <Link to="/">Home</Link> });
-
         // 查找当前路由
         for (const group of routes) {
-            // 检查是否是工具管理的子路由（直接渲染的情况）
-            if (group.toolComponent && location.pathname.startsWith('/toolManager')) {
-                breadcrumbs.push(
-                    {title: group.label},
-                    {title: '默认工具'}
-                );
-                return breadcrumbs;
-            }
-
             for (const item of group.children) {
                 if (item.path === location.pathname) {
                     breadcrumbs.push(
                         {title: group.label},
                         {title: item.label}
                     );
-                    break;
+                    return breadcrumbs;
                 }
             }
+        }
+
+        // 处理工具管理的子路由（如 /toolManager/tool/sql）
+        if (location.pathname.startsWith('/toolManager/tool/')) {
+            breadcrumbs.push(
+                {title: '工具管理'},
+                {title: '默认工具'},
+                {title: '工具配置'}
+            );
+            return breadcrumbs;
+        }
+
+        if (location.pathname.startsWith('/myToolManager/tool/')) {
+            breadcrumbs.push(
+                {title: '工具管理'},
+                {title: '我的工具'},
+                {title: '工具配置'}
+            );
+            return breadcrumbs;
         }
 
         // 如果是首页，只显示 Home
@@ -227,25 +237,6 @@ const AppLayout = () => {
         }
 
         return breadcrumbs;
-    };
-
-    // 判断是否显示工具管理组件
-    const shouldRenderToolManager = () => {
-        // 检查是否在工具管理的子路由下
-        if (location.pathname.startsWith('/toolManager')) {
-            return true;
-        }
-        // 检查是否是通过菜单点击进来的（路径匹配）
-        for (const group of routes) {
-            if (group.toolComponent) {
-                for (const item of group.children) {
-                    if (item.path === location.pathname) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
     };
 
     const getMenuItems = (): MenuProps['items'] => {
@@ -286,7 +277,6 @@ const AppLayout = () => {
                     <Menu
                         theme="light"
                         mode="horizontal"
-                        // defaultSelectedKeys={['1']} // 默认上方导航栏不选
                         items={items1}
                         style={{flex: 1, minWidth: 0, background: 'var(--ea-theme-background)', borderBottom: 'none'}}
                     />
@@ -328,19 +318,17 @@ const AppLayout = () => {
                             borderRadius: borderRadiusLG,
                         }}
                     >
-                        {/* 如果在工具管理子路由下，直接渲染 ToolManager 组件 */}
-                        {shouldRenderToolManager() ? (
-                            <AuthGuard><ToolManager/></AuthGuard>
-                        ) : (
-                            <Routes>
-                                <Route path="/" element={<Home/>}/>
-                                {routes.flatMap(route =>
-                                    route.children.map(child => (
-                                        <Route key={child.key} path={child.path} element={child.component}/>
-                                    ))
-                                )}
-                            </Routes>
-                        )}
+                        <Routes>
+                            <Route path="/" element={<Home/>}/>
+                            {routes.flatMap(route =>
+                                route.children.map(child => (
+                                    <Route key={child.key} path={child.path} element={child.component}/>
+                                ))
+                            )}
+                            {/* 工具管理的子路由 */}
+                            <Route path="/toolManager/tool/:type" element={<AuthGuard><ToolManager mode="default" /></AuthGuard>} />
+                            <Route path="/myToolManager/tool/:type" element={<AuthGuard><ToolManager mode="my" /></AuthGuard>} />
+                        </Routes>
                     </Content>
                 </Layout>
             </Layout>

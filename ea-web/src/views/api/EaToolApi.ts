@@ -51,7 +51,7 @@ export const eaToolApi = {
    * @returns 工具配置结果列表
    */
   getToolConfigByAgentId: async (agentId: number | string): Promise<BaseResult> => {
-    const response = await fetch(`${API_BASE_URL}/eaAgent/tool/getToolConfigByAgentId/${agentId}`, {
+    const response = await fetch(`${API_BASE_URL}/eaAgent/tool/listBoundToolsByAgentId/${agentId}`, {
       method: 'GET',
       // headers: {
       //   'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ export const eaToolApi = {
    * @returns 工具配置结果列表
    */
   getToolConfigByUserId: async (): Promise<BaseResult> => {
-    const response = await fetch(`${API_BASE_URL}/eaAgent/tool/getToolConfigByUserId/`, {
+    const response = await fetch(`${API_BASE_URL}/eaAgent/tool/getToolConfigByUserId`, {
       method: 'GET',
     });
     return response.json();

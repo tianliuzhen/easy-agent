@@ -8,7 +8,7 @@ import { message } from 'antd';
 // 存储原始 fetch 函数
 const originalFetch = window.fetch;
 
-// 重定向到登录页
+// 重定向到登录页（保留此函数，但不再自动调用）
 const redirectToLogin = () => {
   // 清除可能的认证信息（包括 cookie 和 localStorage）
   document.cookie = 'AUTH_TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
@@ -62,8 +62,10 @@ const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promis
         message.error('登录已过期，请重新登录');
       }
 
-      // 重定向到登录页
-      redirectToLogin();
+      // 只清除本地存储，不立即重定向
+      // 让 AuthGuard 组件处理重定向逻辑
+      localStorage.removeItem('AUTH_TOKEN');
+      sessionStorage.removeItem('AUTH_TOKEN');
 
       // 返回一个拒绝的 Promise，防止后续处理
       return Promise.reject(new Error('Unauthorized'));

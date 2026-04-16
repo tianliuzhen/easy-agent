@@ -49,7 +49,7 @@ public class ToolManagerController {
      * @return 工具配置结果列表
      */
     @GetMapping("getToolConfigByUserId")
-    public BaseResult getToolConfigByAgentId() {
+    public BaseResult getToolConfigByUserId() {
         List<EaToolConfigResult> toolConfigByAgentId = toolMangerService.getToolConfigByUserId();
         return BaseResult.buildSuc(toolConfigByAgentId);
     }

@@ -138,7 +138,11 @@ public class ToolAgentExecutor extends BaseAgent {
             if (functionToolCallback == null) {
                 throw new AgentToolException("无法匹配 toolFunction");
             }
+
+            SseHelper.sendTool(sse, String.format("正在执行工具：%s \n工具入参：%s", toolCall.name(),toolCall.arguments()));
             String callToolResult = functionToolCallback.call(toolCall.arguments());
+            SseHelper.sendTool(sse, String.format("\n执行结果：%s", callToolResult));
+
 
             // 添加工具执行结果记忆
             List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>();

@@ -96,11 +96,15 @@ const AuthGuard: React.FC<AuthGuardProps> = ({children, requiredAuth = true}) =>
     const [isAuthenticated, setIsAuthenticated] = React.useState(false);
     const [countdown, setCountdown] = React.useState(60);
 
+    // 使用 ref 来缓存认证状态，避免重复检查
+    const authCheckedRef = React.useRef(false);
+    const authResultRef = React.useRef<boolean | null>(null);
+
     React.useEffect(() => {
-        const checkAuth = () => {
+        const checkAuth = async () => {
             // 优先从 localStorage 获取 token（主要认证方式）
             let token = localStorage.getItem('AUTH_TOKEN');
-            
+
             // 如果 localStorage 中没有，尝试从 sessionStorage 读取
             if (!token) {
                 const sessionToken = sessionStorage.getItem('AUTH_TOKEN');
@@ -108,7 +112,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({children, requiredAuth = true}) =>
                     token = sessionToken;
                 }
             }
-            
+
             // 兜底方案：尝试从 cookie 读取（兼容 HttpOnly 禁用场景）
             if (!token) {
                 const cookieToken = getCookie('AUTH_TOKEN');
@@ -116,7 +120,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({children, requiredAuth = true}) =>
                     token = cookieToken;
                 }
             }
-            
+
             // 如果仍然没有，尝试从 URL 参数中获取（临时方案）
             if (!token) {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -124,6 +128,53 @@ const AuthGuard: React.FC<AuthGuardProps> = ({children, requiredAuth = true}) =>
                 if (urlToken) {
                     token = urlToken;
                     sessionStorage.setItem('AUTH_TOKEN', urlToken);
+                }
+            }
+
+            // 如果有 token，验证其有效性
+            if (token) {
+                try {
+                    // 尝试获取当前用户信息来验证 token 有效性
+                    const response = await fetch('http://localhost:8080/auth/currentUser', {
+                        method: 'GET',
+                        credentials: 'include',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        // 兼容两种响应格式：code 或 success
+                        const isSuccess = result.code === '0' || result.success === true;
+
+                        if (isSuccess) {
+                            // token 有效，用户已认证
+                            appMessage.destroy('login_redirect');
+                            setIsAuthenticated(true);
+                            setIsLoading(false);
+                            return true;
+                        } else {
+                            // token 无效，清除本地存储
+                            console.log('Token 无效，清除本地存储');
+                            localStorage.removeItem('AUTH_TOKEN');
+                            sessionStorage.removeItem('AUTH_TOKEN');
+                            token = null;
+                            // 设置未认证状态
+                            setIsAuthenticated(false);
+                        }
+                    } else if (response.status === 401) {
+                        // 401 未授权，清除本地存储
+                        console.log('收到 401 响应，清除本地存储');
+                        localStorage.removeItem('AUTH_TOKEN');
+                        sessionStorage.removeItem('AUTH_TOKEN');
+                        token = null;
+                        // 设置未认证状态
+                        setIsAuthenticated(false);
+                    }
+                } catch (error) {
+                    console.error('验证 token 时出错:', error);
+                    // 网络错误，暂时保持当前状态
                 }
             }
 
@@ -206,7 +257,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({children, requiredAuth = true}) =>
         } else {
             setTimeout(checkAuth, 100);
         }
-    }, [requiredAuth, appMessage]);
+    }, [requiredAuth, appMessage, isAuthenticated]);
 
     // 倒计时计时器 - 更新消息中的倒计时
     React.useEffect(() => {
