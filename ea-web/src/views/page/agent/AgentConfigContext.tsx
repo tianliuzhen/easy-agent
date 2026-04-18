@@ -24,6 +24,7 @@ interface AgentConfigContextType {
     promptContent: string;
     setPromptContent: (content: string) => void;
     agentDetail: AgentDetail | null;
+    setAgentDetail: (detail: AgentDetail | null) => void;
     loadingAgentDetail: boolean;
     loadAgentDetail: () => Promise<void>;
 }
@@ -82,6 +83,7 @@ export const AgentConfigProvider: React.FC<AgentConfigProviderProps> = ({
         promptContent,
         setPromptContent,
         agentDetail,
+        setAgentDetail,
         loadingAgentDetail,
         loadAgentDetail: () => {} // 空函数，保持接口兼容
     };

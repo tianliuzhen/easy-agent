@@ -42,7 +42,7 @@ const GlobalStyles = () => (
 // 内部组件，使用 AgentConfigContext
 const AgentConfigContent: React.FC = () => {
     const location = useLocation();
-    const {agentDetail, refreshResources} = useAgentConfig();
+    const {agentDetail, refreshResources, setAgentDetail} = useAgentConfig();
 
     // 获取 URL 参数中的 agentId
     const urlParams = new URLSearchParams(location.search);
@@ -100,7 +100,14 @@ const AgentConfigContent: React.FC = () => {
             await eaAgentApi.saveAgent(agentData);
             message.success('更新成功');
             setIsEditModalOpen(false);
-            refreshResources();
+            
+            // 重新加载 agent 详情以刷新顶部信息
+            if (agentIdNum) {
+                const result = await eaAgentApi.queryAgent(agentIdNum);
+                if (result && result.data) {
+                    setAgentDetail(result.data);
+                }
+            }
         } catch (error) {
             console.error('保存失败:', error);
             message.error('保存失败');
