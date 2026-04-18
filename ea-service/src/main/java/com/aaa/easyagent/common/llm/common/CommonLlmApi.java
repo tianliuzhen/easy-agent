@@ -42,10 +42,12 @@ public class CommonLlmApi {
     public CommonLlmApi(CommonLLmProperties properties) {
         this.properties = properties;
 
-        // 配置HttpClient用于WebClient，添加超时设置
+        // 配置HttpClient用于WebClient，优化SSE流式连接的超时和稳定性
         HttpClient webClientHttp = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30000) // 连接超时30秒
-                .responseTimeout(Duration.ofMinutes(5)); // 响应超时5分钟
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 60000) // 连接超时60秒（SSE建立连接可能需要更长时间）
+                .option(ChannelOption.SO_KEEPALIVE, true) // 启用TCP Keep-Alive，防止连接被防火墙/NAT设备关闭
+                .responseTimeout(Duration.ofMinutes(10)) // 响应超时10分钟（SSE是长连接）
+                .keepAlive(true); // 启用HTTP Keep-Alive
 
         // 创建带超时配置的WebClient
         this.webClient = WebClient.builder()
@@ -53,6 +55,7 @@ public class CommonLlmApi {
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .clientConnector(new ReactorClientHttpConnector(webClientHttp))
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024)) // 增加内存缓冲区到16MB
                 .build();
 
         // 配置HttpComponentsClientHttpRequestFactory用于RestClient，添加超时配置
@@ -85,7 +88,7 @@ public class CommonLlmApi {
         // 2. 状态标志：标记是否正在处理工具调用块
         AtomicBoolean isInsideTool = new AtomicBoolean(false);
 
-        // 3. 发起WebClient请求（SSE流）
+        // 3. 发起WebClient请求（SSE流），添加重试和错误处理
         return this.webClient.post().uri(properties.getChat().getCompletionsPath())
                 // .bodyValue(request)
                 .body(Mono.just(request), ChatCompletionRequest.class)
@@ -120,11 +123,34 @@ public class CommonLlmApi {
                 // Flux<Flux<ChatCompletionChunk>> -> Flux<Mono<ChatCompletionChunk>>
                 .concatMapIterable(window -> {
                     Mono<CommonLlmApi.ChatCompletion> monoChunk = window.reduce(
-                            new CommonLlmApi.ChatCompletion(null, null, null, null, null, null, null, null),
-                            (previous, current) -> CommonLlmApiHelper.merge(previous, current));
+                            // new CommonLlmApi.ChatCompletion(null, null, null, null, null, null, null, null),
+                            CommonLlmApiHelper::merge);
                     return List.of(monoChunk);
                 })
-                .flatMap(mono -> mono);
+                .flatMap(mono -> mono)
+                // 8. 添加重试机制：遇到Connection reset等网络错误时自动重试
+                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2)) // 最多重试3次，初始间隔2秒
+                        .maxBackoff(Duration.ofSeconds(10)) // 最大退避时间10秒
+                        .filter(throwable -> {
+                            // 只对特定类型的错误进行重试
+                            String errorMsg = throwable.getMessage();
+                            return errorMsg != null && (
+                                errorMsg.contains("Connection reset") ||
+                                errorMsg.contains("connection closed") ||
+                                errorMsg.contains("Broken pipe") ||
+                                errorMsg.contains("timeout")
+                            );
+                        })
+                        .doBeforeRetry(retrySignal ->
+                            log.warn("SSE流发生错误，准备第{}次重试: {}",
+                                    retrySignal.totalRetries() + 1,
+                                    retrySignal.failure().getMessage()))
+                )
+                // 9. 错误降级：如果重试后仍然失败，返回空流而不是抛出异常
+                .onErrorResume(e -> {
+                    log.error("SSE流处理后仍然失败，返回空流: {}", e.getMessage(), e);
+                    return Flux.empty();
+                });
     }
 
 

@@ -358,7 +358,7 @@ const ChatDemo: React.FC = () => {
 
         // 立即创建空的AI消息，显示"思考中..."，避免闪烁
         const newAiMessage = {
-            text: '思考中...',
+            text: '',
             isUser: false,
             type: 'data' as const,
             id: aiMessageId,

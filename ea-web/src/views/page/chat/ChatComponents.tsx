@@ -67,7 +67,7 @@ const parseToolContent = (content: string) => {
 };
 
 // JSON 展示组件
-const JsonDisplay: React.FC<{data: string; title: string}> = ({data, title}) => {
+const JsonDisplay: React.FC<{ data: string; title: string }> = ({data, title}) => {
     if (!data) return null;
 
     let formattedJson = data;
@@ -133,7 +133,7 @@ const ToolDetailDrawer: React.FC<ToolDetailDrawerProps> = ({entry, open, onClose
                 {/* 工具名称 */}
                 {toolName && (
                     <div style={{marginBottom: '20px'}}>
-                            工具名称：
+                        工具名称：
                         <Text strong style={{fontSize: '15px', color: '#000000'}}>
                             {toolName}
                         </Text>
@@ -141,10 +141,10 @@ const ToolDetailDrawer: React.FC<ToolDetailDrawerProps> = ({entry, open, onClose
                 )}
 
                 {/* 输入参数 */}
-                {inputParams && <JsonDisplay data={inputParams} title="输入参数：" />}
+                {inputParams && <JsonDisplay data={inputParams} title="输入参数："/>}
 
                 {/* 输出参数 */}
-                {outputParams && <JsonDisplay data={outputParams} title="输出参数：" />}
+                {outputParams && <JsonDisplay data={outputParams} title="输出参数："/>}
 
                 {/* 如果没有解析到任何内容，显示原始内容 */}
                 {!toolName && !inputParams && !outputParams && (
@@ -187,12 +187,12 @@ export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: b
         }
     }
 
-    return <ThinkingContentList merged={merged} isRealTime={isRealTime} />;
+    return <ThinkingContentList merged={merged} isRealTime={isRealTime}/>;
 };
 
 // 思考内容列表组件（内部使用，支持抽屉状态管理）
-const ThinkingContentList: React.FC<{merged: ThinkingLogEntry[], isRealTime: boolean}> = ({merged, isRealTime}) => {
-    const [drawerState, setDrawerState] = useState<{open: boolean; entry: ThinkingLogEntry | null}>({
+const ThinkingContentList: React.FC<{ merged: ThinkingLogEntry[], isRealTime: boolean }> = ({merged, isRealTime}) => {
+    const [drawerState, setDrawerState] = useState<{ open: boolean; entry: ThinkingLogEntry | null }>({
         open: false,
         entry: null,
     });
@@ -216,7 +216,7 @@ const ThinkingContentList: React.FC<{merged: ThinkingLogEntry[], isRealTime: boo
                 <div onClick={() => setDrawerState({open: true, entry})} style={{cursor: 'pointer'}}>
                     <ThoughtChain.Item
                         variant="solid"
-                        icon={<CodeOutlined   />}
+                        icon={<CodeOutlined/>}
                         title={parseToolContent(entry.content).toolName || 'Executing command'}
                         description=" Executing command"
                     />
@@ -312,8 +312,10 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
     const hasThinkingLog = msgThinkingLog && msgThinkingLog.content.length > 0;
     const isThinkingVisible = msgThinkingLog?.isVisible || false;
     const isThinkingMessage = !msg.isUser &&
-        (msg.text.trim() === '' || msg.text === '思考中...') &&
+        msg.text === '思考中...' &&
         currentAnsweringMsgId === msg.id;
+    // 空消息不显示
+    const isEmptyMessage = !msg.isUser && msg.text.trim() === '';
 
     const avatarStyle: React.CSSProperties = {
         width: '40px',
@@ -329,61 +331,63 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
 
     return (
         <React.Fragment key={`msg-${msg.id}`}>
-            <div style={{
-                display: 'flex',
-                justifyContent: msg.isUser ? 'flex-end' : 'flex-start',
-                marginBottom: '24px',
-                animation: 'fadeIn 0.3s ease',
-            }}>
-                {!msg.isUser && (
-                    <div style={{...avatarStyle, marginRight: '16px', marginTop: '4px'}}>
-                        <RobotOutlined style={{color: 'white', fontSize: '18px'}}/>
-                    </div>
-                )}
+            {!isEmptyMessage && (
+                <div style={{
+                    display: 'flex',
+                    justifyContent: msg.isUser ? 'flex-end' : 'flex-start',
+                    marginBottom: '24px',
+                    animation: 'fadeIn 0.3s ease',
+                }}>
+                    {!msg.isUser && (
+                        <div style={{...avatarStyle, marginRight: '16px', marginTop: '4px'}}>
+                            <RobotOutlined style={{color: 'white', fontSize: '18px'}}/>
+                        </div>
+                    )}
 
-                <div style={{position: 'relative'}}>
-                    <div style={{
-                        backgroundColor: '#fff',
-                        color: '#000',
-                        padding: '16px 20px',
-                        borderRadius: '18px',
-                        maxWidth: '70%',
-                        minWidth: '120px',
-                        wordBreak: 'break-word',
-                        lineHeight: 1.6,
-                        fontSize: '14px',
-                        position: 'relative',
-                        boxShadow: msg.isUser
-                            ? '0 4px 15px rgba(102, 126, 234, 0.3)'
-                            : '0 4px 15px rgba(0, 0, 0, 0.08)',
-                        border: `1px solid ${msg.isUser ? 'rgba(255, 255, 255, 0.2)' : '#f0f0f0'}`,
-                    }}>
-                        {!msg.isUser && hasThinkingLog && (
-                            <ThinkingLogToggleButton
-                                messageId={msg.id}
-                                isVisible={isThinkingVisible}
-                                onToggle={onToggleThinkingLog}
-                            />
-                        )}
-                        <div style={{whiteSpace: 'pre-wrap'}}>
-                            {isThinkingMessage ? (
-                                <>
-                                    <Spin size="small"/>
-                                    {msg.text}
-                                </>
-                            ) : (
-                                msg.text.replace(/^\n+|\n+$/g, '')
+                    <div style={{position: 'relative'}}>
+                        <div style={{
+                            backgroundColor: '#fff',
+                            color: '#000',
+                            padding: '16px 20px',
+                            borderRadius: '18px',
+                            maxWidth: '70%',
+                            minWidth: '120px',
+                            wordBreak: 'break-word',
+                            lineHeight: 1.6,
+                            fontSize: '14px',
+                            position: 'relative',
+                            boxShadow: msg.isUser
+                                ? '0 4px 15px rgba(102, 126, 234, 0.3)'
+                                : '0 4px 15px rgba(0, 0, 0, 0.08)',
+                            border: `1px solid ${msg.isUser ? 'rgba(255, 255, 255, 0.2)' : '#f0f0f0'}`,
+                        }}>
+                            {!msg.isUser && hasThinkingLog && (
+                                <ThinkingLogToggleButton
+                                    messageId={msg.id}
+                                    isVisible={isThinkingVisible}
+                                    onToggle={onToggleThinkingLog}
+                                />
                             )}
+                            <div style={{whiteSpace: 'pre-wrap'}}>
+                                {isThinkingMessage ? (
+                                    <>
+                                        <Spin size="small"/>
+                                        {msg.text}
+                                    </>
+                                ) : (
+                                    msg.text.replace(/^\n+|\n+$/g, '')
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {msg.isUser && (
-                    <div style={{...avatarStyle, marginLeft: '16px', marginTop: '4px'}}>
-                        <UserOutlined style={{color: 'white', fontSize: '18px'}}/>
-                    </div>
-                )}
-            </div>
+                    {msg.isUser && (
+                        <div style={{...avatarStyle, marginLeft: '16px', marginTop: '4px'}}>
+                            <UserOutlined style={{color: 'white', fontSize: '18px'}}/>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* 已完成的思考过程 */}
             {!msg.isUser && hasThinkingLog && isThinkingVisible && currentAnsweringMsgId !== msg.id && (
@@ -481,7 +485,7 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
                             justifyContent: 'space-between',
                             marginBottom: '8px',
                         }}>
-                            <Think title="拼命分析中🚀🚀🚀..." blink loading/>
+                            <Think title="分析中..." blink loading/>
                             <Tooltip title="隐藏">
                                 <Button
                                     type="text"

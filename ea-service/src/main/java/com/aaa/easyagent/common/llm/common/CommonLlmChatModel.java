@@ -207,6 +207,7 @@ public class CommonLlmChatModel implements ChatModel {
                                 ToolCallingChatOptions.isInternalToolExecutionEnabled(prompt.getOptions()) &&
                                 response.hasToolCalls()) {
 
+                            String s = JacksonUtil.beanToStr(response.getResults());
                             // 1. 先发送工具调用通知（包含工具参数信息）
                             Flux<ChatResponse> toolCallingNotification = Flux.just(createToolCallingNotification(response));
 

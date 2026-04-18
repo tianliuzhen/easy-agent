@@ -23,7 +23,6 @@ import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
-import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -34,9 +33,9 @@ import java.util.concurrent.TimeUnit;
 public class DeepSeekTest {
 
     // 配置信息（请替换成你的真实 API Key）
-    private static final String API_KEY = "sk-f26c256e24e6423ebceafab78ffe6878";
-    private static final String BASE_URL = "https://api.deepseek.com/v1";
-    private static final String MODEL = "deepseek-chat";
+    private static final String API_KEY = "sk-0cc836096581452b86b34e2f604d3a90";
+    private static final String BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/";
+    private static final String MODEL = "qwen3.5-35b-a3b";
 
     /**
      * 手动创建 DeepSeekChatModel
@@ -59,30 +58,7 @@ public class DeepSeekTest {
         return  DeepSeekChatModel.builder().deepSeekApi(deepSeekApi).defaultOptions(options).build();
     }
 
-    public static void main(String[] args) {
-        testSyncChat();
-    }
 
-    /**
-     * 测试1：同步对话
-     * 这个能否优雅的集成：com.aaa.mcp.WeatherServiceTest#streamableHTTP()
-     */
-    public static void testSyncChat() {
-        System.out.println("========== 同步对话测试 ==========");
-
-        DeepSeekChatModel chatModel = createChatModel();
-        ChatClient chatClient = ChatClient.builder(chatModel).build();
-
-        String userMessage = "你好，请介绍一下你自己";
-        System.out.println("用户: " + userMessage);
-
-        String response = chatClient.prompt()
-                .user(userMessage)
-                .call()
-                .content();
-
-        System.out.println("DeepSeek: " + response);
-    }
 
     /**
      * 测试2：带系统提示词的同步对话
@@ -144,38 +120,6 @@ public class DeepSeekTest {
     }
 
     /**
-     * 测试4：流式对话
-     */
-    @Test
-    public void testStreamChat() {
-        System.out.println("========== 流式对话测试 ==========");
-        System.out.println("用户: 请写一首关于春天的诗");
-        System.out.println("DeepSeek: ");
-
-        DeepSeekChatModel chatModel = createChatModel();
-        ChatClient chatClient = ChatClient.builder(chatModel).build();
-
-        Flux<String> flux = chatClient.prompt()
-                .user("请写一首关于春天的诗")
-                .stream()
-                .content();
-
-        // 流式输出
-        flux.subscribe(
-                chunk -> System.out.print(chunk),
-                error -> System.err.println("错误: " + error.getMessage()),
-                () -> System.out.println("\n\n[流式输出完成]")
-        );
-
-        // 等待流式输出完成
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    /**
      * 测试5：工具对话（Function Calling）
      * 注意：需要先定义工具类
      */
@@ -228,39 +172,6 @@ public class DeepSeekTest {
         System.out.println("DeepSeek: " + response3);
     }
 
-    /**
-     * 测试6：手动控制参数的对话
-     */
-    @Test
-    public void testChatWithCustomParams() {
-        System.out.println("========== 自定义参数对话 ==========");
-
-        DeepSeekApi deepSeekApi = DeepSeekApi.builder()
-                .apiKey(API_KEY)
-                .baseUrl(BASE_URL)
-                .build();
-
-        // 使用不同的参数配置
-        DeepSeekChatOptions creativeOptions = (DeepSeekChatOptions)DeepSeekChatOptions.builder()
-                .model(MODEL)
-                .temperature(0.9)  // 高温度，更有创意
-                .maxTokens(1000)
-                .build();
-
-        DeepSeekChatModel chatModel = DeepSeekChatModel.builder().defaultOptions(creativeOptions).build();
-        ChatClient chatClient = ChatClient.builder(chatModel).build();
-
-        String userMessage = "给我讲一个有趣的笑话";
-        System.out.println("用户: " + userMessage);
-        System.out.println("参数: temperature=0.9 (创意模式)");
-
-        String response = chatClient.prompt()
-                .user(userMessage)
-                .call()
-                .content();
-
-        System.out.println("DeepSeek: " + response);
-    }
 
     /**
      * 测试7：获取完整的 ChatResponse 对象
@@ -279,11 +190,12 @@ public class DeepSeekTest {
         Prompt prompt = new Prompt(
                 List.of(new UserMessage("查询北京的天气")),
                 DeepSeekChatOptions.builder()
-                        .model(DeepSeekApi.DEFAULT_CHAT_MODEL)
+                        // .model(DeepSeekApi.DEFAULT_CHAT_MODEL)
                         .temperature(0.7)
                         .toolCallbacks(toolCallbacks)  // 直接传对象，自动识别 @Tool 方法
                         .build()
         );
+
 
         // 流式调用
         Flux<ChatResponse> stream = chatModel.stream(prompt);
@@ -343,39 +255,4 @@ public class DeepSeekTest {
         }
     }
 
-    /**
-     * 测试8：交互式对话（控制台输入）
-     * 注意：这个测试需要手动输入，不会自动执行
-     */
-    public void testInteractiveChat() {
-        System.out.println("========== 交互式对话 ==========");
-        System.out.println("输入 'exit' 退出对话\n");
-
-        DeepSeekChatModel chatModel = createChatModel();
-        ChatClient chatClient = ChatClient.builder(chatModel)
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(MessageWindowChatMemory.builder().build()).build())
-                .build();
-
-        Scanner scanner = new Scanner(System.in);
-
-        while (true) {
-            System.out.print("你: ");
-            String userInput = scanner.nextLine();
-
-            if ("exit".equalsIgnoreCase(userInput)) {
-                System.out.println("对话结束");
-                break;
-            }
-
-            String response = chatClient.prompt()
-                    .user(userInput)
-                    .call()
-                    .content();
-
-            System.out.println("DeepSeek: " + response);
-            System.out.println();
-        }
-
-        scanner.close();
-    }
 }

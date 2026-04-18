@@ -113,7 +113,9 @@ public class CommonLlmApiHelper {
                 throw new IllegalStateException("Currently only one tool call is supported per message!");
             }
             var currentToolCall = current.getToolCalls().iterator().next();
-            if (currentToolCall.getId() != null) {
+            // 修复for qwen系列：空字符串也视为没有id，需要合并到前一个toolCall
+            // 而 deepseek 其他没问题
+            if (currentToolCall.getId() != null && !currentToolCall.getId().isEmpty()) {
                 if (lastPreviousTooCall != null) {
                     toolCalls.add(lastPreviousTooCall);
                 }
