@@ -3,6 +3,9 @@ package com.aaa.easyagent.web.biz.knowledge;
 import com.aaa.easyagent.biz.agent.service.KnowledgeService;
 import com.aaa.easyagent.core.domain.DO.EaKnowledgeBaseDO;
 import com.aaa.easyagent.core.domain.base.BaseResult;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseQueryRequest;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseBindRequest;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseUnbindRequest;
 import com.aaa.easyagent.core.service.KnowledgeBaseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,6 +83,57 @@ public class KnowledgeController {
             return BaseResult.buildSuc(list);
         } catch (Exception e) {
             log.error("根据Agent ID查询知识库列表失败", e);
+            return BaseResult.buildFail(e.getMessage());
+        }
+    }
+
+    /**
+     * 根据条件查询知识库列表（使用Request对象）
+     *
+     * @param request 查询请求
+     * @return 知识库列表
+     */
+    @PostMapping("listByCondition")
+    public BaseResult<List<EaKnowledgeBaseDO>> listKnowledgeBaseByCondition(@RequestBody KnowledgeBaseQueryRequest request) {
+        try {
+            List<EaKnowledgeBaseDO> list = knowledgeBaseService.listKnowledgeBaseByCondition(request);
+            return BaseResult.buildSuc(list);
+        } catch (Exception e) {
+            log.error("根据条件查询知识库列表失败", e);
+            return BaseResult.buildFail(e.getMessage());
+        }
+    }
+
+    /**
+     * 绑定知识库到Agent
+     *
+     * @param request 绑定请求
+     * @return 绑定结果
+     */
+    @PostMapping("bind")
+    public BaseResult<Void> bindKnowledgeBase(@RequestBody KnowledgeBaseBindRequest request) {
+        try {
+            knowledgeBaseService.bindKnowledgeBaseToAgent(request);
+            return BaseResult.buildSuc();
+        } catch (Exception e) {
+            log.error("绑定知识库失败", e);
+            return BaseResult.buildFail(e.getMessage());
+        }
+    }
+
+    /**
+     * 从Agent解绑知识库
+     *
+     * @param request 解绑请求
+     * @return 解绑结果
+     */
+    @PostMapping("unbind")
+    public BaseResult<Void> unbindKnowledgeBase(@RequestBody KnowledgeBaseUnbindRequest request) {
+        try {
+            knowledgeBaseService.unbindKnowledgeBaseFromAgent(request);
+            return BaseResult.buildSuc();
+        } catch (Exception e) {
+            log.error("解绑知识库失败", e);
             return BaseResult.buildFail(e.getMessage());
         }
     }

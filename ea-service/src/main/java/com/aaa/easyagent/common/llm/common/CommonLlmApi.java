@@ -5,7 +5,6 @@ package com.aaa.easyagent.common.llm.common;
  * @version 1.0 CommonLlmApi.java  2025/6/8 19:16
  */
 
-import com.aaa.easyagent.common.llm.deepseek.OpenAiApi;
 import com.aaa.easyagent.common.util.JacksonUtil;
 import com.fasterxml.jackson.annotation.*;
 import io.netty.channel.ChannelOption;
@@ -14,6 +13,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.model.ModelOptionsUtils;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -41,11 +41,13 @@ public class CommonLlmApi {
 
     public CommonLlmApi(CommonLLmProperties properties) {
         this.properties = properties;
-        
-        // 配置HttpClient用于WebClient，添加超时设置
+
+        // 配置HttpClient用于WebClient，优化SSE流式连接的超时和稳定性
         HttpClient webClientHttp = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30000) // 连接超时30秒
-                .responseTimeout(Duration.ofMinutes(5)); // 响应超时5分钟
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 60000) // 连接超时60秒（SSE建立连接可能需要更长时间）
+                .option(ChannelOption.SO_KEEPALIVE, true) // 启用TCP Keep-Alive，防止连接被防火墙/NAT设备关闭
+                .responseTimeout(Duration.ofMinutes(10)) // 响应超时10分钟（SSE是长连接）
+                .keepAlive(true); // 启用HTTP Keep-Alive
 
         // 创建带超时配置的WebClient
         this.webClient = WebClient.builder()
@@ -53,11 +55,12 @@ public class CommonLlmApi {
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .clientConnector(new ReactorClientHttpConnector(webClientHttp))
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024)) // 增加内存缓冲区到16MB
                 .build();
-                
+
         // 配置HttpComponentsClientHttpRequestFactory用于RestClient，添加超时配置
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
-        factory.setConnectTimeout(30000); // 连接超时30秒
+        factory.setConnectionRequestTimeout(30000); // 连接超时30秒
         factory.setReadTimeout(300000); // 读取超时5分钟
 
         // 配置RestClient，添加超时配置
@@ -85,7 +88,7 @@ public class CommonLlmApi {
         // 2. 状态标志：标记是否正在处理工具调用块
         AtomicBoolean isInsideTool = new AtomicBoolean(false);
 
-        // 3. 发起WebClient请求（SSE流）
+        // 3. 发起WebClient请求（SSE流），添加重试和错误处理
         return this.webClient.post().uri(properties.getChat().getCompletionsPath())
                 // .bodyValue(request)
                 .body(Mono.just(request), ChatCompletionRequest.class)
@@ -120,11 +123,34 @@ public class CommonLlmApi {
                 // Flux<Flux<ChatCompletionChunk>> -> Flux<Mono<ChatCompletionChunk>>
                 .concatMapIterable(window -> {
                     Mono<CommonLlmApi.ChatCompletion> monoChunk = window.reduce(
-                            new CommonLlmApi.ChatCompletion(null, null, null, null, null, null, null, null),
-                            (previous, current) -> CommonLlmApiHelper.merge(previous, current));
+                            // new CommonLlmApi.ChatCompletion(null, null, null, null, null, null, null, null),
+                            CommonLlmApiHelper::merge);
                     return List.of(monoChunk);
                 })
-                .flatMap(mono -> mono);
+                .flatMap(mono -> mono)
+                // 8. 添加重试机制：遇到Connection reset等网络错误时自动重试
+                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2)) // 最多重试3次，初始间隔2秒
+                        .maxBackoff(Duration.ofSeconds(10)) // 最大退避时间10秒
+                        .filter(throwable -> {
+                            // 只对特定类型的错误进行重试
+                            String errorMsg = throwable.getMessage();
+                            return errorMsg != null && (
+                                errorMsg.contains("Connection reset") ||
+                                errorMsg.contains("connection closed") ||
+                                errorMsg.contains("Broken pipe") ||
+                                errorMsg.contains("timeout")
+                            );
+                        })
+                        .doBeforeRetry(retrySignal ->
+                            log.warn("SSE流发生错误，准备第{}次重试: {}",
+                                    retrySignal.totalRetries() + 1,
+                                    retrySignal.failure().getMessage()))
+                )
+                // 9. 错误降级：如果重试后仍然失败，返回空流而不是抛出异常
+                .onErrorResume(e -> {
+                    log.error("SSE流处理后仍然失败，返回空流: {}", e.getMessage(), e);
+                    return Flux.empty();
+                });
     }
 
 
@@ -164,7 +190,7 @@ public class CommonLlmApi {
     }
 
     /**
-     * @see OpenAiApi.ChatCompletion
+     *  OpenAiApi.ChatCompletion
      */
     // @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -191,7 +217,7 @@ public class CommonLlmApi {
             private Integer index;
             private ChatCompletionMessage message;
             /**
-             * @see OpenAiApi.ChatCompletionFinishReason
+             * OpenAiApi.ChatCompletionFinishReason
              */
             private String finishReason;
 
@@ -202,7 +228,7 @@ public class CommonLlmApi {
             private ChatCompletionMessage delta;
 
             @JsonProperty("logprobs")
-            private OpenAiApi.LogProbs logprobs;
+            private LogProbs logprobs;
         }
 
 
@@ -230,7 +256,7 @@ public class CommonLlmApi {
     }
 
     /**
-     * @see OpenAiApi.ChatCompletionMessage
+     *OpenAiApi.ChatCompletionMessage
      */
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -480,6 +506,152 @@ public class CommonLlmApi {
 
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static record AudioParameters(Voice voice,AudioResponseFormat format) {
+        public AudioParameters(@JsonProperty("voice")Voice voice, @JsonProperty("format")AudioResponseFormat format) {
+            this.voice = voice;
+            this.format = format;
+        }
+
+        @JsonProperty("voice")
+        public AudioParameters.Voice voice() {
+            return this.voice;
+        }
+
+        @JsonProperty("format")
+        public AudioParameters.AudioResponseFormat format() {
+            return this.format;
+        }
+
+        public static enum Voice {
+            @JsonProperty("alloy")
+            ALLOY,
+            @JsonProperty("ash")
+            ASH,
+            @JsonProperty("ballad")
+            BALLAD,
+            @JsonProperty("coral")
+            CORAL,
+            @JsonProperty("echo")
+            ECHO,
+            @JsonProperty("fable")
+            FABLE,
+            @JsonProperty("onyx")
+            ONYX,
+            @JsonProperty("nova")
+            NOVA,
+            @JsonProperty("sage")
+            SAGE,
+            @JsonProperty("shimmer")
+            SHIMMER;
+        }
+
+        public static enum AudioResponseFormat {
+            @JsonProperty("mp3")
+            MP3,
+            @JsonProperty("flac")
+            FLAC,
+            @JsonProperty("opus")
+            OPUS,
+            @JsonProperty("pcm16")
+            PCM16,
+            @JsonProperty("wav")
+            WAV;
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static record StreamOptions(Boolean includeUsage) {
+        public static CommonLlmApi.StreamOptions INCLUDE_USAGE = new CommonLlmApi.StreamOptions(true);
+
+        public StreamOptions(@JsonProperty("include_usage") Boolean includeUsage) {
+            this.includeUsage = includeUsage;
+        }
+
+        @JsonProperty("include_usage")
+        public Boolean includeUsage() {
+            return this.includeUsage;
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static record WebSearchOptions(
+            OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize searchContextSize, OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation userLocation) {
+        public WebSearchOptions(@JsonProperty("search_context_size") OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize searchContextSize, @JsonProperty("user_location") OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation userLocation) {
+            this.searchContextSize = searchContextSize;
+            this.userLocation = userLocation;
+        }
+
+        @JsonProperty("search_context_size")
+        public OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize searchContextSize() {
+            return this.searchContextSize;
+        }
+
+        @JsonProperty("user_location")
+        public OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation userLocation() {
+            return this.userLocation;
+        }
+
+        public static enum SearchContextSize {
+            @JsonProperty("low")
+            LOW,
+            @JsonProperty("medium")
+            MEDIUM,
+            @JsonProperty("high")
+            HIGH;
+        }
+
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public static record UserLocation(String type, OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation.Approximate approximate) {
+            public UserLocation(@JsonProperty("type") String type, @JsonProperty("approximate") OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation.Approximate approximate) {
+                this.type = type;
+                this.approximate = approximate;
+            }
+
+            @JsonProperty("type")
+            public String type() {
+                return this.type;
+            }
+
+            @JsonProperty("approximate")
+            public OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation.Approximate approximate() {
+                return this.approximate;
+            }
+
+            @JsonInclude(JsonInclude.Include.NON_NULL)
+            public static record Approximate(String city, String country, String region, String timezone) {
+                public Approximate(@JsonProperty("city") String city, @JsonProperty("country") String country, @JsonProperty("region") String region, @JsonProperty("timezone") String timezone) {
+                    this.city = city;
+                    this.country = country;
+                    this.region = region;
+                    this.timezone = timezone;
+                }
+
+                @JsonProperty("city")
+                public String city() {
+                    return this.city;
+                }
+
+                @JsonProperty("country")
+                public String country() {
+                    return this.country;
+                }
+
+                @JsonProperty("region")
+                public String region() {
+                    return this.region;
+                }
+
+                @JsonProperty("timezone")
+                public String timezone() {
+                    return this.timezone;
+                }
+            }
+        }
+    }
+
+
+
     /**
      * Log probability information for the choice.
      *
@@ -533,5 +705,7 @@ public class CommonLlmApi {
         }
 
     }
+
+
 
 }

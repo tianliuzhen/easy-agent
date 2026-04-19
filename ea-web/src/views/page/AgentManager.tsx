@@ -1,6 +1,6 @@
 // src/pages/EaAgentPage.tsx
 import React, {useEffect, useState, useRef} from 'react';
-import {Button, Table, Modal, Form, Input, Space, Popconfirm, Select, Card, List, Row, Col, Divider, Tag} from 'antd';
+import {Button, Table, Modal, Form, Input, Space, Popconfirm, Select, Card, List, Row, Col, Divider, Tag, AutoComplete} from 'antd';
 import {App} from 'antd';
 import {Link, useNavigate} from 'react-router-dom';
 
@@ -909,28 +909,23 @@ const EaAgentPage: React.FC = () => {
                                     <Col span={12}>
                                         <Form.Item
                                             label="模型版本"
-                                            name="modelVersion"
-                                            initialValue={''}
                                         >
-                                            <Select
+                                            <AutoComplete
                                                 value={modelConfigFields.find(f => f.fieldName === 'modelVersion')?.fieldValue || ''}
                                                 onChange={(value) => {
                                                     console.log('模型版本变更:', value);
-                                                    handleModelConfigFieldChange('modelVersion', value);
-                                                    // 同时更新表单字段值
-                                                    form.setFieldsValue({modelVersion: value});
+                                                    handleModelConfigFieldChange('modelVersion', value || '');
                                                 }}
-                                                placeholder="请选择模型版本"
+                                                placeholder="请选择或输入模型版本"
                                                 style={{width: '100%'}}
-                                                showSearch
-                                                notFoundContent="暂无推荐版本，请输入自定义版本"
-                                                optionFilterProp="label"
                                                 options={(modelVersions.get(form.getFieldValue('modelPlatform')) || []).map((version: string) => ({
-                                                    label: version,
-                                                    value: version
+                                                    value: version,
+                                                    label: version
                                                 }))}
-                                            >
-                                            </Select>
+                                                filterOption={(inputValue, option) =>
+                                                    option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
+                                                }
+                                            />
                                         </Form.Item>
                                     </Col>
                                     <Col span={12}>

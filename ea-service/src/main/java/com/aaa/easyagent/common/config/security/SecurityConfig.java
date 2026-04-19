@@ -103,7 +103,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",     // Swagger UI
                                 "/swagger-ui.html",    // Swagger页面
                                 "/example/**",         // 演示接口
-                                "/eaAgent/ai/streamChatWith"    // ai流接口
+                                "/eaAgent/ai/streamChatWith",   // ai流接口
+                                "/eaAgent/ai/chat"    // ai流接口
                         ).permitAll()
 
                         // 所有其他请求需要认证

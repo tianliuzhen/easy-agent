@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import {Card, Typography, Button, Space, Select, Input, message, Divider} from 'antd';
-import {SaveOutlined, ReloadOutlined, CopyOutlined, DeleteOutlined} from '@ant-design/icons';
+import {SaveOutlined, ReloadOutlined, CopyOutlined, DeleteOutlined, FileTextOutlined} from '@ant-design/icons';
 
 const {Title, Text} = Typography;
 const {TextArea} = Input;
@@ -12,6 +12,7 @@ interface PromptTemplate {
     content: string;
     category: string;
     description?: string;
+    tag?: string;
 }
 
 interface PromptInputPanelProps {
@@ -34,46 +35,60 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
     // 模拟提示词模板数据
     const defaultTemplates: PromptTemplate[] = [
         {
+            id: 0,
+            name: '客服助手',
+            content: '你是一位客服助手，正在处理用户的{{ inquiry_type }}。\n                \n                {% if inquiry_type == "投诉" %}\n                请先表达歉意，然后询问具体问题细节。\n                语气要温和诚恳，避免使用推卸责任的表达。\n                {% elif inquiry_type == "咨询" %}\n                请提供准确、详细的信息，如果涉及多个方案可以对比说明。\n                {% elif inquiry_type == "售后" %}\n                请先确认订单信息，再根据用户问题提供相应的售后流程。\n                {% else %}\n                请礼貌询问用户的具体需求，并表示愿意提供帮助。\n                {% endif %}\n                \n                用户问题：{{ user_message }}',
+            category: '客户服务',
+            description: '用于动态回复客户咨询的标准模板',
+            tag: "jinjia"
+        },
+        {
             id: 1,
             name: '客户咨询回复',
             content: '请根据以下信息回答客户问题：产品特性、价格、使用方法等。语气要专业、友好。',
             category: '客户服务',
-            description: '用于回复客户咨询的标准模板'
+            description: '用于回复客户咨询的标准模板',
+            tag: ""
         },
         {
             id: 2,
             name: '技术问题解答',
             content: '针对技术问题，提供详细的解决方案和操作步骤，引用相关文档。确保回答准确、清晰。',
             category: '技术支持',
-            description: '技术问题解答模板'
+            description: '技术问题解答模板',
+            tag: ""
         },
         {
             id: 3,
             name: '销售引导',
             content: '根据客户需求推荐合适的产品，并介绍产品优势和优惠政策。突出产品价值。',
             category: '销售',
-            description: '销售引导和产品推荐模板'
+            description: '销售引导和产品推荐模板',
+            tag: ""
         },
         {
             id: 4,
             name: '内容创作',
             content: '请创作一篇关于以下主题的内容：要求结构清晰、语言生动、有吸引力。',
             category: '创作',
-            description: '内容创作和写作模板'
+            description: '内容创作和写作模板',
+            tag: ""
         },
         {
             id: 5,
             name: '代码助手',
             content: '请帮助编写代码：要求代码规范、有注释、考虑边界情况。',
             category: '编程',
-            description: '编程和代码助手模板'
+            description: '编程和代码助手模板',
+            tag: ""
         },
         {
             id: 6,
             name: '数据分析',
             content: '请分析以下数据：提取关键信息、发现趋势、提供洞察和建议。',
             category: '分析',
-            description: '数据分析和报告模板'
+            description: '数据分析和报告模板',
+            tag: ""
         }
     ];
 
@@ -236,7 +251,8 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
             height: '100%',
             padding: '16px',
             background: '#fff',
-            borderRadius: '8px'
+            borderRadius: '8px',
+            overflow: 'auto'
         }}>
             {/* 标题和操作按钮 */}
             <div style={{marginBottom: '16px', flexShrink: 0}}>
@@ -251,9 +267,11 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
                         justifyContent: 'space-between',
                         alignItems: 'center'
                     }}>
-                        <Title level={5} style={{margin: 0}}>提示词配置</Title>
+                        <Title level={5} style={{margin: 0, display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <FileTextOutlined style={{color: '#1890ff', fontSize: '16px'}}/>
+                            提示词配置
+                        </Title>
                         <Space>
-                            <Text strong style={{fontSize: '13px'}}>选择模板:</Text>
                             <Select
                                 value={selectedTemplate}
                                 onChange={handleTemplateChange}
@@ -262,11 +280,24 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
                                 loading={isLoading}
                                 size="small"
                             >
-                                <Option value="">自定义输入</Option>
                                 {templates.map(template => (
                                     <Option key={template.id} value={template.id.toString()}>
-                                        {template.name} ({template.category})
+                                        {template.name}
+                                        {template.tag && (
+                                            <span style={{
+                                                background: 'linear-gradient(45deg, #ff6b6b, #f06595, #cc5de8, #845ef7, #5c7cfa, #339af0, #22b8cf, #20c997, #51cf66, #94d82d, #ffd43b, #ff922b)',
+                                                WebkitBackgroundClip: 'text',
+                                                WebkitTextFillColor: 'transparent',
+                                                fontWeight: 'bold',
+                                                margin: '0 4px',
+                                                fontSize: '15px'
+                                            }}>
+                                                {template.tag}
+                                            </span>
+                                        )}
+                                        ({template.category})
                                     </Option>
+
                                 ))}
                             </Select>
                         </Space>
@@ -278,7 +309,7 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
             </div>
 
             {/* 文本输入区域 */}
-            <div style={{flex: 1, display: 'flex', flexDirection: 'column', marginBottom: '16px'}}>
+            <div style={{display: 'flex', flexDirection: 'column', marginBottom: '16px'}}>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -322,13 +353,15 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
                 <TextArea
                     value={promptContent}
                     onChange={handleContentChange}
-                    placeholder="请输入提示词内容，指导AI如何回答问题..."
-                    autoSize={{minRows: 10, maxRows: 20}}
+                    placeholder="请输入提示词内容，指导 AI 如何回答问题..."
+                    rows={10}
                     style={{
-                        flex: 1,
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        lineHeight: '1.5'
+                        fontFamily: 'Microsoft YaHei, "微软雅黑", sans-serif',
+                        fontSize: '14px',
+                        lineHeight: '1.5',
+                        resize: 'vertical',
+                        width: '100%',
+                        minHeight: '343px'
                     }}
                 />
             </div>
@@ -361,7 +394,7 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
                         loading={isSaving}
                         size="small"
                     >
-                        保存提示词
+                        保存
                     </Button>
                 </Space>
             </div>
@@ -381,7 +414,6 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
                     <li>选择模板快速开始，然后根据需求自定义修改</li>
                     <li>清晰的指令能获得更好的回答质量</li>
                     <li>可以指定回答格式、语气、长度等要求</li>
-                    <li>保存后提示词将应用于该Agent的所有对话</li>
                 </ul>
             </div>
         </div>

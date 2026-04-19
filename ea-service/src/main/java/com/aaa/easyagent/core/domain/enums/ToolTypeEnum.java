@@ -3,6 +3,8 @@ package com.aaa.easyagent.core.domain.enums;
 import com.aaa.easyagent.core.domain.template.HttpReqParamsTemplate;
 import com.aaa.easyagent.core.domain.template.SqlParamsTemplate;
 import com.aaa.easyagent.core.domain.template.ParamsTemplate;
+import com.aaa.easyagent.core.domain.template.McpParamsTemplate;
+import com.aaa.easyagent.core.domain.template.SkillParamsTemplate;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -14,7 +16,9 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum ToolTypeEnum {
     HTTP("HTTP", "htt调用", HttpReqParamsTemplate.class),
-    SQL("SQL", "sql查询", SqlParamsTemplate.class);
+    SQL("SQL", "sql查询", SqlParamsTemplate.class),
+    MCP("MCP", "MCP调用", McpParamsTemplate.class),
+    SKILL("SKILL", "Skill技能调用", SkillParamsTemplate.class);
 
     private final String type;
     private final String desc;

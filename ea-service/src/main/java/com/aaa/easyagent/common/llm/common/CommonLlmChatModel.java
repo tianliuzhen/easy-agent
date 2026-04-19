@@ -36,6 +36,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -93,7 +94,7 @@ public class CommonLlmChatModel implements ChatModel {
         // 使用量计算
         CommonLlmApi.Usage usage = chatCompletion.usage;
         Usage currentChatResponseUsage = usage != null ? getDefaultUsage(usage) : new EmptyUsage();
-        Usage accumulatedUsage = UsageUtils.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
+        Usage accumulatedUsage = getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
         ChatResponse response = new ChatResponse(generations, from(chatCompletion, accumulatedUsage));
 
         // 4. functionCall递归调用
@@ -144,7 +145,10 @@ public class CommonLlmChatModel implements ChatModel {
         //         "reasoningContent", org.springframework.util.StringUtils.hasText(choice.getMessage().getReasoningContent()) ? choice.getMessage().getReasoningContent() : ""
         // );
 
-        var assistantMessage = new AssistantMessage(content, Map.of(), toolCalls);
+        var assistantMessage = AssistantMessage.builder()
+                .content(content)
+                .toolCalls(toolCalls)
+                .build();
         ChatGenerationMetadata.Builder builder = ChatGenerationMetadata.builder().finishReason(choice.getFinishReason());
         // 推理内容
         assistantMessage.getMetadata().put("reasoningContent", reasoning_content);
@@ -158,22 +162,20 @@ public class CommonLlmChatModel implements ChatModel {
         return internalStream(prompt, null);
     }
 
-
     public Flux<ChatResponse> internalStream(Prompt prompt, ChatResponse previousChatResponse) {
         return Flux.deferContextual(contextView -> {
             CommonLlmApi.ChatCompletionRequest request = createRequest(prompt, true);
 
-
             Flux<CommonLlmApi.ChatCompletion> completionChunks = this.apiClient.chatCompletionStream(request);
-
 
             final ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
                     .prompt(prompt)
                     .provider(OpenAiApiConstants.PROVIDER_NAME)
-                    .requestOptions(Objects.requireNonNullElse(prompt.getOptions(), CommonLlmChatOptions.builder().build()))
                     .build();
 
-            Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION.observation(this.observationConvention, DEFAULT_OBSERVATION_CONVENTION, () -> observationContext, this.observationRegistry);
+            Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION
+                    .observation(this.observationConvention, DEFAULT_OBSERVATION_CONVENTION,
+                            () -> observationContext, this.observationRegistry);
             observation.parentObservation(contextView.getOrDefault(ObservationThreadLocalAccessor.KEY, null)).start();
 
             // Convert the ChatCompletionChunk into a ChatCompletion to be able to reuse
@@ -182,12 +184,11 @@ public class CommonLlmChatModel implements ChatModel {
                 try {
                     String id = chatCompletion2.getId();
                     List<Generation> generations = chatCompletion2.getChoices().stream()
-                            .map(choice -> {
-                                return buildGeneration(choice);
-                            }).toList();
+                            .map(choice -> buildGeneration(choice))
+                            .toList();
                     CommonLlmApi.Usage usage = chatCompletion2.getUsage();
                     Usage currentChatResponseUsage = usage != null ? getDefaultUsage(usage) : new EmptyUsage();
-                    Usage accumulatedUsage = UsageUtils.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
+                    Usage accumulatedUsage = getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
                     return new ChatResponse(generations, from(chatCompletion2, accumulatedUsage));
                 } catch (Exception e) {
                     log.error("Error processing chat completion", e);
@@ -195,21 +196,55 @@ public class CommonLlmChatModel implements ChatModel {
                 }
             }));
 
+            // fixme 暂时先不走下面
+            if (true){
+                return chatResponse;
+            }
+
             // @formatter:off
             Flux<ChatResponse> flux = chatResponse.flatMap(response -> {
-                        if (prompt.getOptions()!=null &&
-                                ToolCallingChatOptions.isInternalToolExecutionEnabled(prompt.getOptions()) && response.hasToolCalls()) {
-                            ToolExecutionResult toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, response);
-                            if (toolExecutionResult.returnDirect()) {
-                                // Return tool execution result directly to the client.
-                                return Flux.just(ChatResponse.builder().from(response)
-                                        .generations(ToolExecutionResult.buildGenerations(toolExecutionResult))
-                                        .build());
-                            } else {
-                                // Send the tool execution result back to the model.
-                                return this.internalStream(new Prompt(toolExecutionResult.conversationHistory(), prompt.getOptions()),
-                                        response);
-                            }
+                        if (prompt.getOptions() != null &&
+                                ToolCallingChatOptions.isInternalToolExecutionEnabled(prompt.getOptions()) &&
+                                response.hasToolCalls()) {
+
+                            String s = JacksonUtil.beanToStr(response.getResults());
+                            // 1. 先发送工具调用通知（包含工具参数信息）
+                            Flux<ChatResponse> toolCallingNotification = Flux.just(createToolCallingNotification(response));
+
+                            // 2. 再执行工具调用
+                            Flux<ChatResponse> toolExecutionFlux = Mono.fromCallable(() -> {
+                                        log.info("开始执行工具调用...");
+                                        return this.toolCallingManager.executeToolCalls(prompt, response);
+                                    })
+                                    .subscribeOn(Schedulers.boundedElastic())
+                                    .flatMapMany(toolExecutionResult -> {
+                                        if (toolExecutionResult.returnDirect()) {
+                                            // 发送工具执行结果通知 + 结果
+                                            Flux<ChatResponse> toolEndNotification = Flux.just(createToolEndNotification(toolExecutionResult));
+                                            Flux<ChatResponse> result = Flux.just(ChatResponse.builder()
+                                                    .from(response)
+                                                    .generations(ToolExecutionResult.buildGenerations(toolExecutionResult))
+                                                    .build());
+                                            return Flux.concat(toolEndNotification, result);
+                                        } else {
+                                            // 发送工具执行完成通知（准备递归调用）
+                                            Flux<ChatResponse> toolCompleteNotification = Flux.just(createToolCompleteNotification(toolExecutionResult));
+                                            // 递归调用，继续对话
+                                            Flux<ChatResponse> recursiveStream = this.internalStream(
+                                                    new Prompt(toolExecutionResult.conversationHistory(), prompt.getOptions()),
+                                                    response);
+                                            return Flux.concat(toolCompleteNotification, recursiveStream);
+                                        }
+                                    })
+                                    .onErrorResume(throwable -> {
+                                        // 工具执行异常通知
+                                        log.error("工具执行异常", throwable);
+                                        return Flux.just(createToolErrorNotification(throwable, response));
+                                    });
+
+                            // 合并：先发通知，再执行工具调用
+                            return Flux.concat(toolCallingNotification, toolExecutionFlux);
+
                         } else {
                             return Flux.just(response);
                         }
@@ -222,6 +257,52 @@ public class CommonLlmChatModel implements ChatModel {
         });
     }
 
+
+    /**
+     * 创建工具执行结束通知（执行工具成功）
+     */
+    private ChatResponse createToolEndNotification(ToolExecutionResult toolExecutionResult) {
+        ChatResponseMetadata metadata = ChatResponseMetadata.builder()
+                .id("tool-end-notification")
+                .model("tool-notification")
+                .keyValue("type", "TOOL_END")
+                .keyValue("returnDirect", String.valueOf(toolExecutionResult.returnDirect()))
+                .build();
+        return new ChatResponse(List.of(), metadata);
+    }
+
+    /**
+     * 创建工具执行完成通知（准备递归调用模型）
+     */
+    private ChatResponse createToolCompleteNotification(ToolExecutionResult toolExecutionResult) {
+        ChatResponseMetadata metadata = ChatResponseMetadata.builder()
+                .id("tool-complete-notification")
+                .model("tool-notification")
+                .keyValue("type", "TOOL_COMPLETE")
+                .keyValue("message", "工具执行完成，准备继续调用模型")
+                .build();
+        return new ChatResponse(List.of(), metadata);
+    }
+
+    /**
+     * 创建工具执行异常通知
+     */
+    private ChatResponse createToolErrorNotification(Throwable throwable, ChatResponse response) {
+        ChatResponseMetadata metadata = ChatResponseMetadata.builder()
+                .id("tool-error-notification")
+                .model("tool-notification")
+                .keyValue("type", "TOOL_ERROR")
+                .keyValue("error", throwable.getMessage())
+                .build();
+        return new ChatResponse(List.of(), metadata);
+    }
+
+    /**
+     * 创建工具调用通知的 ChatResponse，将工具调用信息放入 metadata 中
+     */
+    private ChatResponse createToolCallingNotification(ChatResponse originalResponse) {
+        return originalResponse;
+    }
 
     /**
      * Accessible for testing.
@@ -336,6 +417,24 @@ public class CommonLlmChatModel implements ChatModel {
 
     private DefaultUsage getDefaultUsage(CommonLlmApi.Usage usage) {
         return new DefaultUsage(usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens(), usage);
+    }
+
+    /**
+     * 计算累积的使用量
+     */
+    private Usage getCumulativeUsage(Usage currentUsage, ChatResponse previousChatResponse) {
+        if (previousChatResponse == null || previousChatResponse.getMetadata() == null) {
+            return currentUsage;
+        }
+        Usage previousUsage = previousChatResponse.getMetadata().getUsage();
+        if (previousUsage == null) {
+            return currentUsage;
+        }
+        return new DefaultUsage(
+                currentUsage.getPromptTokens() + previousUsage.getPromptTokens(),
+                currentUsage.getCompletionTokens() + previousUsage.getCompletionTokens(),
+                currentUsage.getTotalTokens() + previousUsage.getTotalTokens()
+        );
     }
 
 }

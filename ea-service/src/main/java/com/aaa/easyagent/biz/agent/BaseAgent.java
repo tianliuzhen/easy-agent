@@ -1,5 +1,6 @@
 package com.aaa.easyagent.biz.agent;
 
+import com.aaa.easyagent.biz.agent.context.FunctionCallback;
 import com.aaa.easyagent.biz.agent.context.SseHelper;
 import com.aaa.easyagent.biz.agent.data.*;
 import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
@@ -9,6 +10,8 @@ import com.aaa.easyagent.common.config.exception.AgentToolException;
 import com.aaa.easyagent.common.llm.LLmModelSelector;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import com.aaa.easyagent.common.util.JsonSchemaGenerator;
+import com.aaa.easyagent.common.util.LoopDetector;
+import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -18,7 +21,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.util.StopWatch;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -53,6 +55,10 @@ public abstract class BaseAgent {
      * 决策轮数限制
      */
     public static final int DECISION_CNT_LIMIT = 20;
+    /**
+     * 卡住轮数限制
+     */
+    public static final int STUCK_CNT_LIMIT = 3;
 
     /**
      * 默认函数模板
@@ -62,6 +68,12 @@ public abstract class BaseAgent {
             """;
 
     public static final PromptTemplate functionTemplate = new PromptTemplate(DEFAULT_FUNCTION_TEMPLATE);
+
+
+    /**
+     * 相同工具调用统计
+     */
+    protected Map<String, Integer> toolSameCallCountMap = new HashMap<>();
 
     /**
      * agent初始化
@@ -141,11 +153,10 @@ public abstract class BaseAgent {
                 if (agentOutput instanceof AgentFinish agentFinish) {
                     SseHelper.sendLog(sse, "第{}次大模型决策结束...：", decisionCnt);
                     String llmResponse = agentFinish.getResult();
-                    SseHelper.sendLog(sse, "第{}次大模型决策结果...：{}", decisionCnt, llmResponse);
+                    SseHelper.sendLog(sse, "第{}次大模型决策结果...：", decisionCnt, llmResponse);
 
-                    SseHelper.sendFinalAnswer(sse, agentFinish.getResult());
-                    ChatRecordSaver.addFinalAnswer(agentFinish.getResult());
-
+                    // SseHelper.sendFinalAnswer(sse, agentFinish.getResult());
+                    // ChatRecordSaver.addFinalAnswer(agentFinish.getResult());
                     stopWatch.stop();
                     ChatRecordSaver.saveAgentFinish(
                             agentFinish, agentContext.getAgentModelConfig().getModelVersion(),
@@ -164,17 +175,34 @@ public abstract class BaseAgent {
             }
 
 
-            // todo 检查是否卡住
-            // 1. 多次调用工具，并且工具返回的结果都一样，则认为模型卡住
-            // if (isStuck()) {
-            //     handleStuckState();
-            // }
+            // 多次调用工具，并且工具返回的结果都一样，则认为模型卡住
+            if (isStuck()) {
+                SseHelper.sendData(sse, "模型可能卡住了，请检查!");
+                return null;
+            }
 
             decisionCnt++;
         }
 
 
         return null;
+    }
+
+    /**
+     * 场景：
+     * 捞取日志分析，先按月捞查不到，再按周捞查不到，再按天捞 ... 模型可能一直处于无限循环状态，
+     * 这时检测 模型触发的工具参数是否重复，如果重复超3次，认为模型可能卡住了。
+     *
+     * @return true
+     */
+    private boolean isStuck() {
+        for (Map.Entry<String, Integer> entry : toolSameCallCountMap.entrySet()) {
+            if (entry.getValue() >= STUCK_CNT_LIMIT) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 
@@ -191,7 +219,8 @@ public abstract class BaseAgent {
                 UUID.randomUUID().toString(),
                 functionUseAction.getAction(),
                 callToolResult));
-        ToolResponseMessage toolResponseMessage = new ToolResponseMessage(responses);
+
+        ToolResponseMessage toolResponseMessage = ToolResponseMessage.builder().responses(responses).build();
 
         /*
          * deepseek： Messages with role 'tool' must be a response to a preceding message with 'tool_calls
@@ -240,13 +269,28 @@ public abstract class BaseAgent {
         return callbackMap;
     }
 
-    protected void addAssistantMessage(Prompt prompt, ChatResponse chatResponse) {
+    protected void addAssistantMessage(ChatResponse chatResponse) {
         AssistantMessage toolResponseMessage = new AssistantMessage(ChatResponseUtil.getResStr(chatResponse));
         prompt.getInstructions().add(toolResponseMessage);
     }
 
-    protected void addAssistantMessage(Prompt prompt, String chatResponse) {
-        AssistantMessage toolResponseMessage = new AssistantMessage(chatResponse);
+    protected void addMessage(Message chatResponse) {
+        prompt.getInstructions().add(chatResponse);
+    }
+
+    protected void addAssistantMessage(AgentOutput agentOutput) {
+        if (agentOutput instanceof FunctionUseAction functionUseAction) {
+            AssistantMessage toolResponseMessage = new AssistantMessage(agentOutput.getLlmResponse());
+
+            String action = functionUseAction.getAction() + ":"
+                    + LoopDetector.normalizeAndSHA256(JSONObject.parseObject(functionUseAction.getActionInput()));
+            toolSameCallCountMap.put(action,
+                    toolSameCallCountMap.getOrDefault(action, 0) + 1);
+
+            prompt.getInstructions().add(toolResponseMessage);
+            return;
+        }
+        AssistantMessage toolResponseMessage = new AssistantMessage(agentOutput.getLlmResponse());
         prompt.getInstructions().add(toolResponseMessage);
     }
 

@@ -5,6 +5,8 @@ package com.aaa.easyagent.web.biz.function;
 import com.aaa.easyagent.biz.tool.ToolOnlineDebug;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.EaToolConfigReq;
+import com.aaa.easyagent.core.domain.request.ToolBindRequest;
+import com.aaa.easyagent.core.domain.request.ToolUnbindRequest;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
 import com.aaa.easyagent.core.service.ToolMangerService;
 import lombok.RequiredArgsConstructor;
@@ -30,14 +32,25 @@ public class ToolManagerController {
     private final ToolOnlineDebug toolOnlineDebug;
 
     /**
+     * 查询官方工具列表
+     *
+     * @return 工具配置结果列表
+     */
+    @GetMapping("getDefaultTools")
+    public BaseResult getDefaultTools() {
+        List<EaToolConfigResult> eaToolConfigResults = toolMangerService.getDefaultTools();
+        return BaseResult.buildSuc(eaToolConfigResults);
+    }
+
+    /**
      * 根据Agent ID获取工具配置列表
      *
      * @param agentId Agent标识
      * @return 工具配置结果列表
      */
-    @GetMapping("getToolConfigByAgentId/{agentId}")
-    public BaseResult getToolConfigByAgentId(@PathVariable Long agentId) {
-        List<EaToolConfigResult> toolConfigByAgentId = toolMangerService.getToolConfigByAgentId(agentId);
+    @GetMapping("getToolConfigByUserId")
+    public BaseResult getToolConfigByUserId() {
+        List<EaToolConfigResult> toolConfigByAgentId = toolMangerService.getToolConfigByUserId();
         return BaseResult.buildSuc(toolConfigByAgentId);
     }
 
@@ -93,6 +106,42 @@ public class ToolManagerController {
             return BaseResult.buildFail(e.getMessage());
         }
 
+    }
+
+    /**
+     * 根据Agent ID获取已绑定的工具列表
+     *
+     * @param agentId Agent标识
+     * @return 已绑定的工具配置列表
+     */
+    @GetMapping("listBoundToolsByAgentId/{agentId}")
+    public BaseResult listBoundToolsByAgentId(@PathVariable Long agentId) {
+        List<EaToolConfigResult> boundTools = toolMangerService.listBoundToolsByAgentId(agentId);
+        return BaseResult.buildSuc(boundTools);
+    }
+
+    /**
+     * 绑定工具到Agent
+     *
+     * @param request 工具绑定请求
+     * @return 绑定结果，成功返回1，失败返回0
+     */
+    @PostMapping("bind")
+    public BaseResult bindTool(@RequestBody ToolBindRequest request) {
+        int result = toolMangerService.bindTool(request);
+        return BaseResult.buildSuc(result);
+    }
+
+    /**
+     * 从Agent解绑工具
+     *
+     * @param request 工具解绑请求
+     * @return 解绑结果，成功返回1，失败返回0
+     */
+    @PostMapping("unbind")
+    public BaseResult unbindTool(@RequestBody ToolUnbindRequest request) {
+        int result = toolMangerService.unbindTool(request);
+        return BaseResult.buildSuc(result);
     }
 
 }

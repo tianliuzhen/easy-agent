@@ -46,6 +46,20 @@ public interface UserService {
     EaIamUserDO getUserById(Long userId);
 
     /**
+     * 获取用户列表
+     *
+     * @return 用户列表
+     */
+    java.util.List<EaIamUserDO> getUserList();
+
+    /**
+     * 更新用户信息
+     *
+     * @param userDO 用户信息
+     */
+    void updateUser(EaIamUserDO userDO);
+
+    /**
      * 用户登出
      */
     void logout();

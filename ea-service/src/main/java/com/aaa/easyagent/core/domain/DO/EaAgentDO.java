@@ -81,4 +81,10 @@ public class EaAgentDO {
      */
     @Column(name = "agent_desc")
     private String agentDesc;
+
+    /**
+     * 提示词
+     */
+    @Column(name = "prompt")
+    private String prompt;
 }

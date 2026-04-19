@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.easyagent.core.mapper.EaMcpConfigDAO">
+  <resultMap id="BaseResultMap" type="com.aaa.easyagent.core.domain.DO.EaMcpConfigDO">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="user_id" jdbcType="VARCHAR" property="userId" />
+    <result column="server_name" jdbcType="VARCHAR" property="serverName" />
+    <result column="server_url" jdbcType="VARCHAR" property="serverUrl" />
+    <result column="transport_type" jdbcType="VARCHAR" property="transportType" />
+    <result column="tool_name" jdbcType="VARCHAR" property="toolName" />
+    <result column="tool_display_name" jdbcType="VARCHAR" property="toolDisplayName" />
+    <result column="connection_timeout" jdbcType="INTEGER" property="connectionTimeout" />
+    <result column="max_retries" jdbcType="INTEGER" property="maxRetries" />
+    <result column="status" jdbcType="VARCHAR" property="status" />
+    <result column="last_connected_at" jdbcType="TIMESTAMP" property="lastConnectedAt" />
+    <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
+    <result column="updated_at" jdbcType="TIMESTAMP" property="updatedAt" />
+    <result column="command" jdbcType="LONGVARCHAR" property="command" />
+    <result column="env_vars" jdbcType="LONGVARCHAR" property="envVars" />
+    <result column="tool_description" jdbcType="LONGVARCHAR" property="toolDescription" />
+    <result column="input_schema" jdbcType="LONGVARCHAR" property="inputSchema" />
+    <result column="output_schema" jdbcType="LONGVARCHAR" property="outputSchema" />
+    <result column="tool_metadata" jdbcType="LONGVARCHAR" property="toolMetadata" />
+    <result column="last_error" jdbcType="LONGVARCHAR" property="lastError" />
+    <result column="description" jdbcType="LONGVARCHAR" property="description" />
+  </resultMap>
+</mapper>

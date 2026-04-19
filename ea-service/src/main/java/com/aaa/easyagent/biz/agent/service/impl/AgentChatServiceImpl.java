@@ -1,6 +1,7 @@
 package com.aaa.easyagent.biz.agent.service.impl;
 
-import com.aaa.easyagent.biz.agent.ReActAgentXmlExecutor;
+import com.aaa.easyagent.biz.agent.ReActAgentExecutor;
+import com.aaa.easyagent.biz.agent.ToolAgentExecutor;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
@@ -10,6 +11,7 @@ import com.aaa.easyagent.core.domain.enums.ToolRunMode;
 import com.aaa.easyagent.core.domain.result.EaAgentResult;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
 import com.aaa.easyagent.core.service.AgentManagerService;
+import com.aaa.easyagent.core.service.McpToolIntegrationService;
 import com.aaa.easyagent.core.service.ToolMangerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author liuzhen.tian
@@ -29,6 +32,7 @@ public class AgentChatServiceImpl implements AgentChatService {
 
     private final AgentManagerService agentManagerService;
     private final ToolMangerService toolMangerService;
+    private final McpToolIntegrationService mcpToolIntegrationService;
 
 
     /**
@@ -52,6 +56,7 @@ public class AgentChatServiceImpl implements AgentChatService {
         AgentContext agentContext = new AgentContext();
         agentContext.setAgentId(agent.getId());
         agentContext.setAgentName(agent.getAgentName());
+        agentContext.setPrompt(agent.getPrompt());
 
         // Agent来源
         agentContext.setModelType(ModelTypeEnum.getByModel(agent.getModelPlatform()));
@@ -60,13 +65,17 @@ public class AgentChatServiceImpl implements AgentChatService {
         agentContext.setAgentModelConfig(agent.getAgentModelConfig());
 
         // 工具信息
-        List<EaToolConfigResult> eaToolConfigResults = toolMangerService.getToolConfigByAgentId(agent.getId());
-        List<ToolDefinition> toolDefinitions = eaToolConfigResults.stream().map(ToolDefinition::buildToolDefinition).toList();
+        List<EaToolConfigResult> eaToolConfigResults = toolMangerService.listBoundToolsByAgentId(agent.getId());
+        List<ToolDefinition> toolDefinitions = eaToolConfigResults.stream().map(ToolDefinition::buildToolDefinition).collect(Collectors.toList());
         agentContext.setToolDefinitions(toolDefinitions);
 
+        // 集成mcp
+        List<ToolDefinition<?>> mcpToolDefinitions = mcpToolIntegrationService.getMcpToolsForAgent(agent.getId());
+        agentContext.getToolDefinitions().addAll(mcpToolDefinitions);
 
         // 工具决策-tool
-        agentContext.setToolRunMode(ToolRunMode.Tool);
+        ToolRunMode runMode = ToolRunMode.getByMode(agent.getToolRunMode());
+        agentContext.setToolRunMode(runMode);
 
         // sse
         agentContext.setSseEmitter(sseEmitter);
@@ -75,8 +84,15 @@ public class AgentChatServiceImpl implements AgentChatService {
         // 开始新的聊天会话并保存到数据库
         ChatRecordSaver.startNewConversation(agentContext, question);
 
+        String result = null;
         // 执行Agent
-        String result = new ReActAgentXmlExecutor(agentContext).exec(question);
+        if (runMode == ToolRunMode.ReAct) {
+            // 传统的ReAct模式
+            result = new ReActAgentExecutor(agentContext).exec(question);
+        }else {
+            // 大模型的tool模式
+            result = new ToolAgentExecutor(agentContext).exec(question);
+        }
 
         // 保存聊天记录（注意：这里需要从Agent执行过程中获取思考过程和工具调用信息）
         // 实际的保存逻辑在ChatRecordSaverService中通过ThreadLocal收集

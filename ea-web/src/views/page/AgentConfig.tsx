@@ -1,11 +1,13 @@
 import React, {useState} from 'react';
-import {App, Layout, ConfigProvider, Splitter} from 'antd';
-import {LeftOutlined} from '@ant-design/icons';
+import {App, Layout, ConfigProvider, Splitter, message, Button} from 'antd';
+import {LeftOutlined, EditOutlined} from '@ant-design/icons';
 import {useLocation} from 'react-router-dom';
 import {AgentConfigProvider, useAgentConfig} from './agent/AgentConfigContext';
 import PromptInputPanel from './agent/prompt/PromptInputPanel';
 import ResourceBindingPanel from './agent/ResourceBindingPanel';
 import ChatDebugPanel from './agent/debug/ChatDebugPanel';
+import {eaAgentApi} from '../api/EaAgentApi';
+import AgentEditModal, {type ModelConfigField} from './agent/AgentEditModal';
 
 
 // 默认面板大小
@@ -40,7 +42,7 @@ const GlobalStyles = () => (
 // 内部组件，使用 AgentConfigContext
 const AgentConfigContent: React.FC = () => {
     const location = useLocation();
-    const { agentDetail } = useAgentConfig();
+    const {agentDetail, refreshResources, setAgentDetail} = useAgentConfig();
 
     // 获取 URL 参数中的 agentId
     const urlParams = new URLSearchParams(location.search);
@@ -51,19 +53,65 @@ const AgentConfigContent: React.FC = () => {
     const [sizes, setSizes] = useState<(number | string)[]>(defaultSizes);
     const [promptContent, setPromptContent] = useState('');
 
+    // 编辑相关状态
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
     // 从 Context 获取 agentName
     const agentName = agentDetail?.agentName || 'Agent 配置';
-    
+
     // 处理双击重置面板大小
     const handleDoubleClick = () => {
         setSizes(defaultSizes);
     };
-    
-    // 处理提示词变化
+
+    // 处理提示词变化（仅更新本地状态，不自动保存）
     const handlePromptChange = (content: string) => {
         setPromptContent(content);
-        // 这里可以添加保存逻辑
-        console.log('提示词更新:', content);
+    };
+
+    // 打开编辑弹窗
+    const handleEditClick = () => {
+        if (!agentDetail) {
+            message.warning('未获取到 Agent 信息');
+            return;
+        }
+        setIsEditModalOpen(true);
+    };
+
+    // 提交编辑表单
+    const handleEditSubmit = async (values: any, modelConfigFields: ModelConfigField[]) => {
+        try {
+            // 构建 modelConfig 对象
+            const modelConfigObj: any = {};
+            modelConfigFields.forEach(field => {
+                if (field.fieldName && field.fieldValue) {
+                    modelConfigObj[field.fieldName] = field.fieldValue;
+                }
+            });
+
+            const agentData = {
+                ...values,
+                id: agentIdNum,
+                modelPlatform: values.modelPlatform,
+                analysisModel: values.modelPlatform,
+                modelConfig: JSON.stringify(modelConfigObj),
+            };
+
+            await eaAgentApi.saveAgent(agentData);
+            message.success('更新成功');
+            setIsEditModalOpen(false);
+            
+            // 重新加载 agent 详情以刷新顶部信息
+            if (agentIdNum) {
+                const result = await eaAgentApi.queryAgent(agentIdNum);
+                if (result && result.data) {
+                    setAgentDetail(result.data);
+                }
+            }
+        } catch (error) {
+            console.error('保存失败:', error);
+            message.error('保存失败');
+        }
     };
 
     return (
@@ -74,10 +122,10 @@ const AgentConfigContent: React.FC = () => {
                     style={{
                         height: '100vh',
                         width: '100%',
-                        padding: '5px',
+                        padding: '0px',
                         display: 'flex',
                         flexDirection: 'column',
-                        background: '#e1ecf7',
+                        background: 'var(--ea-theme-background)',
                     }}>
                     <GlobalStyles/>
 
@@ -92,10 +140,20 @@ const AgentConfigContent: React.FC = () => {
                         borderRadius: '5px',
                     }}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <LeftOutlined/>返回
+                            <LeftOutlined style={{margin: '0px', padding: '0px'}}/>
+                            {/* 这个地方展示一下 avatar */}
                             <span style={{fontSize: '16px', fontWeight: '500', color: '#333'}}>
-                                {agentName || 'Agent 配置'}
+                                {agentDetail?.avatar} {agentDetail?.agentName}
                             </span>
+                            <Button
+                                type="text"
+                                size="small"
+                                onClick={handleEditClick}
+                                icon={<EditOutlined style={{fontSize: '14px'}}/>}
+                                title="编辑 Agent"
+                                style={{color: '#1890ff', padding: '2px 4px'}}
+                            >
+                            </Button>
                         </div>
                         {agentIdNum && (
                             <span style={{fontSize: '12px', color: '#999'}}>
@@ -126,6 +184,7 @@ const AgentConfigContent: React.FC = () => {
                                 min="20%"
                                 max="50%"
                                 className="splitter-panel"
+                                collapsible
                             >
                                 <PromptInputPanel
                                     agentId={agentIdNum}
@@ -138,6 +197,7 @@ const AgentConfigContent: React.FC = () => {
                                 min="30%"
                                 max="60%"
                                 className="splitter-panel"
+                                collapsible
                             >
                                 <ResourceBindingPanel
                                     agentId={agentIdNum}
@@ -149,6 +209,7 @@ const AgentConfigContent: React.FC = () => {
                                 min="20%"
                                 max="50%"
                                 className="splitter-panel"
+                                collapsible={{start: true}}
                             >
                                 <ChatDebugPanel
                                     agentId={agentIdNum}
@@ -158,6 +219,15 @@ const AgentConfigContent: React.FC = () => {
                     </div>
                 </Layout>
             </App>
+
+            {/* 编辑 Agent 弹窗 - 使用复用组件 */}
+            <AgentEditModal
+                open={isEditModalOpen}
+                editingId={agentIdNum}
+                agentDetail={agentDetail}
+                onOk={handleEditSubmit}
+                onCancel={() => setIsEditModalOpen(false)}
+            />
         </ConfigProvider>
     );
 };
@@ -173,7 +243,7 @@ const AgentConfig: React.FC = () => {
 
     return (
         <AgentConfigProvider initialAgentId={agentIdNum}>
-            <AgentConfigContent />
+            <AgentConfigContent/>
         </AgentConfigProvider>
     );
 };

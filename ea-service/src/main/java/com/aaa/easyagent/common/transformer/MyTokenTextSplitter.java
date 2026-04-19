@@ -216,8 +216,8 @@ public class MyTokenTextSplitter extends AbstractTextSplitter {
             return this;
         }
 
-        public TokenTextSplitter build() {
-            return new TokenTextSplitter(this.chunkSize, this.minChunkSizeChars, this.minChunkLengthToEmbed,
+        public MyTokenTextSplitter build() {
+            return new MyTokenTextSplitter(this.chunkSize, this.minChunkSizeChars, this.minChunkLengthToEmbed,
                     this.maxNumChunks, this.keepSeparator);
         }
 

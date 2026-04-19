@@ -6,7 +6,7 @@
       WARNING - @mbg.generated
     -->
     <id column="id" jdbcType="BIGINT" property="id" />
-    <result column="agent_id" jdbcType="BIGINT" property="agentId" />
+    <result column="user_id" jdbcType="BIGINT" property="userId" />
     <result column="tool_type" jdbcType="VARCHAR" property="toolType" />
     <result column="tool_instance_id" jdbcType="VARCHAR" property="toolInstanceId" />
     <result column="tool_instance_name" jdbcType="VARCHAR" property="toolInstanceName" />

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { List, Card, Tag, Button, Empty, Spin, Tooltip, message } from 'antd';
-import { CodeOutlined, RobotOutlined, DeleteOutlined, SettingOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { List, Card, Tag, Button, Empty, Spin, Tooltip, message, Popconfirm } from 'antd';
+import { CodeOutlined, RobotOutlined, DeleteOutlined, SettingOutlined, ThunderboltOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { mcpApi } from '../../../api/McpApi';
 
 interface MCPSkillItem {
     id: number;
@@ -17,84 +18,88 @@ interface MCPSkillListProps {
     agentId?: number;
     refreshKey?: number;
     onRefresh?: () => void;
+    onCountUpdate?: (count: number) => void;
 }
 
 const MCPSkillList: React.FC<MCPSkillListProps> = ({
     agentId,
     refreshKey,
-    onRefresh
+    onRefresh,
+    onCountUpdate
 }) => {
     const [skills, setSkills] = useState<MCPSkillItem[]>([]);
     const [loading, setLoading] = useState(false);
+    const isFirstLoad = useRef(true);
+    const prevAgentId = useRef(agentId);
 
-    // 模拟MCP技能数据
-    const mockSkills: MCPSkillItem[] = [
-        {
-            id: 1,
-            name: '文件系统操作',
-            description: '读写本地文件系统，支持多种文件格式',
-            provider: 'Anthropic',
-            version: '1.2.0',
-            status: 'active',
-            capabilities: ['read', 'write', 'list', 'delete'],
-            lastUpdated: '2024-01-15'
-        },
-        {
-            id: 2,
-            name: 'Git操作',
-            description: 'Git仓库管理，支持提交、拉取、分支等操作',
-            provider: 'GitHub',
-            version: '2.1.0',
-            status: 'active',
-            capabilities: ['clone', 'commit', 'pull', 'push', 'branch'],
-            lastUpdated: '2024-01-20'
-        },
-        {
-            id: 3,
-            name: '数据库查询',
-            description: 'SQL数据库查询和操作',
-            provider: 'Community',
-            version: '1.0.3',
-            status: 'inactive',
-            capabilities: ['query', 'insert', 'update', 'delete'],
-            lastUpdated: '2024-01-10'
-        },
-        {
-            id: 4,
-            name: '网页搜索',
-            description: '实时网页搜索和信息提取',
-            provider: 'Google',
-            version: '3.0.1',
-            status: 'loading',
-            capabilities: ['search', 'extract', 'summarize'],
-            lastUpdated: '2024-02-01'
-        }
-    ];
+    // 加载技能列表
+    const loadSkills = useCallback(async () => {
+        if (!agentId) return;
 
-    // 加载MCP技能
-    useEffect(() => {
-        loadSkills();
-    }, [agentId, refreshKey]);
-
-    const loadSkills = async () => {
         setLoading(true);
         try {
-            // 这里可以调用API获取MCP技能
-            // const response = await mcpApi.getByAgentId(agentId);
-            // setSkills(response.data || []);
-
-            // 暂时使用模拟数据
-            setTimeout(() => {
-                setSkills(mockSkills);
-                setLoading(false);
-            }, 500);
+            // 根据Agent ID加载关联的MCP
+            const response = await mcpApi.listBoundMcpByAgentId(agentId.toString());
+            if (response.success) {
+                const mappedSkills = response.data.map((item: any) => ({
+                    id: item.id,
+                    name: item.serverName || item.name || `MCP-${item.id}`,
+                    description: item.description || item.toolDescription || '无描述',
+                    provider: item.provider || 'Unknown',
+                    version: item.version || '1.0.0',
+                    status: item.status === 'active' ? 'active' : 'inactive',
+                    capabilities: item.capabilities || [],
+                    lastUpdated: item.updatedAt || item.createdAt || '从未使用'
+                }));
+                setSkills(mappedSkills);
+                // 直接在这里通知父组件更新数量，避免额外的useEffect
+                if (onCountUpdate) {
+                    onCountUpdate(mappedSkills.length);
+                }
+            } else {
+                message.error(`加载MCP失败: ${response.message}`);
+                setSkills([]);
+                if (onCountUpdate) {
+                    onCountUpdate(0);
+                }
+            }
         } catch (error) {
-            console.error('加载MCP技能失败:', error);
-            message.error('加载MCP技能失败');
+            console.error('加载MCP失败:', error);
+            message.error('加载MCP失败');
             setSkills([]);
+            if (onCountUpdate) {
+                onCountUpdate(0);
+            }
+        } finally {
             setLoading(false);
         }
-    };
+    }, [agentId, onCountUpdate]);
+
+    // 当 agentId 变化时加载数据
+    useEffect(() => {
+        // 只在 agentId 真正变化时加载，或者首次加载
+        if (agentId !== prevAgentId.current || isFirstLoad.current) {
+            isFirstLoad.current = false;
+            prevAgentId.current = agentId;
+
+            if (agentId !== undefined && agentId !== null) {
+                loadSkills();
+            } else {
+                // 如果没有 agentId，清空数据
+                setSkills([]);
+                if (onCountUpdate) {
+                    onCountUpdate(0);
+                }
+            }
+        }
+    }, [agentId, loadSkills, onCountUpdate]);
+
+    // 当 refreshKey 变化时重新加载
+    useEffect(() => {
+        if (refreshKey !== undefined && refreshKey !== null && refreshKey > 0 && agentId) {
+            loadSkills();
+        }
+    }, [refreshKey, loadSkills, agentId]);
 
     // 获取状态标签颜色
     const getStatusColor = (status: string) => {
@@ -128,25 +133,46 @@ const MCPSkillList: React.FC<MCPSkillListProps> = ({
     };
 
     // 配置技能
-    const handleConfigure = (item: MCPSkillItem) => {
+    const handleConfigure = useCallback((item: MCPSkillItem) => {
         message.info(`配置技能: ${item.name}`);
         // 这里可以打开配置模态框
-    };
+    }, []);
 
-    // 删除技能
-    const handleDelete = (item: MCPSkillItem) => {
-        // 这里可以调用API删除技能
-        message.success(`已删除技能: ${item.name}`);
-        if (onRefresh) {
-            onRefresh();
+    // 解绑MCP
+    const handleUnbind = useCallback(async (item: MCPSkillItem) => {
+        if (!agentId) {
+            message.error('无法解绑：缺少Agent ID');
+            return;
         }
-    };
+
+        try {
+            const request = {
+                agentId: agentId.toString(),
+                mcpConfigId: item.id
+            };
+
+            const response = await mcpApi.unbindMcp(request);
+            if (response.success) {
+                message.success(`已解绑MCP: ${item.name}`);
+                if (onRefresh) {
+                    onRefresh();
+                }
+                // 重新加载列表
+                await loadSkills();
+            } else {
+                message.error(`解绑失败: ${response.message}`);
+            }
+        } catch (error) {
+            console.error('解绑MCP失败:', error);
+            message.error('解绑MCP失败');
+        }
+    }, [agentId, loadSkills, onRefresh]);
 
     // 测试技能
-    const handleTest = (item: MCPSkillItem) => {
+    const handleTest = useCallback((item: MCPSkillItem) => {
         message.info(`测试技能: ${item.name}`);
         // 这里可以打开测试模态框
-    };
+    }, []);
 
     // 渲染能力标签
     const renderCapabilities = (capabilities: string[]) => {
@@ -246,15 +272,22 @@ const MCPSkillList: React.FC<MCPSkillListProps> = ({
                                         onClick={() => handleConfigure(item)}
                                     />
                                 </Tooltip>
-                                <Tooltip title="删除">
-                                    <Button
-                                        type="text"
-                                        icon={<DeleteOutlined />}
-                                        size="small"
-                                        danger
-                                        onClick={() => handleDelete(item)}
-                                    />
-                                </Tooltip>
+                                <Popconfirm
+                                    title="确定要解绑此MCP吗？"
+                                    description="解绑后Agent将无法使用此MCP"
+                                    onConfirm={() => handleUnbind(item)}
+                                    okText="确定"
+                                    cancelText="取消"
+                                >
+                                    <Tooltip title="解绑">
+                                        <Button
+                                            type="text"
+                                            icon={<DisconnectOutlined />}
+                                            size="small"
+                                            danger
+                                        />
+                                    </Tooltip>
+                                </Popconfirm>
                             </div>
                         </div>
                     </Card>

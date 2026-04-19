@@ -17,5 +17,6 @@
     <result column="updated_at" jdbcType="TIMESTAMP" property="updatedAt" />
     <result column="avatar" jdbcType="LONGVARCHAR" property="avatar" />
     <result column="agent_desc" jdbcType="LONGVARCHAR" property="agentDesc" />
+    <result column="prompt" jdbcType="LONGVARCHAR" property="prompt" />
   </resultMap>
 </mapper>

@@ -5,8 +5,9 @@ import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.client.transport.StdioClientTransport;
-import io.modelcontextprotocol.json.McpJsonMapper;
+import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.spec.McpSchema;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Map;
 
@@ -33,7 +34,7 @@ class WeatherServiceTest {
                 .args("-jar", "F:\\WorkSpace\\MyGithub\\easy-agent\\mcp\\target\\mcp-0.0.1-SNAPSHOT.jar")
                 .build();
 
-        var stdioTransport = new StdioClientTransport(stdioParams, McpJsonMapper.createDefault());
+        var stdioTransport = new StdioClientTransport(stdioParams, new JacksonMcpJsonMapper(new JsonMapper()));
 
         var mcpClient = McpClient.sync(stdioTransport).build();
 

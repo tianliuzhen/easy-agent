@@ -1,17 +1,15 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {
     App,
     Layout,
     Menu,
     Typography,
-    Breadcrumb,
     Button,
     Space,
     Tag,
     Popconfirm,
     ConfigProvider,
     Input,
-    Modal,
     Tooltip
 } from 'antd';
 import {
@@ -41,7 +39,6 @@ const AnimatedDatabaseIcon = ({isActive}: { isActive: boolean }) => (
             fontSize: isActive ? '16px' : '14px',
             transition: 'all 0.3s ease',
             animation: !isActive ? 'swing 2.8s ease-in-out infinite' : 'none',
-            transform: 'rotate(0deg)',
             transformOrigin: 'center center'
         }}
     />
@@ -54,7 +51,6 @@ const AnimatedApiIcon = ({isActive}: { isActive: boolean }) => (
             fontSize: isActive ? '16px' : '14px',
             transition: 'all 0.3s ease',
             animation: !isActive ? 'swing 3s ease-in-out infinite' : 'none',
-            transform: 'rotate(0deg)',
             transformOrigin: 'center center'
         }}
     />
@@ -67,7 +63,6 @@ const AnimatedCloudServerIcon = ({isActive}: { isActive: boolean }) => (
             fontSize: isActive ? '16px' : '14px',
             transition: 'all 0.3s ease',
             animation: !isActive ? 'swing 2s ease-in-out infinite' : 'none',
-            transform: 'rotate(0deg)',
             transformOrigin: 'center center'
         }}
     />
@@ -80,7 +75,6 @@ const AnimatedSyncIcon = ({isActive}: { isActive: boolean }) => (
             fontSize: isActive ? '16px' : '14px',
             transition: 'all 0.3s ease',
             animation: !isActive ? 'spin 2.5s linear infinite' : 'none',
-            transform: 'rotate(0deg)',
         }}
     />
 );
@@ -113,12 +107,22 @@ const GlobalStyles = () => (
     </style>
 );
 
-const ToolManager: React.FC = () => {
+interface ToolManagerProps {
+    mode?: 'default' | 'my';
+    title?: string;
+    basePath?: string;
+}
+
+const ToolManager: React.FC<ToolManagerProps> = ({
+                                                     mode = 'default',
+                                                     title = mode === 'default' ? '工具列表' : '我的工具列表',
+                                                     basePath = mode === 'default' ? '/toolManager' : '/myToolManager'
+                                                 }) => {
+    console.log('ToolManager rendered, mode:', mode);
     const navigate = useNavigate();
     const location = useLocation();
     const app = App.useApp();
 
-    // 默认 agentId 为 0
     const agentId = '0';
 
     const [selectedTool, setSelectedTool] = useState<string>('');
@@ -129,16 +133,7 @@ const ToolManager: React.FC = () => {
         disabled?: boolean
     }[]>([]);
     const [toolConfigs, setToolConfigs] = useState<any[]>([]);
-
-    // 解析当前选中的工具
-    const getCurrentTool = () => {
-        const path = location.pathname;
-        if (path.includes('/tool/sql')) return 'SQL';
-        if (path.includes('/tool/http')) return 'HTTP';
-        if (path.includes('/tool/mcp')) return 'MCP';
-        if (path.includes('/tool/grpc')) return 'GRPC';
-        return 'SQL'; // 默认选中SQL
-    };
+    const [loading, setLoading] = useState(false);
 
     // 将工具类型转换为中文名称
     const getToolTypeName = (toolType: string) => {
@@ -156,216 +151,197 @@ const ToolManager: React.FC = () => {
         }
     };
 
-    // 根据 URL 参数获取当前选中的工具键值
-    const getCurrentToolKey = () => {
-        const urlParams = new URLSearchParams(location.search);
-        const toolIdFromUrl = urlParams.get('toolId');
-
-        if (toolIdFromUrl && toolIdFromUrl !== 'new') {
-            const toolType = getCurrentTool();
-            return `${toolType}_${toolIdFromUrl}`;
-        }
-
-        return '';
+    // 获取当前工具类型
+    const getCurrentToolType = () => {
+        const path = location.pathname;
+        if (path.includes('/tool/sql')) return 'SQL';
+        if (path.includes('/tool/http')) return 'HTTP';
+        if (path.includes('/tool/mcp')) return 'MCP';
+        if (path.includes('/tool/grpc')) return 'GRPC';
+        return null;
     };
 
-    // 获取工具配置（用于设置 toolConfigs 和 availableTools 状态）
-    const loadToolConfigs = () => {
-        eaToolApi.getToolConfigByAgentId(parseInt(agentId))
-            .then((result) => {
-                if (result && (result.code === 200 || result.success === true)) {
-                    const toolConfigs = result.data || [];
-                    setToolConfigs(toolConfigs);
-
-                    // 同时更新左侧工具列表
-                    const toolsWithDetails = toolConfigs.map((config: any, index: number) => {
-                        // 禁用 MCP 和 GRPC 工具
-                        const isDisabled = config.toolType === 'MCP' || config.toolType === 'GRPC';
-
-                        // 生成工具显示名称
-                        let toolDisplayName = config.toolInstanceName;
-                        if (!toolDisplayName) {
-                            toolDisplayName = getToolTypeName(config.toolType);
-                        }
-                        const displayLabel = (
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                width: '100%'
-                            }}>
-                                <Tooltip title={toolDisplayName} color="black" placement="right">
-                                    <div style={{
-                                        flex: 1,
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        marginRight: '8px'
-                                    }}>
-                                        {toolDisplayName}
-                                        <Tag color="blue" style={{marginLeft: '8px'}}>{config.id}</Tag>
-                                    </div>
-                                </Tooltip>
-                                <div style={{display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0}}>
-                                    <Button
-                                        type="text"
-                                        size="small"
-                                        icon={<EditOutlined style={{color: '#1890ff'}}/>}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleEditTool(config);
-                                        }}
-                                        style={{padding: '0 4px'}}
-                                    />
-                                    <Button
-                                        type="text"
-                                        size="small"
-                                        icon={<CopyOutlined/>}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            showCopyConfirm(config);
-                                        }}
-                                        style={{padding: '0 4px'}}
-                                    />
-                                    <Popconfirm
-                                        title="确认删除工具？"
-                                        description="此操作将永久删除该工具配置，是否继续？"
-                                        onConfirm={(e) => {
-                                            e?.stopPropagation();
-                                            handleDeleteTool(config);
-                                        }}
-                                        okText="确认"
-                                        cancelText="取消"
-                                    >
-                                        <Button
-                                            type="text"
-                                            size="small"
-                                            danger
-                                            icon={<DeleteOutlined/>}
-                                            onClick={(e) => e.stopPropagation()}
-                                            style={{padding: '0 4px'}}
-                                        />
-                                    </Popconfirm>
-                                </div>
-                            </div>
-                        );
-
-                        switch (config.toolType) {
-                            case 'SQL':
-                                return {
-                                    key: `${config.toolType}_${config.id}`,
-                                    label: displayLabel,
-                                    icon: <AnimatedDatabaseIcon isActive={selectedTool.startsWith(config.toolType)}/>,
-                                    disabled: false
-                                };
-                            case 'HTTP':
-                                return {
-                                    key: `${config.toolType}_${config.id}`,
-                                    label: displayLabel,
-                                    icon: <AnimatedApiIcon isActive={selectedTool.startsWith(config.toolType)}/>,
-                                    disabled: false
-                                };
-                            case 'MCP':
-                                return {
-                                    key: `${config.toolType}_${config.id}`,
-                                    label: displayLabel,
-                                    icon: <AnimatedCloudServerIcon
-                                        isActive={selectedTool.startsWith(config.toolType)}/>,
-                                    disabled: true
-                                };
-                            case 'GRPC':
-                                return {
-                                    key: `${config.toolType}_${config.id}`,
-                                    label: displayLabel,
-                                    icon: <AnimatedSyncIcon isActive={selectedTool.startsWith(config.toolType)}/>,
-                                    disabled: true
-                                };
-                            default:
-                                return {
-                                    key: `${config.toolType}_${config.id}`,
-                                    label: displayLabel,
-                                    icon: null,
-                                    disabled: isDisabled
-                                };
-                        }
-                    });
-                    setAvailableTools(toolsWithDetails);
-                    console.log('Loaded tool configs:', result.data);
-
-                    // 如果有可用工具，尝试根据 URL 参数设置选中的工具，否则选择第一个可用工具
-                    const currentToolKey = getCurrentToolKey();
-                    if (currentToolKey && toolsWithDetails.some(tool => tool.key === currentToolKey)) {
-                        setSelectedTool(currentToolKey);
-                    } else if (toolsWithDetails.length > 0) {
-                        setSelectedTool(toolsWithDetails[0].key);
-                    } else {
-                        setSelectedTool('');
-                    }
-                } else {
-                    console.error('Failed to load tool configs:', result?.message || 'Request failed');
-                    setToolConfigs([]);
-                    setAvailableTools([]);
-                    setSelectedTool('');
-                }
-            })
-            .catch((error) => {
-                console.error('Error loading tool configs:', error);
-                setToolConfigs([]);
-                setAvailableTools([]);
-                setSelectedTool('');
-            });
+    // 获取当前选中的工具ID
+    const getCurrentToolId = () => {
+        const urlParams = new URLSearchParams(location.search);
+        return urlParams.get('toolId');
     };
 
     // 加载工具配置
-    useEffect(() => {
-        loadToolConfigs();
+    const loadToolConfigs = useCallback(async () => {
+        if (loading) return;
 
-        // 根据 URL 参数设置当前选中的工具
-        const currentToolKey = getCurrentToolKey();
-        if (currentToolKey) {
-            setSelectedTool(currentToolKey);
+        setLoading(true);
+        console.log('Loading tool configs, mode:', mode);
+
+        const apiCall = mode === 'default'
+            ? eaToolApi.getDefaultTools()
+            : eaToolApi.getToolConfigByUserId();
+
+        try {
+            const result = await apiCall;
+            if (result && (result.code === 200 || result.success === true)) {
+                const configs = result.data || [];
+                setToolConfigs(configs);
+
+                // 构建左侧菜单
+                const toolsList = configs.map((config: any) => {
+                    const isDisabled = config.toolType === 'MCP' || config.toolType === 'GRPC';
+                    let toolDisplayName = config.toolInstanceName || getToolTypeName(config.toolType);
+
+                    const displayLabel = (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            width: '100%'
+                        }}>
+                            <Tooltip title={toolDisplayName} color="black" placement="right">
+                                <div style={{
+                                    flex: 1,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    marginRight: '8px'
+                                }}>
+                                    {toolDisplayName}
+                                    <Tag color="blue" style={{marginLeft: '8px'}}>{config.id}</Tag>
+                                </div>
+                            </Tooltip>
+                            <div style={{display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0}}>
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    icon={<EditOutlined style={{color: '#1890ff'}}/>}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditTool(config);
+                                    }}
+                                    style={{padding: '0 4px'}}
+                                />
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    icon={<CopyOutlined/>}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        showCopyConfirm(config);
+                                    }}
+                                    style={{padding: '0 4px'}}
+                                />
+                                <Popconfirm
+                                    title="确认删除工具？"
+                                    description="此操作将永久删除该工具配置，是否继续？"
+                                    onConfirm={(e) => {
+                                        e?.stopPropagation();
+                                        handleDeleteTool(config);
+                                    }}
+                                    okText="确认"
+                                    cancelText="取消"
+                                >
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        danger
+                                        icon={<DeleteOutlined/>}
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{padding: '0 4px'}}
+                                    />
+                                </Popconfirm>
+                            </div>
+                        </div>
+                    );
+
+                    const baseIconProps = {isActive: selectedTool === `${config.toolType}_${config.id}`};
+
+                    switch (config.toolType) {
+                        case 'SQL':
+                            return {
+                                key: `${config.toolType}_${config.id}`,
+                                label: displayLabel,
+                                icon: <AnimatedDatabaseIcon {...baseIconProps} />,
+                                disabled: false
+                            };
+                        case 'HTTP':
+                            return {
+                                key: `${config.toolType}_${config.id}`,
+                                label: displayLabel,
+                                icon: <AnimatedApiIcon {...baseIconProps} />,
+                                disabled: false
+                            };
+                        case 'MCP':
+                            return {
+                                key: `${config.toolType}_${config.id}`,
+                                label: displayLabel,
+                                icon: <AnimatedCloudServerIcon {...baseIconProps} />,
+                                disabled: true
+                            };
+                        case 'GRPC':
+                            return {
+                                key: `${config.toolType}_${config.id}`,
+                                label: displayLabel,
+                                icon: <AnimatedSyncIcon {...baseIconProps} />,
+                                disabled: true
+                            };
+                        default:
+                            return {
+                                key: `${config.toolType}_${config.id}`,
+                                label: displayLabel,
+                                icon: null,
+                                disabled: isDisabled
+                            };
+                    }
+                });
+
+                setAvailableTools(toolsList);
+                console.log('Loaded tool configs:', configs.length);
+            } else {
+                console.error('Failed to load tool configs:', result?.message);
+                setToolConfigs([]);
+                setAvailableTools([]);
+            }
+        } catch (error) {
+            console.error('Error loading tool configs:', error);
+            setToolConfigs([]);
+            setAvailableTools([]);
+        } finally {
+            setLoading(false);
         }
-    }, [location.search]);
+    }, [mode, agentId, basePath, navigate]);
 
-    // 编辑工具处理函数
-    const handleEditTool = (config: any) => {
-        switch (config.toolType) {
-            case 'SQL':
-                navigate(`/toolManager/tool/sql${agentId ? `?agentId=${agentId}&toolId=${config.id}` : ''}`);
-                break;
-            case 'HTTP':
-                navigate(`/toolManager/tool/http${agentId ? `?agentId=${agentId}&toolId=${config.id}` : ''}`);
-                break;
-            case 'MCP':
-                navigate(`/toolManager/tool/mcp${agentId ? `?agentId=${agentId}&toolId=${config.id}` : ''}`);
-                break;
-            case 'GRPC':
-                navigate(`/toolManager/tool/grpc${agentId ? `?agentId=${agentId}&toolId=${config.id}` : ''}`);
-                break;
-            default:
-                break;
-        }
-    };
+    // 编辑工具
+    const handleEditTool = useCallback((config: any) => {
+        const toolType = config.toolType.toLowerCase();
+        navigate(`${basePath}/tool/${toolType}?agentId=${agentId}&toolId=${config.id}`);
+    }, [basePath, agentId, navigate]);
 
-    // 删除工具处理函数
-    const handleDeleteTool = (config: any) => {
+    // 删除工具
+    const handleDeleteTool = useCallback((config: any) => {
         eaToolApi.delTool(config)
             .then((result) => {
                 if (result && (result.code === 200 || result.success === true)) {
                     console.log('工具删除成功:', config.id);
                     loadToolConfigs();
+                    // 如果删除的是当前选中的工具，导航回工具列表页
+                    const currentToolId = getCurrentToolId();
+                    if (currentToolId === String(config.id)) {
+                        navigate(basePath);
+                    }
                 } else {
-                    console.error('工具删除失败:', result?.message || 'Request failed');
+                    console.error('工具删除失败:', result?.message);
+                    app.message.error(result?.message || '删除失败');
                 }
             })
             .catch((error) => {
                 console.error('删除工具时出错:', error);
+                app.message.error('删除失败');
             });
-    };
+    }, [loadToolConfigs, basePath, navigate, app.message]);
 
-    // 显示复制确认对话框
-    const showCopyConfirm = (config: any) => {
+    // 复制工具
+    const showCopyConfirm = useCallback((config: any) => {
         const modal = app.modal;
+        let inputValue = config.toolInstanceName ? `${config.toolInstanceName}_copy` : `${config.toolType}工具_copy`;
 
         const modalInstance = modal.confirm({
             title: '确认复制工具',
@@ -375,9 +351,11 @@ const ToolManager: React.FC = () => {
                     <div style={{marginTop: '10px'}}>
                         <div style={{marginBottom: '5px', fontSize: '12px', color: '#333'}}>工具实例名称：</div>
                         <Input
-                            defaultValue={config.toolInstanceName ? `${config.toolInstanceName}_copy` : `${config.toolType}工具_copy`}
+                            defaultValue={inputValue}
                             placeholder="请输入新的工具实例名称"
-                            id="toolInstanceNameInput"
+                            onChange={(e) => {
+                                inputValue = e.target.value;
+                            }}
                             style={{width: '100%'}}
                         />
                     </div>
@@ -386,173 +364,143 @@ const ToolManager: React.FC = () => {
             okText: '确认',
             cancelText: '取消',
             onOk: () => {
-                const inputElement = document.getElementById('toolInstanceNameInput') as HTMLInputElement;
-                const newToolInstanceName = inputElement ? inputElement.value : (config.toolInstanceName ? `${config.toolInstanceName}_copy` : `${config.toolType}工具_copy`);
-                handleCopyTool(config, newToolInstanceName);
+                handleCopyTool(config, inputValue);
             },
         });
-    };
+    }, [app.modal]);
 
-    // 复制工具处理函数
-    const handleCopyTool = (config: any, newToolInstanceName?: string) => {
+    const handleCopyTool = useCallback((config: any, newToolInstanceName: string) => {
         const newConfig = {...config};
         delete newConfig.id;
-
-        if (newToolInstanceName) {
-            newConfig.toolInstanceName = newToolInstanceName;
-        } else if (!newConfig.toolInstanceName) {
-            newConfig.toolInstanceName = config.toolInstanceName ? `${config.toolInstanceName}_copy` : `${config.toolType}工具_copy`;
-        }
+        newConfig.toolInstanceName = newToolInstanceName;
 
         eaToolApi.copyTool(newConfig)
             .then((result) => {
                 if (result && (result.code === 200 || result.success === true)) {
                     console.log('工具复制成功:', result);
+                    app.message.success('复制成功');
                     loadToolConfigs();
-
-                    if (result.data && result.data.id) {
-                        const newToolId = result.data.id;
-
-                        switch (config.toolType) {
-                            case 'SQL':
-                                navigate(`/toolManager/tool/sql${agentId ? `?agentId=${agentId}&toolId=${newToolId}` : ''}`);
-                                break;
-                            case 'HTTP':
-                                navigate(`/toolManager/tool/http${agentId ? `?agentId=${agentId}&toolId=${newToolId}` : ''}`);
-                                break;
-                            case 'MCP':
-                                navigate(`/toolManager/tool/mcp${agentId ? `?agentId=${agentId}&toolId=${newToolId}` : ''}`);
-                                break;
-                            case 'GRPC':
-                                navigate(`/toolManager/tool/grpc${agentId ? `?agentId=${agentId}&toolId=${newToolId}` : ''}`);
-                                break;
-                            default:
-                                break;
-                        }
-                    }
                 } else {
-                    console.error('工具复制失败:', result?.message || 'Request failed');
-                    app.message.error(result?.message || '工具复制失败');
+                    console.error('工具复制失败:', result?.message);
+                    app.message.error(result?.message || '复制失败');
                 }
             })
             .catch((error) => {
                 console.error('复制工具时出错:', error);
-                app.message.error('复制工具时发生错误');
+                app.message.error('复制失败');
             });
-    };
+    }, [loadToolConfigs, app.message]);
 
-    // 顶部按钮点击处理 - 用于添加新工具
-    const handleTopButtonClick = (key: string) => {
-        if (key === 'MCP' || key === 'GRPC') {
-            return;
-        }
-
-        switch (key) {
-            case 'SQL':
-                navigate(`/toolManager/tool/sql${agentId ? `?agentId=${agentId}&toolId=new` : ''}`);
-                break;
-            case 'HTTP':
-                navigate(`/toolManager/tool/http${agentId ? `?agentId=${agentId}&toolId=new` : ''}`);
-                break;
-            case 'MCP':
-                navigate(`/toolManager/tool/mcp${agentId ? `?agentId=${agentId}&toolId=new` : ''}`);
-                break;
-            case 'GRPC':
-                navigate(`/toolManager/tool/grpc${agentId ? `?agentId=${agentId}&toolId=new` : ''}`);
-                break;
-            default:
-                break;
-        }
-    };
-
-    // 菜单选择处理
-    const handleMenuSelect = ({key}: { key: string }) => {
-        const toolType = key.split('_')[0];
+    // 添加新工具
+    const handleAddTool = useCallback((toolType: string) => {
         if (toolType === 'MCP' || toolType === 'GRPC') {
+            app.message.warning('该功能暂未开放');
             return;
         }
-        setSelectedTool(key);
-        const toolId = key.split('_')[1];
+        navigate(`${basePath}/tool/${toolType.toLowerCase()}?agentId=${agentId}&toolId=new`);
+    }, [basePath, agentId, navigate, app.message]);
 
+    // 菜单选择
+    const handleMenuSelect = useCallback(({key}: { key: string }) => {
+        const [toolType, toolId] = key.split('_');
+        if (toolType === 'MCP' || toolType === 'GRPC') {
+            app.message.warning('该功能暂未开放');
+            return;
+        }
+
+        setSelectedTool(key);
+        navigate(`${basePath}/tool/${toolType.toLowerCase()}?agentId=${agentId}&toolId=${toolId}`);
+    }, [basePath, agentId, navigate, app.message]);
+
+    // 渲染配置组件
+    const renderToolConfig = useCallback(() => {
+        const toolId = getCurrentToolId();
+        const toolType = getCurrentToolType();
+
+        if (!toolType) {
+            return <div style={{padding: '20px', textAlign: 'center', color: '#999'}}>请从左侧选择一个工具</div>;
+        }
+
+        const commonProps = {
+            agentId,
+            onRefresh: loadToolConfigs
+        };
+
+        // 新增模式
+        if (toolId === 'new') {
+            switch (toolType) {
+                case 'SQL':
+                    return <SQLConfig toolConfigs={[]} {...commonProps} />;
+                case 'HTTP':
+                    return <HTTPConfig toolConfigs={[]} {...commonProps} />;
+                case 'MCP':
+                    return <MCPConfig toolConfigs={[]} {...commonProps} />;
+                case 'GRPC':
+                    return <GRPCConfig toolConfigs={[]} {...commonProps} />;
+                default:
+                    return null;
+            }
+        }
+
+        // 编辑模式
+        if (toolId && toolConfigs.length > 0) {
+            const specificConfig = toolConfigs.find(config => config.id === parseInt(toolId));
+            if (specificConfig) {
+                switch (toolType) {
+                    case 'SQL':
+                        return <SQLConfig toolConfigs={[specificConfig]} {...commonProps} />;
+                    case 'HTTP':
+                        return <HTTPConfig toolConfigs={[specificConfig]} {...commonProps} />;
+                    case 'MCP':
+                        return <MCPConfig toolConfigs={[specificConfig]} {...commonProps} />;
+                    case 'GRPC':
+                        return <GRPCConfig toolConfigs={[specificConfig]} {...commonProps} />;
+                    default:
+                        return null;
+                }
+            }
+        }
+
+        // 默认显示所有工具配置（当没有选中具体工具时）
         switch (toolType) {
             case 'SQL':
-                navigate(`/toolManager/tool/sql${agentId ? `?agentId=${agentId}&toolId=${toolId}` : ''}`);
-                break;
+                return <SQLConfig toolConfigs={toolConfigs} {...commonProps} />;
             case 'HTTP':
-                navigate(`/toolManager/tool/http${agentId ? `?agentId=${agentId}&toolId=${toolId}` : ''}`);
-                break;
+                return <HTTPConfig toolConfigs={toolConfigs} {...commonProps} />;
             case 'MCP':
-                navigate(`/toolManager/tool/mcp${agentId ? `?agentId=${agentId}&toolId=${toolId}` : ''}`);
-                break;
+                return <MCPConfig toolConfigs={toolConfigs} {...commonProps} />;
             case 'GRPC':
-                navigate(`/toolManager/tool/grpc${agentId ? `?agentId=${agentId}&toolId=${toolId}` : ''}`);
-                break;
+                return <GRPCConfig toolConfigs={toolConfigs} {...commonProps} />;
             default:
-                break;
+                return null;
         }
+    }, [location.pathname, location.search, toolConfigs, agentId, loadToolConfigs]);
 
+    // 根据URL同步选中的菜单项
+    useEffect(() => {
+        const toolId = getCurrentToolId();
+        const toolType = getCurrentToolType();
+
+        if (toolId && toolId !== 'new' && toolType) {
+            const menuKey = `${toolType}_${toolId}`;
+            if (availableTools.some(tool => tool.key === menuKey)) {
+                setSelectedTool(menuKey);
+            }
+        }
+    }, [location.pathname, location.search, availableTools]);
+
+    // 初始加载
+    useEffect(() => {
+        // 切换 mode 时，先导航回列表页，清除 URL 参数
+        const currentPath = location.pathname;
+        const isInSubPage = currentPath.includes('/tool/');
+        
+        if (isInSubPage) {
+            navigate(basePath, {replace: true});
+        }
+        
         loadToolConfigs();
-    };
-
-    // 渲染不同工具的配置项
-    const renderToolConfig = () => {
-        const urlParams = new URLSearchParams(location.search);
-        const toolIdFromUrl = urlParams.get('toolId');
-
-        if (toolIdFromUrl === 'new') {
-            if (location.pathname.includes('/tool/sql')) {
-                return <SQLConfig toolConfigs={[]} agentId={agentId} onRefresh={loadToolConfigs}/>;
-            }
-            if (location.pathname.includes('/tool/http')) {
-                return <HTTPConfig toolConfigs={[]} agentId={agentId} onRefresh={loadToolConfigs}/>;
-            }
-            if (location.pathname.includes('/tool/mcp')) {
-                return <MCPConfig toolConfigs={[]} agentId={agentId} onRefresh={loadToolConfigs}/>;
-            }
-            if (location.pathname.includes('/tool/grpc')) {
-                return <GRPCConfig toolConfigs={[]} agentId={agentId} onRefresh={loadToolConfigs}/>;
-            }
-        }
-
-        if (toolIdFromUrl && toolIdFromUrl !== 'new' && toolConfigs.length > 0) {
-            const specificToolConfig = toolConfigs.find(config => config.id === parseInt(toolIdFromUrl));
-            if (specificToolConfig) {
-                const specificToolConfigs = [specificToolConfig];
-
-                if (location.pathname.includes('/tool/sql')) {
-                    return <SQLConfig toolConfigs={specificToolConfigs} agentId={agentId} onRefresh={loadToolConfigs}/>;
-                }
-                if (location.pathname.includes('/tool/http')) {
-                    return <HTTPConfig toolConfigs={specificToolConfigs} agentId={agentId}
-                                       onRefresh={loadToolConfigs}/>;
-                }
-                if (location.pathname.includes('/tool/mcp')) {
-                    return <MCPConfig toolConfigs={specificToolConfigs} agentId={agentId} onRefresh={loadToolConfigs}/>;
-                }
-                if (location.pathname.includes('/tool/grpc')) {
-                    return <GRPCConfig toolConfigs={specificToolConfigs} agentId={agentId}
-                                       onRefresh={loadToolConfigs}/>;
-                }
-            }
-        }
-
-        if (location.pathname.includes('/tool/sql')) {
-            return <SQLConfig toolConfigs={toolConfigs} agentId={agentId} onRefresh={loadToolConfigs}/>;
-        }
-        if (location.pathname.includes('/tool/http')) {
-            return <HTTPConfig toolConfigs={toolConfigs} agentId={agentId} onRefresh={loadToolConfigs}/>;
-        }
-        if (location.pathname.includes('/tool/mcp')) {
-            return <MCPConfig toolConfigs={toolConfigs} agentId={agentId} onRefresh={loadToolConfigs}/>;
-        }
-        if (location.pathname.includes('/tool/grpc')) {
-            return <GRPCConfig toolConfigs={toolConfigs} agentId={agentId} onRefresh={loadToolConfigs}/>;
-        }
-
-        return <SQLConfig toolConfigs={toolConfigs} agentId={agentId} onRefresh={loadToolConfigs}/>;
-    };
-
-    const tools = availableTools;
+    }, [mode]); // 只在 mode 变化时重新加载
 
     return (
         <ConfigProvider getPopupContainer={() => document.body}>
@@ -566,57 +514,52 @@ const ToolManager: React.FC = () => {
                                 borderRight: '1px solid #f0f0f0',
                                 borderRadius: '0'
                             }}>
-                                <div style={{padding: '0', borderBottom: '1px solid #f0f0f0'}}>
+                                <div style={{padding: '0 0 16px 0', borderBottom: '1px solid #f0f0f0'}}>
                                     <Title level={5} style={{margin: 0}}>
-                                        工具列表
+                                        {title}
                                     </Title>
                                     <div style={{fontSize: '12px', color: '#999', marginTop: '4px'}}>
-                                        ID: {agentId}
+                                        Agent ID: {agentId}
                                     </div>
                                 </div>
                                 <Menu
                                     mode="inline"
                                     selectedKeys={[selectedTool]}
                                     onSelect={handleMenuSelect}
-                                    items={tools.map(tool => ({
+                                    items={availableTools.map(tool => ({
                                         key: tool.key,
                                         icon: tool.icon,
                                         label: tool.label,
                                         disabled: tool.disabled,
                                     }))}
+                                    style={{borderRight: 'none'}}
                                 />
                             </Sider>
 
-                            <Content style={{padding: '0', minHeight: 280}}>
-                                <div style={{marginBottom: '0'}}>
+                            <Content style={{padding: '0 0 0 16px', minHeight: 280}}>
+                                <div style={{marginBottom: '16px'}}>
                                     <Space size="middle">
                                         <Button
-                                            type="default"
                                             icon={<AnimatedDatabaseIcon isActive={false}/>}
-                                            onClick={() => handleTopButtonClick('SQL')}
+                                            onClick={() => handleAddTool('SQL')}
                                         >
                                             添加 SQL 执行器
                                         </Button>
                                         <Button
-                                            type="default"
                                             icon={<AnimatedApiIcon isActive={false}/>}
-                                            onClick={() => handleTopButtonClick('HTTP')}
+                                            onClick={() => handleAddTool('HTTP')}
                                         >
                                             添加 HTTP 请求
                                         </Button>
                                         <Button
-                                            type="default"
                                             icon={<AnimatedCloudServerIcon isActive={false}/>}
-                                            onClick={() => handleTopButtonClick('MCP')}
-                                            disabled
+                                            onClick={() => handleAddTool('MCP')}
                                         >
                                             添加 MCP 服务器
                                         </Button>
                                         <Button
-                                            type="default"
                                             icon={<AnimatedSyncIcon isActive={false}/>}
-                                            onClick={() => handleTopButtonClick('GRPC')}
-                                            disabled
+                                            onClick={() => handleAddTool('GRPC')}
                                         >
                                             添加 gRPC 工具
                                         </Button>

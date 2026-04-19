@@ -1,6 +1,9 @@
 package com.aaa.easyagent.core.service;
 
 import com.aaa.easyagent.core.domain.DO.EaKnowledgeBaseDO;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseQueryRequest;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseBindRequest;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseUnbindRequest;
 
 import java.util.List;
 
@@ -48,4 +51,26 @@ public interface KnowledgeBaseService {
      * @return 知识库列表
      */
     List<EaKnowledgeBaseDO> listKnowledgeBaseByAgentId(String agentId);
+
+    /**
+     * 根据查询条件查询知识库列表（使用Request对象）
+     *
+     * @param request 查询请求
+     * @return 知识库列表
+     */
+    List<EaKnowledgeBaseDO> listKnowledgeBaseByCondition(KnowledgeBaseQueryRequest request);
+
+    /**
+     * 绑定知识库到Agent
+     *
+     * @param request 绑定请求
+     */
+    void bindKnowledgeBaseToAgent(KnowledgeBaseBindRequest request);
+
+    /**
+     * 从Agent解绑知识库
+     *
+     * @param request 解绑请求
+     */
+    void unbindKnowledgeBaseFromAgent(KnowledgeBaseUnbindRequest request);
 }

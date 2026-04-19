@@ -51,6 +51,14 @@
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
+        <table tableName="ea_knowledge_relation" mapperName="EaKnowledgeRelationDAO" domainObjectName="EaKnowledgeRelationDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+        <table tableName="ea_tool_relation" mapperName="EaToolRelationDAO" domainObjectName="EaToolRelationDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+
         <table tableName="ea_chat_conversation" mapperName="EaChatConversationDAO" domainObjectName="EaChatConversationDO">
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
@@ -66,20 +74,16 @@
         <table tableName="ea_iam_user" mapperName="EaIamUserDAO" domainObjectName="EaIamUserDO">
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
-
-        <table tableName="ea_iam_role" mapperName="EaIamRoleDAO" domainObjectName="EaIamRoleDO">
+        <table tableName="ea_iam_user_permission" mapperName="EaIamUserPermissionDAO" domainObjectName="EaIamUserPermissionDO">
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
-        <table tableName="ea_iam_permission" mapperName="EaIamPermissionDAO" domainObjectName="EaIamPermissionDO">
+
+        <table tableName="ea_mcp_config" mapperName="EaMcpConfigDAO" domainObjectName="EaMcpConfigDO">
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
-        <table tableName="ea_iam_user_role" mapperName="EaIamUserRoleDAO" domainObjectName="EaIamUserRoleDO">
-            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
-        </table>
-
-        <table tableName="ea_iam_role_permission" mapperName="EaIamRolePermissionDAO" domainObjectName="EaIamRolePermissionDO">
+        <table tableName="ea_mcp_relation" mapperName="EaMcpRelationDAO" domainObjectName="EaMcpRelationDO">
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
