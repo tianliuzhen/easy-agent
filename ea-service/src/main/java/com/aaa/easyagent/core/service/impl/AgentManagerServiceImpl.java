@@ -4,9 +4,11 @@ import com.aaa.easyagent.common.util.BeanConvertUtil;
 import com.aaa.easyagent.common.util.FunFiledHelper;
 import com.aaa.easyagent.common.util.PinyinUtil;
 import com.aaa.easyagent.core.domain.DO.EaAgentDO;
+import com.aaa.easyagent.core.domain.DO.EaModelPlatformDO;
 import com.aaa.easyagent.core.domain.request.EaAgentReq;
 import com.aaa.easyagent.core.domain.result.EaAgentResult;
 import com.aaa.easyagent.core.mapper.EaAgentDAO;
+import com.aaa.easyagent.core.mapper.EaModelPlatformDAO;
 import com.aaa.easyagent.core.service.AgentManagerService;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
@@ -23,6 +25,9 @@ import java.util.List;
 public class AgentManagerServiceImpl implements AgentManagerService {
     @Resource
     private EaAgentDAO eaAgentDAO;
+
+    @Resource
+    private EaModelPlatformDAO eaModelPlatformDAO;
 
     @Override
     public int save(EaAgentReq req) {
@@ -52,7 +57,20 @@ public class AgentManagerServiceImpl implements AgentManagerService {
 
     @Override
     public EaAgentResult queryAgent(EaAgentReq req) {
-        return BeanConvertUtil.beanTo(eaAgentDAO.selectByPrimaryKey(req.getId()), EaAgentResult.class);
+        EaAgentResult eaAgentResult = BeanConvertUtil.beanTo(eaAgentDAO.selectByPrimaryKey(req.getId()), EaAgentResult.class);
+
+        // 根据 modelPlatform 查询对应的 icon
+        if (eaAgentResult != null && StringUtils.isNotBlank(eaAgentResult.getModelPlatform())) {
+            Example example = new Example(EaModelPlatformDO.class);
+            Example.Criteria criteria = example.createCriteria();
+            criteria.andEqualTo(FunFiledHelper.getFieldName(EaModelPlatformDO::getModelPlatform), eaAgentResult.getModelPlatform());
+            EaModelPlatformDO platformDO = eaModelPlatformDAO.selectOneByExample(example);
+            if (platformDO != null) {
+                eaAgentResult.setModelIcon(platformDO.getIcon());
+            }
+        }
+
+        return eaAgentResult;
     }
 
     @Override

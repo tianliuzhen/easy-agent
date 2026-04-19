@@ -780,9 +780,23 @@ const ChatDemo: React.FC = () => {
                         fontWeight: 500,
                         zIndex: 10,
                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
-                        backdropFilter: 'blur(10px)'
+                        backdropFilter: 'blur(10px)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
                     }}>
-                        🚀 模型版本：{getModelVersion()}
+                        {agentDetail?.modelIcon && (
+                            <img 
+                                src={agentDetail.modelIcon} 
+                                alt="model icon" 
+                                style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    objectFit: 'contain'
+                                }}
+                            />
+                        )}
+                        模型版本：{getModelVersion()}
                     </div>
                 )}
 

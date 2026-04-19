@@ -397,10 +397,23 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                                     border: '1px solid #d9e6f2',
                                     borderRadius: '16px',
                                     padding: '4px 10px',
-                                    display: 'inline-block',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
                                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
                                 }}>
-                                    🚀 模型版本：{getModelVersion()}
+                                    {agentDetail?.modelIcon && (
+                                        <img 
+                                            src={agentDetail.modelIcon} 
+                                            alt="model icon" 
+                                            style={{
+                                                width: '16px',
+                                                height: '16px',
+                                                objectFit: 'contain'
+                                            }}
+                                        />
+                                    )}
+                                    模型版本：{getModelVersion()}
                                 </div>
                             )}
                         </div>

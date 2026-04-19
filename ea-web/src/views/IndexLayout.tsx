@@ -8,10 +8,11 @@ import {
     ApiOutlined,
     LogoutOutlined,
     BookOutlined,
-    ThunderboltOutlined
+    ThunderboltOutlined,
+    QuestionCircleOutlined
 } from '@ant-design/icons';
 import type {MenuProps} from 'antd';
-import {Breadcrumb, Layout, Menu, theme, Avatar, Dropdown, message, Space} from 'antd';
+import {Breadcrumb, Layout, Menu, theme, Avatar, Dropdown, message, Space, Tooltip} from 'antd';
 import {Link, Routes, Route, useLocation, useNavigate} from 'react-router-dom';
 import AgentManager from './page/AgentManager';
 import ChatModelConfig from './page/ChatModelConfig';
@@ -283,14 +284,26 @@ const AppLayout = () => {
                 </div>
 
                 {/* 右上角用户信息 */}
-                <Dropdown menu={{items: userMenuItems}} placement="bottomRight" trigger={['click']}>
-                    <Space style={{cursor: 'pointer', padding: '0px', display: 'flex', alignItems: 'center'}}>
-                        <span style={{fontSize: '14px', marginLeft: '0px'}}>
-                            {currentUser?.username || '用户'}
-                        </span>
-                        <Avatar style={{backgroundColor: '#1890ff'}} icon={<UserOutlined/>}/>
-                    </Space>
-                </Dropdown>
+                <Space style={{cursor: 'pointer', padding: '0px', display: 'flex', alignItems: 'center'}}>
+                    <Tooltip title="查看使用文档">
+                        <a 
+                            href="https://www.yuque.com/tianliuzhen/gs3ud6/zbemhdxf4dgrw6gh" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{color: '#1890ff', fontSize: '16px', marginRight: '8px'}}
+                        >
+                            <QuestionCircleOutlined />
+                        </a>
+                    </Tooltip>
+                    <Dropdown menu={{items: userMenuItems}} placement="bottomRight" trigger={['click']}>
+                        <Space style={{cursor: 'pointer', padding: '0px', display: 'flex', alignItems: 'center'}}>
+                            <span style={{fontSize: '14px', marginLeft: '0px'}}>
+                                {currentUser?.username || '用户'}
+                            </span>
+                            <Avatar style={{backgroundColor: '#1890ff'}} icon={<UserOutlined/>}/>
+                        </Space>
+                    </Dropdown>
+                </Space>
             </Header>
             <Layout>
                 <Sider width={200} style={{background: 'var(--ea-theme-background)'}} collapsible collapsed={collapsed}

@@ -14,6 +14,7 @@ interface AgentDetail {
     agentDesc: string;
     createdAt: string;
     updatedAt: string;
+    modelIcon?: string;
 }
 
 interface AgentConfigContextType {
