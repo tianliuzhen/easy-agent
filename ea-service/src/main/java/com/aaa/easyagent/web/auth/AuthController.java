@@ -1,5 +1,6 @@
 package com.aaa.easyagent.web.auth;
 
+import com.aaa.easyagent.core.domain.DO.EaIamUserDO;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.UserLoginReq;
 import com.aaa.easyagent.core.domain.request.UserRegisterReq;
@@ -105,6 +106,39 @@ public class AuthController {
         } catch (Exception e) {
             log.error("获取当前用户失败", e);
             return BaseResult.fail("获取用户信息失败");
+        }
+    }
+
+    /**
+     * 获取用户列表（管理员权限）
+     *
+     * @return 用户列表
+     */
+    @GetMapping("/user/list")
+    public BaseResult<java.util.List<EaIamUserDO>> getUserList() {
+        try {
+            java.util.List<EaIamUserDO> userList = userService.getUserList();
+            return BaseResult.success(userList);
+        } catch (Exception e) {
+            log.error("获取用户列表失败", e);
+            return BaseResult.fail("获取用户列表失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 更新用户信息（管理员权限）
+     *
+     * @param userDO 用户信息
+     * @return 更新结果
+     */
+    @PostMapping("/user/update")
+    public BaseResult<Void> updateUser(@RequestBody EaIamUserDO userDO) {
+        try {
+            userService.updateUser(userDO);
+            return BaseResult.success();
+        } catch (Exception e) {
+            log.error("更新用户信息失败", e);
+            return BaseResult.fail("更新用户信息失败: " + e.getMessage());
         }
     }
 

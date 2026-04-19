@@ -198,15 +198,15 @@ const AppLayout = () => {
 
     // 获取当前路由对应的面包屑路径
     const getBreadcrumbItems = () => {
-        const breadcrumbs: { title: string }[] = [];
+        const breadcrumbs: { title: React.ReactNode }[] = [];
 
         // 查找当前路由
         for (const group of routes) {
             for (const item of group.children) {
                 if (item.path === location.pathname) {
                     breadcrumbs.push(
-                        {title: group.label},
-                        {title: item.label}
+                        { title: group.label },
+                        { title: <span style={{ fontWeight: 500 }}>{item.label}</span> }
                     );
                     return breadcrumbs;
                 }

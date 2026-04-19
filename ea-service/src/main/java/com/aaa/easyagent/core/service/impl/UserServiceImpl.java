@@ -35,16 +35,7 @@ public class UserServiceImpl implements UserService {
     private EaIamUserDAO userDAO;
 
     @Resource
-    private EaIamUserRoleDAO userRoleDAO;
-
-    @Resource
-    private EaIamRoleDAO roleDAO;
-
-    @Resource
-    private EaIamRolePermissionDAO rolePermissionDAO;
-
-    @Resource
-    private EaIamPermissionDAO permissionDAO;
+    private EaIamUserPermissionDAO userPermissionDAO;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -76,8 +67,11 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("用户已被禁用");
         }
 
-        // 获取用户角色
-        List<String> roles = getUserRoles(user.getId());
+        // 获取用户权限（包含角色和细粒度权限）
+        List<String> permissions = getUserPermissions(user.getId());
+        
+        // 提取角色（ADMIN/USER等角色级别权限）
+        List<String> roles = extractRoles(permissions);
 
         // 生成 JWT Token
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), roles);
@@ -89,7 +83,7 @@ public class UserServiceImpl implements UserService {
         userInfo.setEmail(user.getEmail());
         userInfo.setPhone(user.getPhone());
         userInfo.setRoles(roles);
-        userInfo.setPermissions(getUserPermissions(roles));
+        userInfo.setPermissions(permissions);
 
         LoginResult result = new LoginResult();
         result.setToken(token);
@@ -135,9 +129,11 @@ public class UserServiceImpl implements UserService {
             return null;
         }
 
-        // 获取角色和权限
-        List<String> roles = getUserRoles(user.getId());
-        List<String> permissions = getUserPermissions(roles);
+        // 获取用户权限（包含角色和细粒度权限）
+        List<String> permissions = getUserPermissions(user.getId());
+        
+        // 提取角色（ADMIN/USER等角色级别权限）
+        List<String> roles = extractRoles(permissions);
 
         // 构建用户信息
         CurrentUserInfo userInfo = new CurrentUserInfo();
@@ -157,58 +153,76 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public java.util.List<EaIamUserDO> getUserList() {
+        return userDAO.selectAll();
+    }
+
+    @Override
+    public void updateUser(EaIamUserDO userDO) {
+        if (userDO.getId() == null) {
+            throw new RuntimeException("用户ID不能为空");
+        }
+        
+        // 查询原用户
+        EaIamUserDO existingUser = userDAO.selectByPrimaryKey(userDO.getId());
+        if (existingUser == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        
+        // 更新允许修改的字段
+        existingUser.setEmail(userDO.getEmail());
+        existingUser.setPhone(userDO.getPhone());
+        existingUser.setStatus(userDO.getStatus());
+        
+        // 如果提供了新密码，则加密后更新
+        if (StringUtils.isNotBlank(userDO.getPassword())) {
+            existingUser.setPassword(passwordEncoder.encode(userDO.getPassword()));
+        }
+        
+        int result = userDAO.updateByPrimaryKeySelective(existingUser);
+        if (result <= 0) {
+            throw new RuntimeException("更新失败");
+        }
+        
+        log.info("用户 {} 信息更新成功", existingUser.getUsername());
+    }
+
+    @Override
     public void logout() {
         // 登出操作（清除 Cookie 在 Controller 中处理）
         log.info("用户登出");
     }
 
     /**
-     * 获取用户角色列表
+     * 获取用户权限列表（一次性查询，包含角色和细粒度权限）
      *
      * @param userId 用户ID
-     * @return 角色编码列表
+     * @return 权限编码列表
      */
-    private List<String> getUserRoles(Long userId) {
-        List<EaIamUserRoleDO> userRoles = userRoleDAO.select(new EaIamUserRoleDO().setUserId(userId));
-        if (userRoles == null || userRoles.isEmpty()) {
+    private List<String> getUserPermissions(Long userId) {
+        List<EaIamUserPermissionDO> userPermissions = userPermissionDAO.select(
+            new EaIamUserPermissionDO().setUserId(userId)
+        );
+        
+        if (userPermissions == null || userPermissions.isEmpty()) {
             return new ArrayList<>();
         }
 
-        return userRoles.stream()
-                .map(EaIamUserRoleDO::getRoleId)
-                .map(roleId -> {
-                    EaIamRoleDO role = roleDAO.selectByPrimaryKey(roleId);
-                    return role != null ? role.getRoleCode() : null;
-                })
-                .filter(roleCode -> roleCode != null)
+        return userPermissions.stream()
+                .map(EaIamUserPermissionDO::getPermissionCode)
+                .filter(StringUtils::isNotBlank)
                 .collect(Collectors.toList());
     }
-
+    
     /**
-     * 获取用户权限列表
+     * 从权限列表中提取角色（ADMIN/USER等角色级别权限）
      *
-     * @param roleCodes 角色编码列表
-     * @return 权限编码列表
+     * @param permissions 权限编码列表
+     * @return 角色编码列表
      */
-    private List<String> getUserPermissions(List<String> roleCodes) {
-        List<String> permissions = new ArrayList<>();
-
-        for (String roleCode : roleCodes) {
-            EaIamRoleDO role = roleDAO.selectOne(new EaIamRoleDO().setRoleCode(roleCode));
-            if (role != null) {
-                List<EaIamRolePermissionDO> rolePermissions =
-                        rolePermissionDAO.select(new EaIamRolePermissionDO().setRoleId(role.getId()));
-                if (rolePermissions != null) {
-                    for (EaIamRolePermissionDO rp : rolePermissions) {
-                        EaIamPermissionDO permission = permissionDAO.selectByPrimaryKey(rp.getPermissionId());
-                        if (permission != null && StringUtils.isNotBlank(permission.getPermissionCode())) {
-                            permissions.add(permission.getPermissionCode());
-                        }
-                    }
-                }
-            }
-        }
-
-        return permissions;
+    private List<String> extractRoles(List<String> permissions) {
+        return permissions.stream()
+                .filter(code -> "ADMIN".equals(code) || "USER".equals(code))
+                .collect(Collectors.toList());
     }
 }

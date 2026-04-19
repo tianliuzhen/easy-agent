@@ -59,6 +59,35 @@ export const authApi = {
   },
 
   /**
+   * 获取用户列表
+   * @returns 用户列表
+   */
+  getUserList: async () => {
+    const response = await fetch(`${API_BASE_URL}/auth/user/list`, {
+      method: 'GET',
+      credentials: 'include', // 携带 Cookie
+    });
+    return response.json();
+  },
+
+  /**
+   * 更新用户信息
+   * @param userData 用户数据
+   * @returns 更新结果
+   */
+  updateUser: async (userData: any) => {
+    const response = await fetch(`${API_BASE_URL}/auth/user/update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include', // 携带 Cookie
+      body: JSON.stringify(userData),
+    });
+    return response.json();
+  },
+
+  /**
    * 用户登出
    * @returns 登出结果
    */

@@ -30,16 +30,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     private EaIamUserDAO userDAO;
 
     @Autowired
-    private EaIamUserRoleDAO userRoleDAO;
-
-    @Autowired
-    private EaIamRoleDAO roleDAO;
-
-    @Autowired
-    private EaIamRolePermissionDAO rolePermissionDAO;
-
-    @Autowired
-    private EaIamPermissionDAO permissionDAO;
+    private EaIamUserPermissionDAO userPermissionDAO;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -53,9 +44,11 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("用户已被禁用: " + username);
         }
 
-        // 查询用户角色和权限
-        List<String> roles = getUserRoles(user.getId());
-        List<String> permissions = getUserPermissions(roles);
+        // 查询用户权限（一次性查询，包含角色和细粒度权限）
+        List<String> permissions = getUserPermissions(user.getId());
+        
+        // 提取角色（ADMIN/USER等角色级别权限）
+        List<String> roles = extractRoles(permissions);
 
         // 构建权限列表
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
@@ -80,61 +73,35 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     /**
-     * 获取用户角色列表
+     * 获取用户权限列表（一次性查询，包含角色和细粒度权限）
      *
      * @param userId 用户ID
-     * @return 角色编码列表
+     * @return 权限编码列表
      */
-    private List<String> getUserRoles(Long userId) {
-        List<Long> roleIds = userRoleDAO.select(new EaIamUserRoleDO().setUserId(userId))
-                .stream()
-                .map(EaIamUserRoleDO::getRoleId)
-                .toList();
-
-        if (roleIds.isEmpty()) {
+    private List<String> getUserPermissions(Long userId) {
+        List<EaIamUserPermissionDO> userPermissions = userPermissionDAO.select(
+            new EaIamUserPermissionDO().setUserId(userId)
+        );
+        
+        if (userPermissions == null || userPermissions.isEmpty()) {
             return new ArrayList<>();
         }
 
-        return roleIds.stream()
-                .map(roleId -> {
-                    EaIamRoleDO role = roleDAO.selectByPrimaryKey(roleId);
-                    return role != null ? role.getRoleCode() : null;
-                })
-                .filter(roleCode -> roleCode != null)
+        return userPermissions.stream()
+                .map(EaIamUserPermissionDO::getPermissionCode)
+                .filter(permissionCode -> permissionCode != null)
                 .toList();
     }
-
+    
     /**
-     * 获取用户权限列表
+     * 从权限列表中提取角色（ADMIN/USER等角色级别权限）
      *
-     * @param roleCodes 角色编码列表
-     * @return 权限编码列表
+     * @param permissions 权限编码列表
+     * @return 角色编码列表
      */
-    private List<String> getUserPermissions(List<String> roleCodes) {
-        List<String> permissions = new ArrayList<>();
-
-        for (String roleCode : roleCodes) {
-            EaIamRoleDO role = roleDAO.selectOne(new EaIamRoleDO().setRoleCode(roleCode));
-            if (role != null) {
-                // 查询角色的权限
-                List<Long> permissionIds = rolePermissionDAO.select(new EaIamRolePermissionDO().setRoleId(role.getId()))
-                        .stream()
-                        .map(EaIamRolePermissionDO::getPermissionId)
-                        .toList();
-
-                if (!permissionIds.isEmpty()) {
-                    List<String> rolePermissions = permissionIds.stream()
-                            .map(permissionId -> {
-                                EaIamPermissionDO permission = permissionDAO.selectByPrimaryKey(permissionId);
-                                return permission != null ? permission.getPermissionCode() : null;
-                            })
-                            .filter(permissionCode -> permissionCode != null)
-                            .toList();
-                    permissions.addAll(rolePermissions);
-                }
-            }
-        }
-
-        return permissions;
+    private List<String> extractRoles(List<String> permissions) {
+        return permissions.stream()
+                .filter(code -> "ADMIN".equals(code) || "USER".equals(code))
+                .toList();
     }
 }
