@@ -3,10 +3,11 @@
 <div align="center">
   <p><strong>基于 Spring AI 的企业级 AI 智能体开发平台</strong></p>
 </div>
+<img width="1869" height="782" alt="image" src="https://github.com/user-attachments/assets/5a373e50-b282-4c75-96ec-eb230c9b7f34" />
+<img width="1825" height="792" alt="image" src="https://github.com/user-attachments/assets/4f2d749d-a7a2-4830-a040-ff657e7ad20e" />
+<img width="1869" height="850" alt="image" src="https://github.com/user-attachments/assets/39afc40c-4519-46db-bccf-2c6c29285e58" />
+<img width="1884" height="812" alt="image" src="https://github.com/user-attachments/assets/3f388941-d311-47c1-a777-983d103ad01b" />
 
-<img width="1875" height="785" alt="image" src="https://github.com/user-attachments/assets/fb664f78-faa7-4f16-b411-43dfd5966f06" />
-
-<img width="1876" height="828" alt="image" src="https://github.com/user-attachments/assets/fdf6a3f0-e0d4-44a0-97e0-794e9320747c" />
 
 ---
 
