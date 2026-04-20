@@ -300,6 +300,10 @@
             <version>4.5.14</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.springaicommunity</groupId>
+            <artifactId>spring-ai-agent-utils</artifactId>
+        </dependency>
     </dependencies>
 
 
@@ -309,6 +313,13 @@
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
                 <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springaicommunity</groupId>
+                <artifactId>spring-ai-agent-utils-bom</artifactId>
+                <version>0.7.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
