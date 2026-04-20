@@ -55,9 +55,10 @@ const {Text} = Typography;
 
 // 解析工具内容，提取工具名称、输入参数和输出参数
 const parseToolContent = (content: string) => {
-    const toolNameMatch = content.match(/工具名称:\s*(.+)/);
-    const inputMatch = content.match(/输入参数:\s*(\{[^}]+\})/);
-    const outputMatch = content.match(/输出参数:\s*(\{[^}]+\})/);
+    // 支持多种格式：后端可能发送 "正在执行工具：" 或 "工具名称："
+    const toolNameMatch = content.match(/(?:正在执行工具|工具名称)[:：]\s*(.+)/);
+    const inputMatch = content.match(/(?:工具入参|输入参数)[:：]\s*({[^}]+})/);
+    const outputMatch = content.match(/(?:执行结果|输出参数)[:：]\s*({[^}]+})/);
 
     return {
         toolName: toolNameMatch ? toolNameMatch[1].trim() : '',
@@ -95,7 +96,7 @@ const JsonDisplay: React.FC<{ data: string; title: string }> = ({data, title}) =
                 fontSize: '12px',
                 lineHeight: 1.6,
                 color: '#333',
-                fontFamily: '"SF Mono", Monaco, Inconsolata, "Fira Code", monospace',
+                fontFamily: '"Microsoft YaHei", "微软雅黑", sans-serif',
                 overflow: 'auto',
                 margin: 0,
             }}>
@@ -132,19 +133,19 @@ const ToolDetailDrawer: React.FC<ToolDetailDrawerProps> = ({entry, open, onClose
             }}>
                 {/* 工具名称 */}
                 {toolName && (
-                    <div style={{marginBottom: '20px'}}>
-                        工具名称：
-                        <Text strong style={{fontSize: '15px', color: '#000000'}}>
+                    <div style={{marginBottom: '16px'}}>
+                        <span style={{fontSize: '13px', color: '#666', fontWeight: 500}}>工具名称：</span>
+                        <Text strong style={{fontSize: '15px', color: '#333'}}>
                             {toolName}
                         </Text>
                     </div>
                 )}
 
                 {/* 输入参数 */}
-                {inputParams && <JsonDisplay data={inputParams} title="输入参数："/>}
+                {inputParams && <JsonDisplay data={inputParams} title="输入参数"/>}
 
                 {/* 输出参数 */}
-                {outputParams && <JsonDisplay data={outputParams} title="输出参数："/>}
+                {outputParams && <JsonDisplay data={outputParams} title="执行结果"/>}
 
                 {/* 如果没有解析到任何内容，显示原始内容 */}
                 {!toolName && !inputParams && !outputParams && (
