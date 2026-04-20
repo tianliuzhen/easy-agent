@@ -96,8 +96,14 @@ public class McpExecutor implements ToolExecutor<McpParamsTemplate> {
             // 构建 CallToolRequest
             McpSchema.CallToolRequest callRequest = new McpSchema.CallToolRequest(toolName, arguments);
 
-            // 执行工具调用
-            McpSchema.CallToolResult result = client.callTool(callRequest);
+            // 执行工具调用 - 使用 Mono.fromCallable 包装阻塞调用并在弹性调度器上执行
+            // 这样可以避免在响应式线程中执行阻塞操作
+            reactor.core.publisher.Mono<McpSchema.CallToolResult> resultMono = reactor.core.publisher.Mono
+                    .fromCallable(() -> client.callTool(callRequest))
+                    .subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic());
+
+            // 阻塞获取结果（此时已经在弹性线程上执行，不会阻塞响应式线程）
+            McpSchema.CallToolResult result = resultMono.block();
 
             // 处理结果
             return processResult(result);
