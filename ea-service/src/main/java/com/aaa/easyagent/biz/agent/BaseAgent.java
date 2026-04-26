@@ -13,6 +13,7 @@ import com.aaa.easyagent.common.util.JsonSchemaGenerator;
 import com.aaa.easyagent.common.util.LoopDetector;
 import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
@@ -50,6 +51,12 @@ public abstract class BaseAgent {
     protected Prompt prompt;
 
     protected SseEmitter sse;
+
+    /**
+     * ChatClient.Builder，子类可以通过它构建 ChatClient 实现 fluent API 调用。
+     * 仅在 ToolAgentExecutor 等子类中使用，ReAct 模式仍使用传统的 chatModel 方式。
+     */
+    protected ChatClient.Builder chatClientBuilder;
 
     /**
      * 决策轮数限制
@@ -92,6 +99,9 @@ public abstract class BaseAgent {
         messages = new ArrayList<>();
 
         sse = agentContext.getSseEmitter();
+
+        // 初始化 ChatClient.Builder，子类可在构造后继续配置 defaultSystem/defaultTools 等
+        this.chatClientBuilder = ChatClient.builder(chatModel);
     }
 
 

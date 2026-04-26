@@ -1,168 +1,149 @@
 package com.aaa.easyagent.biz.agent;
 
-import com.aaa.easyagent.biz.agent.context.FunctionCallback;
+import com.aaa.easyagent.biz.agent.advisor.SseAdvisor;
+import com.aaa.easyagent.biz.agent.advisor.ToolExecutionAdvisor;
 import com.aaa.easyagent.biz.agent.context.FunctionCallbackAdapter;
 import com.aaa.easyagent.biz.agent.context.SseHelper;
-import com.aaa.easyagent.biz.agent.data.*;
-import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
-import com.aaa.easyagent.common.config.exception.AgentToolException;
-import com.aaa.easyagent.common.llm.common.CommonLlmChatOptions;
+import com.aaa.easyagent.biz.agent.data.AgentContext;
+import com.aaa.easyagent.biz.agent.data.AgentFinish;
+import com.aaa.easyagent.biz.agent.data.AgentOutput;
+import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
+ * 基于 Spring AI ChatClient 的 Tool 模式执行器。
+ * <p>
+ * 使用 ChatClient 的 Fluent API + Advisor 替代直接操作 ChatModel + CommonLlmChatOptions。
+ * </p>
+ *
+ * <pre>
+ * 执行流程（由父类 doExec() 控制外部循环）：
+ *   1. buildPrompt() → 初始化空 Prompt
+ *   2. addUserMessage() → 将用户问题存入 this.messages
+ *   3. run() → ChatClient 构建请求并流式调用 LLM
+ *   4. {@link ToolExecutionAdvisor} 拦截 tool_call → 自动执行工具 → 结果存入 this.messages
+ *   5. doExec() 下一轮 → run() 从 this.messages 构建包含历史的消息列表
+ * </pre>
+ *
  * @author liuzhen.tian
- * @version 1.0 ReActAgentOldExecutor.java  2025/2/23 20:45
+ * @version 1.0 ToolAgentExecutor.java  2025/2/23 20:45
  */
 @Slf4j
 public class ToolAgentExecutor extends BaseAgent {
 
+    /**
+     * ChatClient，已通过 defaultSystem/defaultTools/defaultAdvisors 配置
+     */
+    private final ChatClient chatClient;
+
+    /** 本轮是否有工具调用（每轮变化，通过 advisor params 传入）*/
+    private final AtomicBoolean withToolCall = new AtomicBoolean(false);
 
     public ToolAgentExecutor(AgentContext agentContext) {
         super(agentContext);
-    }
 
-    /**
-     * 构建提示词
-     *
-     * @return
-     */
-    public Prompt buildPrompt() {
-        List<Message> messages = new ArrayList<>();
-        List<ToolDefinition> toolDefinitions = agentContext.getToolDefinitions();
-        Map<String, FunctionCallback> callbackMap = buildToolFun(toolDefinitions);
-
-        // tool 模式 - 将自定义 FunctionCallback 转换为 Spring AI ToolCallback
+        // 将 FunctionCallback 适配为 Spring AI ToolCallback
         List<ToolCallback> toolCallbacks = callbackMap.values().stream()
                 .map(FunctionCallbackAdapter::new)
                 .collect(Collectors.toList());
 
-        CommonLlmChatOptions chatOptions = CommonLlmChatOptions.builder()
-                .toolCallbacks(toolCallbacks)
-                .internalToolExecutionEnabled(false) // 禁用内部工具执行
-                .build();
+        // 不变的部分在构造函数一次性配置：system、tools、advisors
+        // 以及 defaultToolContext 中的 sse、callbackMap、toolSameCallCountMap
+        Map<String, Object> toolCtx = new HashMap<>();
+        toolCtx.put(SseAdvisor.SSE_EMITTER_KEY, sse);
+        toolCtx.put(ToolExecutionAdvisor.SSE_EMITTER_KEY, sse);
+        toolCtx.put(ToolExecutionAdvisor.CALLBACK_MAP_KEY, callbackMap);
+        toolCtx.put(ToolExecutionAdvisor.TOOL_SAME_CALL_MAP_KEY, toolSameCallCountMap);
 
-        return new Prompt(messages, chatOptions);
+        this.chatClient = ChatClient.builder(chatModel)
+                .defaultSystem(agentContext.getPrompt() != null ? agentContext.getPrompt() : "")
+                .defaultToolCallbacks(toolCallbacks)
+                .defaultAdvisors(new SseAdvisor(), new ToolExecutionAdvisor())
+                .defaultToolContext(toolCtx)
+                .build();
     }
 
     @Override
+    public Prompt buildPrompt() {
+        return new Prompt(new ArrayList<>());
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
     public AgentOutput run() {
         StringBuilder resStr = new StringBuilder();
         StringBuilder reasoningContent = new StringBuilder();
 
-        Flux<ChatResponse> stream = chatModel.stream(prompt);
+        var spec = chatClient.prompt();
 
-        StringBuilder sb = new StringBuilder();
+        // 注入历史消息（用户问题 + 之前的 assistant/tool 消息）
+        if (!messages.isEmpty()) {
+            spec.messages(messages.toArray(new Message[0]));
+        }
+
+        // 每轮变化的参数（messages、withToolCall）通过 advisor params 传入
+        spec.advisors(as -> {
+            as.param(ToolExecutionAdvisor.MESSAGES_KEY, messages);
+            as.param(ToolExecutionAdvisor.WITH_TOOL_CALL_KEY, withToolCall);
+        });
+
+        Flux<ChatResponse> stream = spec.stream().chatResponse();
+
         CountDownLatch runOver = new CountDownLatch(1);
 
-        AtomicBoolean withToolCall = new AtomicBoolean(false);
         stream.subscribe(chatRes -> {
-            if (chatRes.hasToolCalls()) {
-                withToolCall.set(true);
-                Generation generation = chatRes.getResults()
-                        .stream()
-                        .filter(g -> !CollectionUtils.isEmpty(g.getOutput().getToolCalls()))
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException("No tool call requested by the chat model"));
-                AssistantMessage assistantMessage = generation.getOutput();
-
-                toolExecute(assistantMessage);
+            // 思考过程（SSE 由 SseAdvisor 推送，这里只做内存汇总）
+            String lineThinks = ChatResponseUtil.getReasoningContent(chatRes);
+            if (StringUtils.hasText(lineThinks)) {
+                reasoningContent.append(lineThinks);
             }
 
-            // 思考
-            String lineThinks = ChatResponseUtil.getReasoningContent(chatRes);
-            reasoningContent.append(lineThinks);
-            SseHelper.sendThink(sse, lineThinks);
-
-            // 结果
+            // 结果文本
             String lineResStr = ChatResponseUtil.getResStr(chatRes);
-            resStr.append(lineResStr);
-            SseHelper.sendData(sse, lineResStr);
+            if (StringUtils.hasText(lineResStr)) {
+                resStr.append(lineResStr);
+            }
         }, e -> {
-            runOver.countDown();
+            log.error("ToolAgentExecutor.run.error", e);
             SseHelper.sendData(sse, "系统异常：" + e.getMessage());
-            log.error("ToolAgentExecutor.think.err", e);
-        }, () -> {
             runOver.countDown();
-            log.info("ToolAgentExecutor.think.runOver");
+        }, () -> {
+            log.info("ToolAgentExecutor.run.complete");
+            runOver.countDown();
         });
 
         try {
             runOver.await();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
 
-        // 保存到数据库前过滤XML标签
-        ChatRecordSaver.addThinking(reasoningContent.toString());
-        ChatRecordSaver.addData(resStr.toString());
-
-        String chatResponse = sb.toString();
         if (withToolCall.get()) {
-            return new FunctionUseAction("","");
+            return new FunctionUseAction("", "");
         }
 
-        return new AgentFinish(chatResponse);
+        return new AgentFinish(resStr.toString());
     }
 
-    /**
-     * todo并行执行
-     *
-     * @param assistantMessage
-     */
-    protected void toolExecute(AssistantMessage assistantMessage) {
-        List<AssistantMessage.ToolCall> toolCalls = assistantMessage.getToolCalls();
-
-        // 添加助手执行记忆 assistantMessage：ToolResponseMessage = 1：N
-        addMessage(assistantMessage);
-        for (AssistantMessage.ToolCall toolCall : toolCalls) {
-            FunctionCallback functionToolCallback = callbackMap.get(toolCall.name());
-            if (functionToolCallback == null) {
-                throw new AgentToolException("无法匹配 toolFunction");
-            }
-
-            SseHelper.sendTool(sse, String.format("正在执行工具：%s \n工具入参：%s", toolCall.name(),toolCall.arguments()));
-            String callToolResult = functionToolCallback.call(toolCall.arguments());
-            SseHelper.sendTool(sse, String.format("\n执行结果：%s", callToolResult));
-
-
-            // 添加工具执行结果记忆
-            List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>();
-            responses.add(new ToolResponseMessage.ToolResponse(
-                    StringUtils.defaultIfBlank(toolCall.id(), UUID.randomUUID().toString()),
-                    toolCall.arguments(),
-                    callToolResult));
-
-            ToolResponseMessage toolResponseMessage = ToolResponseMessage.builder().responses(responses).build();
-
-            /*
-             * deepseek： Messages with role 'tool' must be a response to a preceding message with 'tool_calls
-             * 你当前的设计其实是 ReAct 模式的工具调用（用 XML 标签控制流程），但混合了 OpenAI 的 tool calling 格式，导致冲突。
-             * deepseek 这里不能是tool
-             */
-
-            // 添加工具执行结果记忆
-            addMessage(toolResponseMessage);
-        }
-
-
+    @Override
+    protected void addUserMessage(String question) {
+        messages.add(new org.springframework.ai.chat.messages.UserMessage(question));
     }
 }
