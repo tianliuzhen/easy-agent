@@ -36,13 +36,23 @@ public class SseAdvisor implements CallAdvisor, StreamAdvisor {
     public static final String SSE_EMITTER_KEY = "sseEmitter";
 
     private final int order;
+    private final SseEmitter sseEmitter;
 
     public SseAdvisor() {
-        this(0);
+        this(0, null);
     }
 
     public SseAdvisor(int order) {
+        this(order, null);
+    }
+
+    public SseAdvisor(SseEmitter sseEmitter) {
+        this(0, sseEmitter);
+    }
+
+    public SseAdvisor(int order, SseEmitter sseEmitter) {
         this.order = order;
+        this.sseEmitter = sseEmitter;
     }
 
     @Override
@@ -85,7 +95,7 @@ public class SseAdvisor implements CallAdvisor, StreamAdvisor {
         });
     }
 
-    private static void sendToSse(ChatResponse chatResponse, ChatClientRequest request) {
+    private void sendToSse(ChatResponse chatResponse, ChatClientRequest request) {
         SseEmitter sse = getSseEmitter(request);
         if (sse == null) {
             return;
@@ -102,11 +112,15 @@ public class SseAdvisor implements CallAdvisor, StreamAdvisor {
         }
     }
 
-    static SseEmitter getSseEmitter(ChatClientRequest request) {
+    private SseEmitter getSseEmitter(ChatClientRequest request) {
         if (request == null || request.context() == null) {
-            return null;
+            return sseEmitter;
         }
         Object sseObj = request.context().get(SSE_EMITTER_KEY);
-        return sseObj instanceof SseEmitter ? (SseEmitter) sseObj : null;
+        if (sseObj instanceof SseEmitter) {
+            return (SseEmitter) sseObj;
+        }
+        // 如果 context 中没有，使用构造函数注入的
+        return sseEmitter;
     }
 }

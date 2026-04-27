@@ -56,14 +56,16 @@ const {Text} = Typography;
 // 解析工具内容，提取工具名称、输入参数和输出参数
 const parseToolContent = (content: string) => {
     // 支持多种格式：后端可能发送 "正在执行工具：" 或 "工具名称："
-    const toolNameMatch = content.match(/(?:正在执行工具|工具名称)[:：]\s*(.+)/);
+    // 使用 [\s\S] 替代 . 来匹配包括换行符在内的所有字符
+    const toolNameMatch = content.match(/(?:正在执行工具|工具名称)[:：]\s*([\s\S]+?)(?:\s*(?:\n|$|工具入参|输入参数|执行结果|输出参数))/);
     const inputMatch = content.match(/(?:工具入参|输入参数)[:：]\s*({[^}]+})/);
-    const outputMatch = content.match(/(?:执行结果|输出参数)[:：]\s*({[^}]+})/);
+    // 输出参数可能是 JSON 或纯文本，支持到字符串末尾的所有内容
+    const outputMatch = content.match(/(?:执行结果|输出参数)[:：]\s*([\s\S]+)$/);
 
     return {
         toolName: toolNameMatch ? toolNameMatch[1].trim() : '',
         inputParams: inputMatch ? inputMatch[1] : '',
-        outputParams: outputMatch ? outputMatch[1] : '',
+        outputParams: outputMatch ? outputMatch[1].trim() : '',
     };
 };
 
@@ -176,12 +178,22 @@ export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: b
 
     // 合并相同类型的连续 entry
     // 注意：SSE 流式数据可能将一个完整消息分成多个 chunk，需要正确拼接
+    // 特殊处理：tool 类型遇到"正在执行工具"标记时，应该开始新的工具调用
     const merged: ThinkingLogEntry[] = [];
     for (const entry of entries) {
         const lastEntry = merged[merged.length - 1];
-        if (lastEntry && lastEntry.type === entry.type) {
-            // 直接使用原始内容拼接，不要用 trim() 或 includes 判断
-            // 因为流式数据是连续的，直接追加即可
+        
+        // 如果是 tool 类型，检查是否是新的一次工具调用
+        if (lastEntry && lastEntry.type === 'tool' && entry.type === 'tool') {
+            // 如果新消息包含"正在执行工具"，说明是新的工具调用，不合并
+            if (entry.content.includes('正在执行工具') || entry.content.includes('工具名称')) {
+                merged.push({...entry});
+            } else {
+                // 否则是同一次工具调用的后续信息（入参、结果等），合并
+                lastEntry.content = lastEntry.content + entry.content;
+            }
+        } else if (lastEntry && lastEntry.type === entry.type) {
+            // 其他类型直接合并
             lastEntry.content = lastEntry.content + entry.content;
         } else {
             merged.push({...entry});

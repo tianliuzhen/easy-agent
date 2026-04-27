@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {Card, Typography, Button, Space, Select, Input, message, Divider} from 'antd';
 import {SaveOutlined, ReloadOutlined, CopyOutlined, DeleteOutlined, FileTextOutlined} from '@ant-design/icons';
+import {eaAgentApi} from '../../../api/EaAgentApi';
 
 const {Title, Text} = Typography;
 const {TextArea} = Input;
@@ -123,18 +124,12 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
         if (!agentId) return;
 
         try {
-            // 这里可以调用API获取已保存的提示词
-            // const response = await promptApi.getAgentPrompt(agentId);
-            // if (response.data) {
-            //     setPromptContent(response.data.content);
-            // }
-
-            // 暂时模拟加载
-            const savedPrompt = localStorage.getItem(`agent_prompt_${agentId}`);
-            if (savedPrompt) {
-                setPromptContent(savedPrompt);
+            // 调用 queryAgent 接口获取已保存的提示词
+            const response = await eaAgentApi.queryAgent(agentId);
+            if (response && response.data && response.data.prompt) {
+                setPromptContent(response.data.prompt);
                 if (onPromptChange) {
-                    onPromptChange(savedPrompt);
+                    onPromptChange(response.data.prompt);
                 }
             }
         } catch (error) {
@@ -174,18 +169,18 @@ const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
             return;
         }
 
+        if (!agentId) {
+            message.warning('Agent ID 不存在');
+            return;
+        }
+
         setIsSaving(true);
         try {
-            // 这里可以调用API保存提示词
-            // await promptApi.savePrompt({
-            //     agentId,
-            //     content: promptContent
-            // });
-
-            // 暂时模拟保存到localStorage
-            if (agentId) {
-                localStorage.setItem(`agent_prompt_${agentId}`, promptContent);
-            }
+            // 调用 saveAgent 接口保存提示词
+            await eaAgentApi.saveAgent({
+                id: agentId,
+                prompt: promptContent
+            });
 
             message.success('提示词保存成功');
         } catch (error) {

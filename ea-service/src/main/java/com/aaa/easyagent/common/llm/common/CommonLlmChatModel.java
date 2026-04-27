@@ -345,7 +345,7 @@ public class CommonLlmChatModel implements ChatModel {
         request.setStream(stream);
 
 
-        CommonLlmChatOptions requestOptions = (CommonLlmChatOptions) prompt.getOptions();
+        ToolCallingChatOptions requestOptions = (ToolCallingChatOptions) prompt.getOptions();
         if (requestOptions != null) {
             // request = ModelOptionsUtils.merge(requestOptions, request, CommonLlmApi.ChatCompletionRequest.class);
             // Add the tool definitions to the request's tools parameter.

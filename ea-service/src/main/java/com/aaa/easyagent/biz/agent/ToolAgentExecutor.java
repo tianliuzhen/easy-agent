@@ -19,9 +19,7 @@ import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -52,8 +50,6 @@ public class ToolAgentExecutor extends BaseAgent {
      */
     private final ChatClient chatClient;
 
-    /** 本轮是否有工具调用（每轮变化，通过 advisor params 传入）*/
-    private final AtomicBoolean withToolCall = new AtomicBoolean(false);
 
     public ToolAgentExecutor(AgentContext agentContext) {
         super(agentContext);
@@ -64,18 +60,12 @@ public class ToolAgentExecutor extends BaseAgent {
                 .collect(Collectors.toList());
 
         // 不变的部分在构造函数一次性配置：system、tools、advisors
-        // 以及 defaultToolContext 中的 sse、callbackMap、toolSameCallCountMap
-        Map<String, Object> toolCtx = new HashMap<>();
-        toolCtx.put(SseAdvisor.SSE_EMITTER_KEY, sse);
-        toolCtx.put(ToolExecutionAdvisor.SSE_EMITTER_KEY, sse);
-        toolCtx.put(ToolExecutionAdvisor.CALLBACK_MAP_KEY, callbackMap);
-        toolCtx.put(ToolExecutionAdvisor.TOOL_SAME_CALL_MAP_KEY, toolSameCallCountMap);
-
+        // 以及通过构造函数注入到 Advisor 中的 sse、callbackMap、toolSameCallCountMap
         this.chatClient = ChatClient.builder(chatModel)
                 .defaultSystem(agentContext.getPrompt() != null ? agentContext.getPrompt() : "")
                 .defaultToolCallbacks(toolCallbacks)
-                .defaultAdvisors(new SseAdvisor(), new ToolExecutionAdvisor())
-                .defaultToolContext(toolCtx)
+                .defaultAdvisors(new SseAdvisor(sse),
+                        new ToolExecutionAdvisor(callbackMap, toolSameCallCountMap, sse))
                 .build();
     }
 
@@ -87,6 +77,7 @@ public class ToolAgentExecutor extends BaseAgent {
     @Override
     @SuppressWarnings("unchecked")
     public AgentOutput run() {
+        AtomicBoolean withToolCall = new AtomicBoolean(false);
         StringBuilder resStr = new StringBuilder();
         StringBuilder reasoningContent = new StringBuilder();
 

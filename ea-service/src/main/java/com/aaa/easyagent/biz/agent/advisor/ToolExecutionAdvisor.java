@@ -42,29 +42,58 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ToolExecutionAdvisor implements CallAdvisor, StreamAdvisor {
 
-    /** ChatClientRequest context 中 FunctionCallback 映射表的 key */
+    /**
+     * ChatClientRequest context 中 FunctionCallback 映射表的 key
+     */
     public static final String CALLBACK_MAP_KEY = "toolCallbackMap";
 
-    /** ChatClientRequest context 中消息历史列表的 key */
+    /**
+     * ChatClientRequest context 中消息历史列表的 key
+     */
     public static final String MESSAGES_KEY = "messages";
 
-    /** ChatClientRequest context 中卡住检测计数 map 的 key */
+    /**
+     * ChatClientRequest context 中卡住检测计数 map 的 key
+     */
     public static final String TOOL_SAME_CALL_MAP_KEY = "toolSameCallCountMap";
 
-    /** ChatClientRequest context 中标记本轮是否有 tool call 的 key */
+    /**
+     * ChatClientRequest context 中标记本轮是否有 tool call 的 key
+     */
     public static final String WITH_TOOL_CALL_KEY = "withToolCall";
 
-    /** ChatClientRequest context 中 SseEmitter 的 key（复用 SseAdvisor） */
+    /**
+     * ChatClientRequest context 中 SseEmitter 的 key（复用 SseAdvisor）
+     */
     public static final String SSE_EMITTER_KEY = "sseEmitter";
 
     private final int order;
+    private final Map<String, FunctionCallback> callbackMap;
+    private final Map<String, Integer> toolSameCallCountMap;
+    private final SseEmitter sseEmitter;
 
     public ToolExecutionAdvisor() {
-        this(0);
+        this(0, null, null, null);
     }
 
     public ToolExecutionAdvisor(int order) {
+        this(order, null, null, null);
+    }
+
+    public ToolExecutionAdvisor(Map<String, FunctionCallback> callbackMap,
+                                Map<String, Integer> toolSameCallCountMap,
+                                SseEmitter sseEmitter) {
+        this(0, callbackMap, toolSameCallCountMap, sseEmitter);
+    }
+
+    public ToolExecutionAdvisor(int order,
+                                Map<String, FunctionCallback> callbackMap,
+                                Map<String, Integer> toolSameCallCountMap,
+                                SseEmitter sseEmitter) {
         this.order = order;
+        this.callbackMap = callbackMap;
+        this.toolSameCallCountMap = toolSameCallCountMap;
+        this.sseEmitter = sseEmitter;
     }
 
     @Override
@@ -85,9 +114,7 @@ public class ToolExecutionAdvisor implements CallAdvisor, StreamAdvisor {
         ChatClientResponse response = callAdvisorChain.nextCall(chatClientRequest);
 
         if (response != null && response.chatResponse() != null && response.chatResponse().hasToolCalls()) {
-            Map<String, FunctionCallback> callbackMap = (Map<String, FunctionCallback>) chatClientRequest.context().get(CALLBACK_MAP_KEY);
             List<Message> messages = (List<Message>) chatClientRequest.context().get(MESSAGES_KEY);
-            Map<String, Integer> toolSameCallCountMap = (Map<String, Integer>) chatClientRequest.context().get(TOOL_SAME_CALL_MAP_KEY);
             AtomicBoolean withToolCall = (AtomicBoolean) chatClientRequest.context().get(WITH_TOOL_CALL_KEY);
 
             if (withToolCall != null) {
@@ -110,11 +137,9 @@ public class ToolExecutionAdvisor implements CallAdvisor, StreamAdvisor {
     @Override
     @SuppressWarnings("unchecked")
     public Flux<ChatClientResponse> adviseStream(ChatClientRequest chatClientRequest,
-                                                  StreamAdvisorChain streamAdvisorChain) {
+                                                 StreamAdvisorChain streamAdvisorChain) {
 
-        Map<String, FunctionCallback> callbackMap = (Map<String, FunctionCallback>) chatClientRequest.context().get(CALLBACK_MAP_KEY);
         List<Message> messages = (List<Message>) chatClientRequest.context().get(MESSAGES_KEY);
-        Map<String, Integer> toolSameCallCountMap = (Map<String, Integer>) chatClientRequest.context().get(TOOL_SAME_CALL_MAP_KEY);
         AtomicBoolean withToolCall = (AtomicBoolean) chatClientRequest.context().get(WITH_TOOL_CALL_KEY);
 
         Flux<ChatClientResponse> stream = streamAdvisorChain.nextStream(chatClientRequest);
@@ -143,10 +168,10 @@ public class ToolExecutionAdvisor implements CallAdvisor, StreamAdvisor {
      */
     @SuppressWarnings("unchecked")
     private void executeTools(AssistantMessage assistantMessage,
-                               Map<String, FunctionCallback> callbackMap,
-                               List<Message> messages,
-                               Map<String, Integer> toolSameCallCountMap,
-                               ChatClientRequest request) {
+                              Map<String, FunctionCallback> callbackMap,
+                              List<Message> messages,
+                              Map<String, Integer> toolSameCallCountMap,
+                              ChatClientRequest request) {
         if (callbackMap == null || messages == null) {
             return;
         }
@@ -166,14 +191,14 @@ public class ToolExecutionAdvisor implements CallAdvisor, StreamAdvisor {
 
             // SSE 日志
             if (sse != null) {
-                SseHelper.sendTool(sse, String.format("正在执行工具：%s \n工具入参：%s",
-                        toolCall.name(), toolCall.arguments()));
+                SseHelper.sendTool(sse, String.format("正在执行工具：%s", toolCall.name()));
+                SseHelper.sendTool(sse, String.format("工具入参：%s", toolCall.arguments()));
             }
 
             String callToolResult = callback.call(toolCall.arguments());
 
             if (sse != null) {
-                SseHelper.sendTool(sse, String.format("\n执行结果：%s", callToolResult));
+                SseHelper.sendTool(sse, String.format("执行结果：%s", callToolResult));
             }
 
             // 保存到数据库
@@ -199,11 +224,15 @@ public class ToolExecutionAdvisor implements CallAdvisor, StreamAdvisor {
         }
     }
 
-    private static SseEmitter getSseEmitter(ChatClientRequest request) {
+    private SseEmitter getSseEmitter(ChatClientRequest request) {
         if (request == null || request.context() == null) {
-            return null;
+            return sseEmitter;
         }
         Object sseObj = request.context().get(SSE_EMITTER_KEY);
-        return sseObj instanceof SseEmitter ? (SseEmitter) sseObj : null;
+        if (sseObj instanceof SseEmitter) {
+            return (SseEmitter) sseObj;
+        }
+        // 如果 context 中没有，使用构造函数注入的
+        return sseEmitter;
     }
 }
