@@ -4,13 +4,15 @@ import com.aaa.easyagent.biz.agent.advisor.SseAdvisor;
 import com.aaa.easyagent.biz.agent.advisor.ToolExecutionAdvisor;
 import com.aaa.easyagent.biz.agent.context.FunctionCallbackAdapter;
 import com.aaa.easyagent.biz.agent.context.SseHelper;
-import com.aaa.easyagent.biz.agent.data.AgentContext;
-import com.aaa.easyagent.biz.agent.data.AgentFinish;
-import com.aaa.easyagent.biz.agent.data.AgentOutput;
-import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
+import com.aaa.easyagent.biz.agent.data.*;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
+import com.aaa.easyagent.common.util.SpringContextUtil;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -59,14 +61,24 @@ public class ToolAgentExecutor extends BaseAgent {
                 .map(FunctionCallbackAdapter::new)
                 .collect(Collectors.toList());
 
+
         // 不变的部分在构造函数一次性配置：system、tools、advisors
         // 以及通过构造函数注入到 Advisor 中的 sse、callbackMap、toolSameCallCountMap
-        this.chatClient = ChatClient.builder(chatModel)
+        List<Advisor> advisors = Lists.newArrayList(
+                new SseAdvisor(sse),
+                new ToolExecutionAdvisor(callbackMap, toolSameCallCountMap, sse));
+
+        // 窗口轮数限制
+        AgentMemoryConfig agentMemoryConfig = agentContext.getAgentMemoryConfig();
+        if (agentMemoryConfig != null && agentMemoryConfig.isRoundLimitEnabled() && agentMemoryConfig.getRoundLimit() > 0) {
+            advisors.add(MessageChatMemoryAdvisor.builder(SpringContextUtil.getBean(ChatMemory.class)).build());
+        }
+
+        ChatClient.Builder builder = ChatClient.builder(chatModel)
                 .defaultSystem(agentContext.getPrompt() != null ? agentContext.getPrompt() : "")
                 .defaultToolCallbacks(toolCallbacks)
-                .defaultAdvisors(new SseAdvisor(sse),
-                        new ToolExecutionAdvisor(callbackMap, toolSameCallCountMap, sse))
-                .build();
+                .defaultAdvisors(advisors);
+        this.chatClient = builder.build();
     }
 
     @Override

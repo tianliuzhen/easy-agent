@@ -58,12 +58,6 @@ public class EaAgentDO {
     @Column(name = "tool_run_mode")
     private String toolRunMode;
 
-    /**
-     * 模型配置:{}
-     */
-    @Column(name = "model_config")
-    private String modelConfig;
-
     @Column(name = "created_at")
     private Date createdAt;
 
@@ -87,4 +81,16 @@ public class EaAgentDO {
      */
     @Column(name = "prompt")
     private String prompt;
+
+    /**
+     * 模型配置:{}
+     */
+    @Column(name = "model_config")
+    private String modelConfig;
+
+    /**
+     * 记忆配置:{}
+     */
+    @Column(name = "memory_config")
+    private String memoryConfig;
 }

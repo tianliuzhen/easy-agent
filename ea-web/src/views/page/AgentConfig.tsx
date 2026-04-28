@@ -1,10 +1,10 @@
-import React, {useState} from 'react';
+import React, {useState, useRef} from 'react';
 import {App, Layout, ConfigProvider, Splitter, message, Button} from 'antd';
 import {LeftOutlined, EditOutlined} from '@ant-design/icons';
 import {useLocation} from 'react-router-dom';
 import {AgentConfigProvider, useAgentConfig} from './agent/AgentConfigContext';
 import PromptInputPanel from './agent/prompt/PromptInputPanel';
-import ResourceBindingPanel from './agent/ResourceBindingPanel';
+import ResourceBindingPanel, {type ResourceBindingPanelRef} from './agent/ResourceBindingPanel';
 import ChatDebugPanel from './agent/debug/ChatDebugPanel';
 import {eaAgentApi} from '../api/EaAgentApi';
 import AgentEditModal, {type ModelConfigField} from './agent/AgentEditModal';
@@ -49,6 +49,9 @@ const AgentConfigContent: React.FC = () => {
     const agentId = urlParams.get('agentId');
     const agentIdNum = agentId ? parseInt(agentId) : undefined;
 
+    // ResourceBindingPanel ref
+    const resourceBindingRef = useRef<ResourceBindingPanelRef>(null);
+
     // 获取 agent 信息
     const [sizes, setSizes] = useState<(number | string)[]>(defaultSizes);
     const [promptContent, setPromptContent] = useState('');
@@ -89,13 +92,20 @@ const AgentConfigContent: React.FC = () => {
                 }
             });
 
+            // 获取记忆配置
+            const memoryConfig = resourceBindingRef.current?.getMemoryConfig();
+            console.log('获取到的记忆配置:', memoryConfig);
+
             const agentData = {
                 ...values,
                 id: agentIdNum,
                 modelPlatform: values.modelPlatform,
                 analysisModel: values.modelPlatform,
                 modelConfig: JSON.stringify(modelConfigObj),
+                memoryConfig: memoryConfig ? JSON.stringify(memoryConfig) : null,
             };
+
+            console.log('保存的 Agent 数据:', agentData);
 
             await eaAgentApi.saveAgent(agentData);
             message.success('更新成功');
@@ -201,6 +211,7 @@ const AgentConfigContent: React.FC = () => {
                             >
                                 <ResourceBindingPanel
                                     agentId={agentIdNum}
+                                    ref={resourceBindingRef}
                                 />
                             </Splitter.Panel>
 

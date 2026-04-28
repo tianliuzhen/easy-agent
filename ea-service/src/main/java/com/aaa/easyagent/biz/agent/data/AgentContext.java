@@ -66,6 +66,12 @@ public class AgentContext {
 
 
     /**
+     * agent 记忆配置
+     */
+    private AgentMemoryConfig agentMemoryConfig;
+
+
+    /**
      * sseEmitter
      */
     private SseEmitter sseEmitter;

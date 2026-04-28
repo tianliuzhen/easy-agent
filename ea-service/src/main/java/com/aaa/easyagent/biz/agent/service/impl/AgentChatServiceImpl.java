@@ -57,6 +57,7 @@ public class AgentChatServiceImpl implements AgentChatService {
         agentContext.setAgentId(agent.getId());
         agentContext.setAgentName(agent.getAgentName());
         agentContext.setPrompt(agent.getPrompt());
+        agentContext.setAgentMemoryConfig(agent.getAgentMemoryConfig());
 
         // Agent来源
         agentContext.setModelType(ModelTypeEnum.getByModel(agent.getModelPlatform()));

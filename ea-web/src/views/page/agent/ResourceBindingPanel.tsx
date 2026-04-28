@@ -1,6 +1,6 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import type {CollapseProps} from 'antd';
-import {Collapse, Button, Empty, message, Tabs} from 'antd';
+import {Collapse, Button, message, Tabs} from 'antd';
 import {PlusCircleFilled, AppstoreOutlined, ToolOutlined, DatabaseOutlined, HistoryOutlined} from '@ant-design/icons';
 import AgentKnowledgeBinding from './knowledge/AgentKnowledgeBinding';
 import AgentToolBinding from './tool/AgentToolBinding';
@@ -8,6 +8,7 @@ import MCPSkillList from './mcp/MCPSkillList';
 import SkillList from './skill/SkillList';
 import SkillSelector from './skill/SkillSelector';
 import AddResourceModal from './common/AddResourceModal';
+import MemoryConfig, {type MemoryConfigRef} from './memory/MemoryConfig';
 import {eaToolApi} from '../../api/EaToolApi';
 import {mcpApi} from '../../api/McpApi';
 import {skillApi} from '../../api/SkillApi';
@@ -17,10 +18,24 @@ interface ResourceBindingPanelProps {
     className?: string;
 }
 
-const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, className}) => {
+export interface ResourceBindingPanelRef {
+    getMemoryConfig: () => any;
+}
+
+const ResourceBindingPanel = React.forwardRef<ResourceBindingPanelRef, ResourceBindingPanelProps>(({agentId, className}, ref) => {
     const [activeKeys, setActiveKeys] = useState<string[]>([]);
     const [activeTab, setActiveTab] = useState('capability');
     const [refreshKey, setRefreshKey] = useState(0);
+
+    // MemoryConfig ref
+    const memoryConfigRef = useRef<MemoryConfigRef>(null);
+
+    // 暴露获取记忆配置的方法
+    React.useImperativeHandle(ref, () => ({
+        getMemoryConfig: () => {
+            return memoryConfigRef.current?.getMemoryConfig();
+        }
+    }));
 
     // Modal 状态
     const [modalVisible, setModalVisible] = useState(false);
@@ -260,13 +275,8 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
                 </span>
             ),
             children: (
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: '80px 0'
-                }}>
-                    <Empty description="记忆功能开发中..."/>
+                <div style={{padding: '16px 0'}}>
+                    <MemoryConfig agentId={agentId} ref={memoryConfigRef}/>
                 </div>
             )
         }
@@ -335,6 +345,6 @@ const ResourceBindingPanel: React.FC<ResourceBindingPanelProps> = ({agentId, cla
             />
         </div>
     );
-};
+});
 
 export default ResourceBindingPanel;

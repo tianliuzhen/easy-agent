@@ -1,5 +1,6 @@
 package com.aaa.easyagent.core.domain.result;
 
+import com.aaa.easyagent.biz.agent.data.AgentMemoryConfig;
 import com.aaa.easyagent.biz.agent.data.AgentModelConfig;
 import com.aaa.easyagent.core.domain.DO.EaAgentDO;
 import com.alibaba.fastjson.JSONObject;
@@ -26,5 +27,13 @@ public class EaAgentResult extends EaAgentDO {
         return JSONObject.parseObject(super.getModelConfig(), AgentModelConfig.class);
     }
 
+
+    public AgentMemoryConfig getAgentMemoryConfig() {
+        if (StringUtils.isBlank(super.getMemoryConfig())) {
+            return null;
+        }
+
+        return JSONObject.parseObject(super.getMemoryConfig(), AgentMemoryConfig.class);
+    }
 
 }

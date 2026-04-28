@@ -12,11 +12,12 @@
     <result column="analysis_model" jdbcType="VARCHAR" property="analysisModel" />
     <result column="tool_model" jdbcType="VARCHAR" property="toolModel" />
     <result column="tool_run_mode" jdbcType="VARCHAR" property="toolRunMode" />
-    <result column="model_config" jdbcType="VARCHAR" property="modelConfig" />
     <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
     <result column="updated_at" jdbcType="TIMESTAMP" property="updatedAt" />
     <result column="avatar" jdbcType="LONGVARCHAR" property="avatar" />
     <result column="agent_desc" jdbcType="LONGVARCHAR" property="agentDesc" />
     <result column="prompt" jdbcType="LONGVARCHAR" property="prompt" />
+    <result column="model_config" jdbcType="LONGVARCHAR" property="modelConfig" />
+    <result column="memory_config" jdbcType="LONGVARCHAR" property="memoryConfig" />
   </resultMap>
 </mapper>
