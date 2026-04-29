@@ -17,7 +17,11 @@ public class EaAgentResult extends EaAgentDO {
 
     private String modelIcon;
 
-
+    /**
+     * 缓存的记忆配置对象，避免重复解析 JSON。
+     * 外部代码可以通过此对象注入平台级的配置（如 maxToken）。
+     */
+    private AgentMemoryConfig agentMemoryConfigCache;
 
     public AgentModelConfig getAgentModelConfig() {
         if (StringUtils.isBlank(super.getModelConfig())) {
@@ -30,10 +34,12 @@ public class EaAgentResult extends EaAgentDO {
 
     public AgentMemoryConfig getAgentMemoryConfig() {
         if (StringUtils.isBlank(super.getMemoryConfig())) {
-            return null;
+            return new AgentMemoryConfig();
         }
-
-        return JSONObject.parseObject(super.getMemoryConfig(), AgentMemoryConfig.class);
+        if (agentMemoryConfigCache == null) {
+            agentMemoryConfigCache = JSONObject.parseObject(super.getMemoryConfig(), AgentMemoryConfig.class);
+        }
+        return agentMemoryConfigCache;
     }
 
 }

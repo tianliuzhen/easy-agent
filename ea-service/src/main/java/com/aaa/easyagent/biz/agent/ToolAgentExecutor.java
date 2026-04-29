@@ -1,6 +1,6 @@
 package com.aaa.easyagent.biz.agent;
 
-import com.aaa.easyagent.biz.agent.advisor.SseAdvisor;
+import com.aaa.easyagent.biz.agent.advisor.SlidingWindowAdvisor;
 import com.aaa.easyagent.biz.agent.advisor.ToolExecutionAdvisor;
 import com.aaa.easyagent.biz.agent.context.FunctionCallbackAdapter;
 import com.aaa.easyagent.biz.agent.context.SseHelper;
@@ -14,6 +14,7 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.metadata.EmptyUsage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.ToolCallback;
@@ -54,7 +55,14 @@ public class ToolAgentExecutor extends BaseAgent {
 
 
     public ToolAgentExecutor(AgentContext agentContext) {
+        this(agentContext, 0L, 0L);
+    }
+
+    public ToolAgentExecutor(AgentContext agentContext, long initInputTokens, long initOutputTokens) {
         super(agentContext);
+        // 初始化累计 Token 数
+        this.accumulateInputTokenCount = initInputTokens;
+        this.accumulateOutputTokenCount = initOutputTokens;
 
         // 将 FunctionCallback 适配为 Spring AI ToolCallback
         List<ToolCallback> toolCallbacks = callbackMap.values().stream()
@@ -65,13 +73,26 @@ public class ToolAgentExecutor extends BaseAgent {
         // 不变的部分在构造函数一次性配置：system、tools、advisors
         // 以及通过构造函数注入到 Advisor 中的 sse、callbackMap、toolSameCallCountMap
         List<Advisor> advisors = Lists.newArrayList(
-                new SseAdvisor(sse),
+                // new SseAdvisor(sse),
                 new ToolExecutionAdvisor(callbackMap, toolSameCallCountMap, sse));
 
-        // 窗口轮数限制
+        // 窗口策略：轮数限制 / 滑动窗口
         AgentMemoryConfig agentMemoryConfig = agentContext.getAgentMemoryConfig();
-        if (agentMemoryConfig != null && agentMemoryConfig.isRoundLimitEnabled() && agentMemoryConfig.getRoundLimit() > 0) {
-            advisors.add(MessageChatMemoryAdvisor.builder(SpringContextUtil.getBean(ChatMemory.class)).build());
+        if (agentMemoryConfig != null) {
+            // 轮数限制（MessageChatMemoryAdvisor）
+            if (agentMemoryConfig.isRoundLimitEnabled() && agentMemoryConfig.getRoundLimit() > 0) {
+                advisors.add(MessageChatMemoryAdvisor.builder(SpringContextUtil.getBean(ChatMemory.class)).build());
+            }
+
+            // 滑动窗口（SlidingWindowAdvisor）：基于 token 计数
+            // 当 overflowStrategy == SLIDING 且 windowStrategyEnabled 且 windowLimit > 0 时启用
+            if (agentMemoryConfig.isWindowStrategyEnabled()
+                    && OverflowStrategyEnum.SLIDING.equals(agentMemoryConfig.getOverflowStrategy())
+                    && agentMemoryConfig.getWindowLimit() > 0) {
+                double threshold = agentMemoryConfig.getTriggerThreshold() != null ? agentMemoryConfig.getTriggerThreshold() : 0.82;
+                advisors.add(new SlidingWindowAdvisor(0, this.accumulateInputTokenCount, this.accumulateOutputTokenCount,
+                        agentMemoryConfig.getWindowLimit(), threshold));
+            }
         }
 
         ChatClient.Builder builder = ChatClient.builder(chatModel)
@@ -104,13 +125,20 @@ public class ToolAgentExecutor extends BaseAgent {
         spec.advisors(as -> {
             as.param(ToolExecutionAdvisor.MESSAGES_KEY, messages);
             as.param(ToolExecutionAdvisor.WITH_TOOL_CALL_KEY, withToolCall);
+            as.param(SlidingWindowAdvisor.MESSAGES_KEY, messages);
         });
 
         Flux<ChatResponse> stream = spec.stream().chatResponse();
 
+        // 用于追踪最后一个 ChatResponse 以提取 token 用量
+        ChatResponse[] lastChatResponse = {null};
+
         CountDownLatch runOver = new CountDownLatch(1);
 
         stream.subscribe(chatRes -> {
+            // 追踪最后一个 response（用于提取 token usage）
+            lastChatResponse[0] = chatRes;
+
             // 思考过程（SSE 由 SseAdvisor 推送，这里只做内存汇总）
             String lineThinks = ChatResponseUtil.getReasoningContent(chatRes);
             if (StringUtils.hasText(lineThinks)) {
@@ -122,12 +150,41 @@ public class ToolAgentExecutor extends BaseAgent {
             if (StringUtils.hasText(lineResStr)) {
                 resStr.append(lineResStr);
             }
+
+            String reasoning = ChatResponseUtil.getReasoningContent(chatRes);
+            if (StringUtils.hasText(reasoning)) {
+                SseHelper.sendThink(sse, reasoning);
+            }
+
+            String data = ChatResponseUtil.getResStr(chatRes);
+            if (StringUtils.hasText(data)) {
+                SseHelper.sendData(sse, data);
+            }
+
         }, e -> {
             log.error("ToolAgentExecutor.run.error", e);
             SseHelper.sendData(sse, "系统异常：" + e.getMessage());
             runOver.countDown();
         }, () -> {
             log.info("ToolAgentExecutor.run.complete");
+
+            // 从最后一个 ChatResponse 提取 token 用量并累加到 BaseAgent 字段
+            if (lastChatResponse[0] != null
+                    && lastChatResponse[0].getMetadata() != null
+                    && lastChatResponse[0].getMetadata().getUsage() != null
+                    && !(lastChatResponse[0].getMetadata().getUsage() instanceof EmptyUsage)) {
+                var usage = lastChatResponse[0].getMetadata().getUsage();
+                int promptTokens = usage.getPromptTokens();
+                int completionTokens = usage.getCompletionTokens();
+                if (promptTokens > 0 || completionTokens > 0) {
+                    this.accumulateInputTokenCount += promptTokens;
+                    this.accumulateOutputTokenCount += completionTokens;
+                    log.info("ToolAgentExecutor: round tokens +{}(in)/+{}(out), cumulative: {}(in)/{}(out)",
+                            promptTokens, completionTokens,
+                            this.accumulateInputTokenCount, this.accumulateOutputTokenCount);
+                }
+            }
+
             runOver.countDown();
         });
 
@@ -148,5 +205,13 @@ public class ToolAgentExecutor extends BaseAgent {
     @Override
     protected void addUserMessage(String question) {
         messages.add(new org.springframework.ai.chat.messages.UserMessage(question));
+    }
+
+    public long getAccumulateInputTokenCount() {
+        return accumulateInputTokenCount;
+    }
+
+    public long getAccumulateOutputTokenCount() {
+        return accumulateOutputTokenCount;
     }
 }

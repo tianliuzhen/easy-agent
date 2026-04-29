@@ -38,8 +38,11 @@ public class ChatMessageReq extends EaChatMessageDO {
         if (this.getModelUsed() == null) {
             this.setModelUsed("");
         }
-        if (this.getTokensUsed() == null) {
-            this.setTokensUsed(0);
+        if (this.getInputTokensUsed() == null) {
+            this.setInputTokensUsed(0L);
+        }
+        if (this.getOutputTokensUsed() == null) {
+            this.setOutputTokensUsed(0L);
         }
         if (this.getResponseTime() == null) {
             this.setResponseTime(BigDecimal.ZERO);
@@ -67,107 +70,26 @@ public class ChatMessageReq extends EaChatMessageDO {
         return req;
     }
 
-    /**
-     * 创建 AI 回答消息（包含问题和回答）
-     *
-     * @param conversationId 会话 ID
-     * @param question 用户问题
-     * @param answer AI 回答
-     * @param sequence 消息序号
-     * @param modelUsed 使用的模型
-     * @param tokensUsed 消耗的 token 数
-     * @param responseTime 响应时间
-     * @return AI 回答消息请求对象
-     */
-    public static ChatMessageReq createAiAnswer(Long conversationId, String question, String answer, Integer sequence,
-                                                String modelUsed, Integer tokensUsed, Integer responseTime) {
-        ChatMessageReq req = new ChatMessageReq();
-        req.setConversationId(conversationId);
-        req.setQuestion(question);
-        req.setAnswer(answer);
-        req.setSequence(sequence);
-        req.setModelUsed(modelUsed);
-        req.setTokensUsed(tokensUsed);
-        req.setResponseTime(responseTime != null ? BigDecimal.valueOf(responseTime) : null);
-        req.setDefaults();
-        return req;
-    }
 
-    /**
-     * 创建 AI 回答消息（包含思考过程）
-     *
-     * @param conversationId 会话 ID
-     * @param question 用户问题
-     * @param answer AI 回答
-     * @param thinkingLog 思考过程日志
-     * @param sequence 消息序号
-     * @param modelUsed 使用的模型
-     * @param tokensUsed 消耗的 token 数
-     * @param responseTime 响应时间
-     * @return AI 回答消息请求对象
-     */
-    public static ChatMessageReq createAiAnswerWithThinking(Long conversationId, String question, String answer,
-                                                            String thinkingLog, Integer sequence,
-                                                            String modelUsed, Integer tokensUsed, Integer responseTime) {
-        ChatMessageReq req = new ChatMessageReq();
-        req.setConversationId(conversationId);
-        req.setQuestion(question);
-        req.setAnswer(answer);
-        req.setThinkingLog(thinkingLog);
-        req.setSequence(sequence);
-        req.setModelUsed(modelUsed);
-        req.setTokensUsed(tokensUsed);
-        req.setResponseTime(responseTime != null ? BigDecimal.valueOf(responseTime) : null);
-        req.setDefaults();
-        return req;
-    }
 
-    /**
-     * 创建 AI 回答消息（包含工具调用）
-     *
-     * @param conversationId 会话 ID
-     * @param question 用户问题
-     * @param answer AI 回答
-     * @param toolCalls 工具调用信息（JSON 格式）
-     * @param sequence 消息序号
-     * @param modelUsed 使用的模型
-     * @param tokensUsed 消耗的 token 数
-     * @param responseTime 响应时间
-     * @return AI 回答消息请求对象
-     */
-    public static ChatMessageReq createAiAnswerWithToolCalls(Long conversationId, String question, String answer,
-                                                             String toolCalls, Integer sequence,
-                                                             String modelUsed, Integer tokensUsed, Integer responseTime) {
-        ChatMessageReq req = new ChatMessageReq();
-        req.setConversationId(conversationId);
-        req.setQuestion(question);
-        req.setAnswer(answer);
-        req.setToolCalls(toolCalls);
-        req.setSequence(sequence);
-        req.setModelUsed(modelUsed);
-        req.setTokensUsed(tokensUsed);
-        req.setResponseTime(responseTime != null ? BigDecimal.valueOf(responseTime) : null);
-        req.setDefaults();
-        return req;
-    }
 
     /**
      * 创建 AI 回答消息（完整信息：思考 + 工具 + 回答）
      *
-     * @param conversationId 会话 ID
-     * @param question 用户问题
-     * @param answer AI 回答
-     * @param answer AI 回答
-     * @param messageContext 聊天消息上下文
-     * @param sequence 消息序号
-     * @param modelUsed 使用的模型
-     * @param tokensUsed 消耗的 token 数
-     * @param responseTime 响应时间
+     * @param conversationId   会话 ID
+     * @param question         用户问题
+     * @param answer           AI 回答
+     * @param messageContext   聊天消息上下文
+     * @param sequence         消息序号
+     * @param modelUsed        使用的模型
+     * @param inputTokensUsed  消耗的输入 token 数
+     * @param outputTokensUsed 消耗的输出 token 数
+     * @param responseTime     响应时间
      * @return AI 回答消息请求对象
      */
     public static ChatMessageReq createFullAiAnswer(Long conversationId, Long messageId, String question, String answer,
                                                     String messageContext, Integer sequence,
-                                                    String modelUsed, Integer tokensUsed, BigDecimal responseTime) {
+                                                    String modelUsed, long inputTokensUsed, long outputTokensUsed, BigDecimal responseTime) {
         ChatMessageReq req = new ChatMessageReq();
         req.setId(messageId);
         req.setConversationId(conversationId);
@@ -176,7 +98,8 @@ public class ChatMessageReq extends EaChatMessageDO {
         req.setMessageContext(messageContext);
         req.setSequence(sequence);
         req.setModelUsed(modelUsed);
-        req.setTokensUsed(tokensUsed);
+        req.setInputTokensUsed(inputTokensUsed);
+        req.setOutputTokensUsed(outputTokensUsed);
         req.setResponseTime(responseTime);
         req.setDefaults();
         return req;

@@ -59,7 +59,7 @@ public class AgentManagerServiceImpl implements AgentManagerService {
     public EaAgentResult queryAgent(EaAgentReq req) {
         EaAgentResult eaAgentResult = BeanConvertUtil.beanTo(eaAgentDAO.selectByPrimaryKey(req.getId()), EaAgentResult.class);
 
-        // 根据 modelPlatform 查询对应的 icon
+        // 根据 modelPlatform 查询对应的 icon 和 maxToken
         if (eaAgentResult != null && StringUtils.isNotBlank(eaAgentResult.getModelPlatform())) {
             Example example = new Example(EaModelPlatformDO.class);
             Example.Criteria criteria = example.createCriteria();
@@ -67,6 +67,13 @@ public class AgentManagerServiceImpl implements AgentManagerService {
             EaModelPlatformDO platformDO = eaModelPlatformDAO.selectOneByExample(example);
             if (platformDO != null) {
                 eaAgentResult.setModelIcon(platformDO.getIcon());
+                // 注入 maxToken 到 memory config
+                if (StringUtils.isNotBlank(platformDO.getMaxToken())) {
+                    var memoryConfig = eaAgentResult.getAgentMemoryConfig();
+                    if (memoryConfig != null) {
+                        memoryConfig.setMaxToken(platformDO.getMaxToken());
+                    }
+                }
             }
         }
 
@@ -81,7 +88,32 @@ public class AgentManagerServiceImpl implements AgentManagerService {
     @Override
     public EaAgentResult getAgent(Long agentId) {
         EaAgentResult eaAgentResult = BeanConvertUtil.beanTo(eaAgentDAO.selectByPrimaryKey(agentId), EaAgentResult.class);
+
+        // 根据 modelPlatform 查询对应的 maxToken 并注入到 memory config
+        if (eaAgentResult != null && StringUtils.isNotBlank(eaAgentResult.getModelPlatform())) {
+            enrichWithPlatformConfig(eaAgentResult);
+        }
+
         return eaAgentResult;
+    }
+
+    /**
+     * 查询模型平台配置，将 maxToken 注入到 agent 的 memory config 中
+     */
+    private void enrichWithPlatformConfig(EaAgentResult eaAgentResult) {
+        Example example = new Example(EaModelPlatformDO.class);
+        Example.Criteria criteria = example.createCriteria();
+        criteria.andEqualTo(FunFiledHelper.getFieldName(EaModelPlatformDO::getModelPlatform), eaAgentResult.getModelPlatform());
+        EaModelPlatformDO platformDO = eaModelPlatformDAO.selectOneByExample(example);
+        if (platformDO == null || StringUtils.isBlank(platformDO.getMaxToken())) {
+            return;
+        }
+
+
+        var memoryConfig = eaAgentResult.getAgentMemoryConfig();
+        if (memoryConfig != null) {
+            memoryConfig.setMaxToken(platformDO.getMaxToken());
+        }
     }
 
     @Override

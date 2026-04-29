@@ -10,6 +10,8 @@
     <result column="model_used" jdbcType="VARCHAR" property="modelUsed" />
     <result column="tokens_used" jdbcType="INTEGER" property="tokensUsed" />
     <result column="response_time" jdbcType="DECIMAL" property="responseTime" />
+    <result column="output_tokens_used" jdbcType="BIGINT" property="outputTokensUsed" />
+    <result column="Input_tokens_used" jdbcType="BIGINT" property="inputTokensUsed" />
     <result column="sequence" jdbcType="INTEGER" property="sequence" />
     <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
     <result column="question" jdbcType="LONGVARCHAR" property="question" />

@@ -15,5 +15,7 @@
     <result column="status" jdbcType="VARCHAR" property="status" />
     <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
     <result column="updated_at" jdbcType="TIMESTAMP" property="updatedAt" />
+    <result column="accumulated_input_tokens" jdbcType="BIGINT" property="accumulatedInputTokens" />
+    <result column="accumulated_output_tokens" jdbcType="BIGINT" property="accumulatedOutputTokens" />
   </resultMap>
 </mapper>

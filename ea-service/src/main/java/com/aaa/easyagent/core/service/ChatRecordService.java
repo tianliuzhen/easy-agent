@@ -1,5 +1,6 @@
 package com.aaa.easyagent.core.service;
 
+import com.aaa.easyagent.core.domain.DO.EaChatConversationDO;
 import com.aaa.easyagent.core.domain.request.ChatConversationReq;
 import com.aaa.easyagent.core.domain.request.ChatMessageReq;
 import com.aaa.easyagent.core.domain.result.ChatConversationResult;
@@ -158,18 +159,19 @@ public interface ChatRecordService {
     /**
      * 保存完整的聊天交互（用户提问 + AI回答）
      *
-     * @param conversationId 会话 ID
-     * @param question       用户问题
-     * @param aiAnswer       AI 回答
-     * @param messageContext 上下文消息
-     * @param modelUsed      使用的模型
-     * @param tokensUsed     消耗的 token 数
-     * @param responseTime   响应时间（毫秒）
+     * @param conversationId   会话 ID
+     * @param question         用户问题
+     * @param aiAnswer         AI 回答
+     * @param messageContext   上下文消息
+     * @param modelUsed        使用的模型
+     * @param inputTokensUsed  消耗的输入 token 数
+     * @param outputTokensUsed 消耗的输出 token 数
+     * @param responseTime     响应时间（毫秒）
      * @return 保存的消息 ID 列表
      */
     public List<Long> saveChatMessage(Long conversationId, Long messageId, String question, String aiAnswer,
                                       String messageContext, String modelUsed,
-                                      Integer tokensUsed, BigDecimal responseTime);
+                                      long inputTokensUsed, long outputTokensUsed, BigDecimal responseTime);
 
     /**
      * 获取会话的完整聊天记录
@@ -194,4 +196,13 @@ public interface ChatRecordService {
      * @return 清理的记录数量
      */
     int cleanupExpiredRecords(int days);
+
+    /**
+     * 根据 Session ID 获取会话信息
+     *
+     * @param sessionId 会话 ID
+     * @return 会话 DO 对象
+     */
+    EaChatConversationDO getBySessionId(String sessionId);
+
 }

@@ -288,10 +288,9 @@ public class ChatRecordServiceImpl implements ChatRecordService {
 
 
     @Override
-    @Transactional
     public List<Long> saveChatMessage(Long conversationId, Long msgId, String question, String aiAnswer,
                                       String messageContext, String modelUsed,
-                                      Integer tokensUsed, BigDecimal responseTime) {
+                                      long inputTokensUsed, long outputTokensUsed, BigDecimal responseTime) {
         // 获取当前消息序号
         int currentCount = countMessagesByConversationId(conversationId);
         int nextSequence = currentCount + 1;
@@ -304,7 +303,8 @@ public class ChatRecordServiceImpl implements ChatRecordService {
                 messageContext,
                 nextSequence,
                 modelUsed,
-                tokensUsed,
+                inputTokensUsed,
+                outputTokensUsed,
                 responseTime
         );
 
@@ -384,5 +384,17 @@ public class ChatRecordServiceImpl implements ChatRecordService {
         int deletedConversations = eaChatConversationDAO.deleteByExample(conversationExample);
 
         return deletedMessages + deletedConversations;
+    }
+
+    @Override
+    public EaChatConversationDO getBySessionId(String sessionId) {
+        if (sessionId == null) {
+            return null;
+        }
+        Example example = new Example(EaChatConversationDO.class);
+        Example.Criteria criteria = example.createCriteria();
+        criteria.andEqualTo("sessionId", sessionId);
+        List<EaChatConversationDO> list = eaChatConversationDAO.selectByExample(example);
+        return list.isEmpty() ? null : list.get(0);
     }
 }

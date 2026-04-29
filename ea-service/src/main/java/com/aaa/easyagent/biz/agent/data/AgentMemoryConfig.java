@@ -40,12 +40,12 @@ public class AgentMemoryConfig {
      * sliding: 滑动窗口策略，删除最早的对话
      * compression: 压缩策略，对历史对话进行摘要压缩
      */
-    private String overflowStrategy;
+    private OverflowStrategyEnum overflowStrategy;
 
     /**
      * 上下文窗口策略是否启用
      */
-    private Boolean windowStrategyEnabled;
+    private boolean windowStrategyEnabled;
 
     /**
      * 工具结果修剪保留轮数
@@ -56,7 +56,7 @@ public class AgentMemoryConfig {
     /**
      * 工具结果修剪是否启用
      */
-    private Boolean toolTrimEnabled;
+    private boolean toolTrimEnabled;
 
     /**
      * 安全区域消息数（仅压缩策略生效）
@@ -69,4 +69,37 @@ public class AgentMemoryConfig {
      * 将添加到系统压缩Prompt后面，最大长度500字符
      */
     private String customCompressPrompt;
+
+    /**
+     * 模型平台配置的最大 Token 数
+     * 格式如："32K"、"1M"、"128K"，由 ea_model_platform.max_token 字段传入
+     */
+    private String maxToken;
+
+    /**
+     * 获取窗口限制 token 数（解析 maxToken 字符串）
+     * 规则：K = 1024, M = 1048576
+     * 示例：32K → 32768, 1M → 1048576, 128K → 131072
+     *
+     * @return token 数，解析失败或为空时返回 0（表示不限制）
+     */
+    public long getWindowLimit() {
+        if (maxToken == null || maxToken.isBlank()) {
+            return 0;
+        }
+        String trimmed = maxToken.trim().toUpperCase();
+        try {
+            if (trimmed.endsWith("M")) {
+                long value = Long.parseLong(trimmed.replace("M", "").trim());
+                return value * 1048576;
+            } else if (trimmed.endsWith("K")) {
+                long value = Long.parseLong(trimmed.replace("K", "").trim());
+                return value * 1024;
+            } else {
+                return Long.parseLong(trimmed);
+            }
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
 }

@@ -51,6 +51,18 @@ public class EaChatMessageDO {
     private BigDecimal responseTime;
 
     /**
+     * 输出Token
+     */
+    @Column(name = "output_tokens_used")
+    private Long outputTokensUsed;
+
+    /**
+     * 输入Token
+     */
+    @Column(name = "Input_tokens_used")
+    private Long inputTokensUsed;
+
+    /**
      * 消息序号（用于排序，从1开始）
      */
     @Column(name = "sequence")

@@ -75,4 +75,16 @@ public class EaChatConversationDO {
      */
     @Column(name = "updated_at")
     private Date updatedAt;
+
+    /**
+     * 累计输入Token数
+     */
+    @Column(name = "accumulated_input_tokens")
+    private Long accumulatedInputTokens;
+
+    /**
+     * 累计输出Token数
+     */
+    @Column(name = "accumulated_output_tokens")
+    private Long accumulatedOutputTokens;
 }

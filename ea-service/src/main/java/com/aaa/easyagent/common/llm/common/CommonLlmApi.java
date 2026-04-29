@@ -182,6 +182,8 @@ public class CommonLlmApi {
         private Boolean stream = false;
         @JsonProperty("tools")
         private List<FunctionTool> tools;
+        @JsonProperty("stream_options")
+        private StreamOptions streamOptions;
 
         public ChatCompletionRequest(List<ChatCompletionMessage> messages, Boolean stream) {
             this.messages = messages;
@@ -348,9 +350,21 @@ public class CommonLlmApi {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Usage {
+        @JsonProperty("prompt_tokens")
         private Integer promptTokens;
+        @JsonProperty("completion_tokens")
         private Integer completionTokens;
+        @JsonProperty("total_tokens")
         private Integer totalTokens;
+        @JsonProperty("prompt_tokens_details")
+        private PromptTokensDetails promptTokensDetails;
+
+        @Data
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class PromptTokensDetails {
+            @JsonProperty("cached_tokens")
+            private Integer cachedTokens;
+        }
     }
 
     /**

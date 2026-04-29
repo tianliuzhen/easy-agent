@@ -6,11 +6,13 @@ import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
 import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
+import com.aaa.easyagent.core.domain.DO.EaChatConversationDO;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
 import com.aaa.easyagent.core.domain.result.EaAgentResult;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
 import com.aaa.easyagent.core.service.AgentManagerService;
+import com.aaa.easyagent.core.service.ChatRecordService;
 import com.aaa.easyagent.core.service.McpToolIntegrationService;
 import com.aaa.easyagent.core.service.ToolMangerService;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class AgentChatServiceImpl implements AgentChatService {
     private final AgentManagerService agentManagerService;
     private final ToolMangerService toolMangerService;
     private final McpToolIntegrationService mcpToolIntegrationService;
+    private final ChatRecordService chatRecordService;
 
 
     /**
@@ -85,6 +88,11 @@ public class AgentChatServiceImpl implements AgentChatService {
         // 开始新的聊天会话并保存到数据库
         ChatRecordSaver.startNewConversation(agentContext, question);
 
+        // 获取历史累计 Token 数
+        EaChatConversationDO conversation = chatRecordService.getBySessionId(sessionId);
+        long initInputTokens = conversation != null && conversation.getAccumulatedInputTokens() != null ? conversation.getAccumulatedInputTokens() : 0L;
+        long initOutputTokens = conversation != null && conversation.getAccumulatedOutputTokens() != null ? conversation.getAccumulatedOutputTokens() : 0L;
+
         String result = null;
         // 执行Agent
         if (runMode == ToolRunMode.ReAct) {
@@ -92,7 +100,8 @@ public class AgentChatServiceImpl implements AgentChatService {
             result = new ReActAgentExecutor(agentContext).exec(question);
         }else {
             // 大模型的tool模式
-            result = new ToolAgentExecutor(agentContext).exec(question);
+            ToolAgentExecutor executor = new ToolAgentExecutor(agentContext, initInputTokens, initOutputTokens);
+            result = executor.exec(question);
         }
 
         // 保存聊天记录（注意：这里需要从Agent执行过程中获取思考过程和工具调用信息）

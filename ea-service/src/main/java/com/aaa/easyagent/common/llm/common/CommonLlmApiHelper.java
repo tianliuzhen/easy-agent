@@ -78,6 +78,9 @@ public class CommonLlmApiHelper {
         if (previous == null) {
             return current;
         }
+        if (current == null) {
+            return previous;
+        }
 
         String finishReason = (current.getFinishReason() != null ? current.getFinishReason()
                 : previous.getFinishReason());

@@ -13,6 +13,7 @@ interface ModelPlatform {
   icon: string;
   officialWebsite: string;
   baseUrl: string;
+  maxToken: string;
   modelVersions: string | string[];
   isActive: boolean;
   sortOrder: number;
@@ -205,6 +206,15 @@ const ModelPlatformConfig: React.FC = () => {
       ellipsis: true,
     },
     {
+      title: '最大 Token',
+      dataIndex: 'maxToken',
+      key: 'maxToken',
+      width: 120,
+      render: (maxToken: string) => (
+        <Tag>{maxToken || '-'}</Tag>
+      ),
+    },
+    {
       title: '模型版本',
       dataIndex: 'modelVersions',
       key: 'modelVersions',
@@ -375,6 +385,14 @@ const ModelPlatformConfig: React.FC = () => {
             rules={[{ required: true, message: '请输入基础 API URL' }]}
           >
             <Input placeholder="https://api.xxx.com/v1" />
+          </Form.Item>
+
+          <Form.Item
+            name="maxToken"
+            label="最大 Token"
+            tooltip="模型上下文窗口大小，格式如：32K、1M、128K"
+          >
+            <Input placeholder="32K / 1M / 128K" />
           </Form.Item>
           
           <Form.Item

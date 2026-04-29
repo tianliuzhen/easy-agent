@@ -12,6 +12,7 @@
     <result column="official_website" jdbcType="VARCHAR" property="officialWebsite" />
     <result column="base_url" jdbcType="VARCHAR" property="baseUrl" />
     <result column="is_active" jdbcType="BIT" property="isActive" />
+    <result column="max_token" jdbcType="VARCHAR" property="maxToken" />
     <result column="sort_order" jdbcType="INTEGER" property="sortOrder" />
     <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
     <result column="updated_at" jdbcType="TIMESTAMP" property="updatedAt" />

@@ -62,6 +62,12 @@ public class EaModelPlatformDO {
     private Boolean isActive;
 
     /**
+     * 最大模型数
+     */
+    @Column(name = "max_token")
+    private String maxToken;
+
+    /**
      * 排序顺序
      */
     @Column(name = "sort_order")

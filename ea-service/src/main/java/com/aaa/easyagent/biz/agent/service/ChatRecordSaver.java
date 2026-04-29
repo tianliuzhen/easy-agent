@@ -7,6 +7,7 @@ import com.aaa.easyagent.common.context.UserContextHolder;
 import com.aaa.easyagent.common.util.JacksonUtil;
 import com.aaa.easyagent.common.util.SpringContextUtil;
 import com.aaa.easyagent.core.domain.enums.ChatContextTypeEnum;
+import com.aaa.easyagent.core.domain.result.ChatConversationResult;
 import com.aaa.easyagent.core.domain.result.StartNewConversationResp;
 import com.aaa.easyagent.core.service.ChatRecordService;
 import jakarta.annotation.PostConstruct;
@@ -182,14 +183,15 @@ public class ChatRecordSaver {
     /**
      * 保存完整的聊天交互
      *
-     * @param aiAnswer     AI回答
-     * @param modelUsed    使用的模型
-     * @param tokensUsed   消耗的token数
-     * @param responseTime 响应时间（毫秒）
+     * @param aiAnswer          AI回答
+     * @param modelUsed         使用的模型
+     * @param inputTokensUsed   消耗的输入 token 数
+     * @param outputTokensUsed  消耗的输出 token 数
+     * @param responseTime      响应时间（毫秒）
      * @return 保存的消息ID列表
      */
     public static List<Long> saveChatInteraction(String aiAnswer, String modelUsed,
-                                                 Integer tokensUsed, BigDecimal responseTime) {
+                                                 long inputTokensUsed, long outputTokensUsed, BigDecimal responseTime) {
         try {
             Long conversationId = currentConversationId.get();
             Long messageId = currentMessageId.get();
@@ -205,12 +207,7 @@ public class ChatRecordSaver {
             // 检查是否为首次对话（消息序号为 1），如果是，则更新会话标题和状态
             Long messageIdVal = currentMessageId.get();
             if (messageIdVal != null) {
-                // 获取当前消息数量，判断是否为第一条消息
-                int messageCount = chatRecordService.countMessagesByConversationId(conversationId);
-                if (messageCount <= 1) {
-                    // 首次对话，更新会话标题和状态
-                    updateConversationTitleAndStatus(conversationId, userQuestion);
-                }
+                updateConversationTitleAndStatus(conversationId, userQuestion, inputTokensUsed, outputTokensUsed);
             }
 
             // 保存聊天交互（一条记录包含问题和回答）
@@ -221,7 +218,8 @@ public class ChatRecordSaver {
                     aiAnswer,
                     messageContextJson,
                     modelUsed,
-                    tokensUsed,
+                    inputTokensUsed,
+                    outputTokensUsed,
                     responseTime
             );
 
@@ -243,7 +241,7 @@ public class ChatRecordSaver {
      * @param conversationId 会话 ID
      * @param firstQuestion  首次用户问题
      */
-    private static void updateConversationTitleAndStatus(Long conversationId, String firstQuestion) {
+    private static void updateConversationTitleAndStatus(Long conversationId, String firstQuestion,  long inputTokensUsed, long outputTokensUsed) {
         try {
             if (conversationId == null || firstQuestion == null || firstQuestion.trim().isEmpty()) {
                 return;
@@ -261,6 +259,9 @@ public class ChatRecordSaver {
             req.setTitle(title);
             req.setStatus("active");
             req.setUpdatedAt(new Date());
+            ChatConversationResult result = chatRecordService.getConversationById(conversationId);
+            req.setAccumulatedInputTokens(result.getAccumulatedInputTokens() + inputTokensUsed);
+            req.setAccumulatedOutputTokens(result.getAccumulatedOutputTokens() + outputTokensUsed);
 
             // 更新会话信息
             chatRecordService.updateConversation(req);
@@ -274,14 +275,15 @@ public class ChatRecordSaver {
     /**
      * 保存 Agent 完成结果
      *
-     * @param agentFinish  Agent 完成结果
-     * @param modelUsed    使用的模型
-     * @param tokensUsed   消耗的 token 数
-     * @param responseTime 响应时间（毫秒）
+     * @param agentFinish       Agent 完成结果
+     * @param modelUsed         使用的模型
+     * @param inputTokensUsed   消耗的输入 token 数
+     * @param outputTokensUsed  消耗的输出 token 数
+     * @param responseTime      响应时间（毫秒）
      * @return 保存的消息 ID 列表
      */
     public static List<Long> saveAgentFinish(AgentFinish agentFinish, String modelUsed,
-                                             Integer tokensUsed, BigDecimal responseTime) {
+                                             long inputTokensUsed, long outputTokensUsed, BigDecimal responseTime) {
         if (agentFinish == null) {
             log.warn("Agent完成结果为空，无法保存");
             return new ArrayList<>();
@@ -292,7 +294,7 @@ public class ChatRecordSaver {
             aiAnswer = agentFinish.getLlmResponse();
         }
 
-        return saveChatInteraction(aiAnswer, modelUsed, tokensUsed, responseTime);
+        return saveChatInteraction(aiAnswer, modelUsed, inputTokensUsed, outputTokensUsed, responseTime);
     }
 
     /**

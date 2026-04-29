@@ -344,6 +344,11 @@ public class CommonLlmChatModel implements ChatModel {
         request.setPresencePenalty(this.properties.getChat().getOptions().getPresencePenalty());
         request.setStream(stream);
 
+        // 流式模式下，设置 include_usage 以在最后一个 chunk 中返回 usage 信息
+        if (stream) {
+            request.setStreamOptions(CommonLlmApi.StreamOptions.INCLUDE_USAGE);
+        }
+
 
         ToolCallingChatOptions requestOptions = (ToolCallingChatOptions) prompt.getOptions();
         if (requestOptions != null) {

@@ -68,6 +68,12 @@ public abstract class BaseAgent {
     public static final int STUCK_CNT_LIMIT = 3;
 
     /**
+     * 累计输入输出token数
+     */
+    protected long accumulateInputTokenCount;
+    protected long accumulateOutputTokenCount;
+
+    /**
      * 默认函数模板
      */
     public static final String DEFAULT_FUNCTION_TEMPLATE = """
@@ -168,9 +174,12 @@ public abstract class BaseAgent {
                     // SseHelper.sendFinalAnswer(sse, agentFinish.getResult());
                     // ChatRecordSaver.addFinalAnswer(agentFinish.getResult());
                     stopWatch.stop();
+
+                    // 保存 Agent 执行结果，并传入本轮累计的输入/输出 Token 数
                     ChatRecordSaver.saveAgentFinish(
                             agentFinish, agentContext.getAgentModelConfig().getModelVersion(),
-                            null,
+                            this.accumulateInputTokenCount,
+                           this.accumulateOutputTokenCount,
                             BigDecimal.valueOf(stopWatch.getTotalTimeSeconds()));
 
                     if (sse != null) {
