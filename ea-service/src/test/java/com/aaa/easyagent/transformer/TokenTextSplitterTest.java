@@ -1,5 +1,6 @@
 package com.aaa.easyagent.transformer;
 
+import com.aaa.easyagent.common.transformer.MyRecursiveTextSplitter;
 import com.aaa.easyagent.common.transformer.MyTextReader;
 import com.aaa.easyagent.common.transformer.MyTokenTextSplitter;
 import com.aaa.easyagent.common.transformer.MyTokenTextSplitterV2;
@@ -27,13 +28,7 @@ public class TokenTextSplitterTest {
         List<Document> documents = textReader.get();
 
         // 把文章分为小段
-        MyTokenTextSplitter tokenTextSplitter = new MyTokenTextSplitter(
-                400,
-                175,
-                5,
-                1000,
-                true,
-                100);
+        MyTokenTextSplitter tokenTextSplitter = new MyTokenTextSplitter(400, 175, 5, 1000, true, 100);
         List<Document> list = tokenTextSplitter.apply(documents);
     }
 
@@ -44,14 +39,25 @@ public class TokenTextSplitterTest {
         List<Document> documents = textReader.get();
 
         // 把文章分为小段
-        MyTokenTextSplitterV2 tokenTextSplitter = new MyTokenTextSplitterV2(
-                400,
-                175,
-                5,
-                1000,
-                true,
-                100);
+        MyTokenTextSplitterV2 tokenTextSplitter = new MyTokenTextSplitterV2(400, 175, 5, 1000, true, 100);
         List<Document> list = tokenTextSplitter.apply(documents);
+    }
+
+    @Test
+    public void recursiveTextSplitter() {
+        MyTextReader textReader = new MyTextReader(new ClassPathResource("docs/MetalPrice.txt"));
+        textReader.getCustomMetadata().put("金属价格", "MetalPrice.txt");
+        List<Document> documents = textReader.get();
+
+
+        // 方式2：Builder
+        MyRecursiveTextSplitter splitter = MyRecursiveTextSplitter.builder()
+                .withChunkSize(500)
+                .withChunkOverlap(100)
+                .withMinChunkLength(5).build();
+
+
+        List<Document> list = splitter.apply(documents);
     }
 
     @Test
