@@ -20,7 +20,7 @@ spring:
 spring:
   ai:
     openai: #感谢： https://github.com/chatanywhere/GPT_API_free?tab=readme-ov-file
-      api-key: sk-cT6YTFBsX8qrmIYGrIB9tO5PtA0ea3onnfS38NMTNIuJ9mWm # 获取免费apiKey https://mp.weixin.qq.com/s?__biz=MzU0MzI3MzU1Ng==&mid=2247484719&idx=1&sn=33b4f623d421216fae26ddcae446e4da&chksm=fb0ca214cc7b2b0215d12a29ff091c5840798b8b15657212d248f73ae6b7c63b2fc28e72bf4a&scene=21#wechat_redirect
+      api-key: your_api_key # 获取免费apiKey https://mp.weixin.qq.com/s?__biz=MzU0MzI3MzU1Ng==&mid=2247484719&idx=1&sn=33b4f623d421216fae26ddcae446e4da&chksm=fb0ca214cc7b2b0215d12a29ff091c5840798b8b15657212d248f73ae6b7c63b2fc28e72bf4a&scene=21#wechat_redirect
       base-url:  https://api.chatanywhere.tech #  https://api.openai.com（分为代理地址和直连地址）
       chat:
         options:   # 默认model是gpt-4o：org.springframework.ai.autoconfigure.openai.OpenAiChatProperties.DEFAULT_CHAT_MODEL
@@ -28,12 +28,12 @@ spring:
       image:
         enabled: true # 默认是开启的
         base-url:   https://api.chatanywhere.tech #可选地覆盖 spring.ai.openai.base-url 以提供特定于聊天的 url
-        api-key: sk-cT6YTFBsX8qrmIYGrIB9tO5PtA0ea3onnfS38NMTNIuJ9mWm #可选地覆盖 spring.ai.openai.api-key 以提供特定于聊天的 api-key
+        api-key: your_api_key #可选地覆盖 spring.ai.openai.api-key 以提供特定于聊天的 api-key
 ---
 spring:
   ai:
     deepseek: #感谢：硅基流动 https://cloud.siliconflow.cn/models
-      api-key: sk-ewykgprysbswuqagkpbuglgodbxshtucznttazynawykgsds
+      api-key: your_api_key
       base-url: https://api.siliconflow.cn/
       chat:
         options:
@@ -44,7 +44,7 @@ spring:
 spring:
   ai:
     dp: #感谢：硅基流动 https://cloud.siliconflow.cn/models
-      api-key: sk-ewykgprysbswuqagkpbuglgodbxshtucznttazynawykgsds
+      api-key: your_api_key
       base-url: https://api.siliconflow.cn/
       chat:
         options:
