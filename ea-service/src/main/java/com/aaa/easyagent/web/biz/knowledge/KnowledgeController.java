@@ -4,6 +4,7 @@ import com.aaa.easyagent.biz.agent.service.KnowledgeService;
 import com.aaa.easyagent.core.domain.DO.EaKnowledgeBaseDO;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.KnowledgeBaseQueryRequest;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseUploadRequest;
 import com.aaa.easyagent.core.domain.request.KnowledgeBaseBindRequest;
 import com.aaa.easyagent.core.domain.request.KnowledgeBaseUnbindRequest;
 import com.aaa.easyagent.core.service.KnowledgeBaseService;
@@ -33,20 +34,16 @@ public class KnowledgeController {
     /**
      * 上传文档
      *
-     * @param agentId Agent ID
-     * @param kbName  知识库名称
-     * @param kbDesc  知识库描述
+     * @param request 上传请求（JSON格式）
      * @param file    文件
      * @return 上传结果
      */
     @PostMapping("upload")
     public BaseResult<EaKnowledgeBaseDO> uploadDocument(
-            @RequestParam("agentId") String agentId,
-            @RequestParam("kbName") String kbName,
-            @RequestParam("kbDesc") String kbDesc,
-            @RequestParam("file") MultipartFile file) {
+            @RequestPart("request") KnowledgeBaseUploadRequest request,
+            @RequestPart("file") MultipartFile file) {
         try {
-            EaKnowledgeBaseDO kb = knowledgeService.uploadDocument(agentId, kbName, kbDesc, file);
+            EaKnowledgeBaseDO kb = knowledgeService.uploadDocument(request.getAgentId(), request.getKbName(), request.getKbDesc(), file);
             return BaseResult.buildSuc(kb);
         } catch (Exception e) {
             log.error("上传文档失败", e);

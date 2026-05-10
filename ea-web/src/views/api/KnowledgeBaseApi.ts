@@ -31,15 +31,27 @@ interface KnowledgeBaseUnbindRequest {
     knowledgeBaseId: number;
 }
 
+// 知识库上传请求
+interface KnowledgeBaseUploadRequest {
+    agentId: string;
+    kbName: string;
+    kbDesc: string;
+    file: File;
+}
+
 export const knowledgeBaseApi = {
     /**
      * 上传文档
      */
     upload: async (agentId: string, kbName: string, kbDesc: string, file: File): Promise<BaseResult<any>> => {
         const formData = new FormData();
-        formData.append('agentId', agentId);
-        formData.append('kbName', kbName);
-        formData.append('kbDesc', kbDesc);
+        // 将元数据作为JSON字符串放入request部分
+        const request = {
+            agentId,
+            kbName,
+            kbDesc
+        };
+        formData.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }));
         formData.append('file', file);
 
         const response = await fetch(`${API_BASE_URL}/knowledge/upload`, {
