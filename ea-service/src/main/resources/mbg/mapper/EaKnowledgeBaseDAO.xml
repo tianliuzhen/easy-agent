@@ -18,6 +18,7 @@
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
     <result column="creator" jdbcType="VARCHAR" property="creator" />
+    <result column="catalog" jdbcType="VARCHAR" property="catalog" />
     <result column="doc_ids" jdbcType="LONGVARCHAR" property="docIds" />
   </resultMap>
 </mapper>

@@ -1,11 +1,15 @@
 package com.aaa.easyagent.core.domain.DO;
 
-import jakarta.persistence.*;
-import java.util.Date;
+import jakarta.persistence.Column;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+
+import java.util.Date;
 
 /**
  * 表名：ea_knowledge_base
@@ -97,6 +101,12 @@ public class EaKnowledgeBaseDO {
     @Column(name = "creator")
     private String creator;
 
+
+    /**
+     * 分类
+     */
+    @Column(name = "catalog")
+    private String catalog;
     /**
      * 文档分片ID列表，JSON数组格式，如：["doc_id_1","doc_id_2"]
      */

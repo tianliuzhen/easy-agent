@@ -7,6 +7,9 @@ import com.aaa.easyagent.common.transformer.MyTextReader;
 import com.aaa.easyagent.common.transformer.MyTokenTextSplitterV2;
 import com.aaa.easyagent.common.util.OcrUtil;
 import com.aaa.easyagent.core.domain.DO.EaKnowledgeBaseDO;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseSearchRequest;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseUploadRequest;
+import com.aaa.easyagent.core.domain.result.KnowledgeSearchResult;
 import com.aaa.easyagent.core.domain.result.EaAgentResult;
 import com.aaa.easyagent.core.service.AgentManagerService;
 import com.aaa.easyagent.core.service.KnowledgeBaseService;
@@ -23,9 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -47,8 +48,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private VectorStoreRegister vectorStoreRegister;
 
     @Override
-    public EaKnowledgeBaseDO uploadDocument(String agentId, String kbName, String kbDesc, MultipartFile file) {
+    public EaKnowledgeBaseDO uploadDocument(KnowledgeBaseUploadRequest request, MultipartFile file) {
         try {
+            String agentId = request.getAgentId();
+            String kbName = request.getKbName();
+            String kbDesc = request.getKbDesc();
+            String catalog = request.getCatalog();
+
             String fileName = file.getOriginalFilename();
             String fileType = getFileExtension(fileName);
 
@@ -79,6 +85,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 doc.getMetadata().put("kb_name", kbName);
                 doc.getMetadata().put("file_name", fileName);
                 doc.getMetadata().put("file_type", fileType);
+                if (StringUtils.hasText(catalog)) {
+                    doc.getMetadata().put("catalog", catalog);
+                }
             }
 
             // 文档切分
@@ -100,6 +109,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             EaKnowledgeBaseDO kb = new EaKnowledgeBaseDO();
             kb.setKbName(kbName);
             kb.setKbDesc(kbDesc);
+            kb.setCatalog(catalog);
             kb.setFileName(fileName);
             kb.setFileType(fileType);
             kb.setFileSize(fileSize);
@@ -156,30 +166,54 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     @Override
-    public List<String> searchKnowledge(String agentId, String query, Integer topK) {
+    public List<KnowledgeSearchResult> searchKnowledge(KnowledgeBaseSearchRequest request) {
+        return searchKnowledgeWithFilter(request);
+    }
+
+    @Override
+    public List<KnowledgeSearchResult> searchKnowledgeWithFilter(KnowledgeBaseSearchRequest request) {
         try {
+            String query = request.getQuery();
+            Integer topK = request.getTopK();
+            String catalog = request.getCatalog();
+            Double threshold = request.getThreshold();
+            
             if (topK == null || topK <= 0) {
                 topK = 5;
             }
 
-            SearchRequest searchRequest = SearchRequest.builder()
+            SearchRequest.Builder builder = SearchRequest.builder()
                     .query(query)
-                    .topK(topK)
-                    .build();
+                    .topK(topK);
+
+            // 如果指定了catalog,添加过滤条件
+            if (StringUtils.hasText(catalog)) {
+                builder.filterExpression("catalog == '" + catalog + "'");
+            }
+
+            // 如果指定了threshold,设置相似度阈值
+            if (threshold != null) {
+                builder.similarityThreshold(threshold);
+            }
+
+            SearchRequest searchRequest = builder.build();
 
             VectorStore vectorStore = getLoginCurrentUserVectorStore();
             List<Document> documents = vectorStore.similaritySearch(searchRequest);
 
             return documents.stream()
                     .map(doc -> {
-                        String text = doc.getText();
-                        String fileName = (String) doc.getMetadata().get("file_name");
-                        String kbName = (String) doc.getMetadata().get("kb_name");
-                        return String.format("[%s - %s]\n%s", kbName, fileName, text);
+                        KnowledgeSearchResult result = new KnowledgeSearchResult();
+                        result.setScore(doc.getScore());
+                        result.setKbName((String) doc.getMetadata().get("kb_name"));
+                        result.setFileName((String) doc.getMetadata().get("file_name"));
+                        result.setCatalog((String) doc.getMetadata().get("catalog"));
+                        result.setText(doc.getText());
+                        return result;
                     })
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("搜索知识失败: {}", query, e);
+            log.error("搜索知识失败: {}", request.getQuery(), e);
             throw new RuntimeException("搜索知识失败: " + e.getMessage());
         }
     }

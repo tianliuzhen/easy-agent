@@ -11,7 +11,8 @@ import {
     Popconfirm,
     Card,
     InputNumber,
-    Typography
+    Typography,
+    Tag
 } from 'antd';
 import {UploadOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined} from '@ant-design/icons';
 import type {UploadFile} from 'antd/es/upload/interface';
@@ -48,7 +49,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
     const [loading, setLoading] = useState(false);
     const [uploadModalVisible, setUploadModalVisible] = useState(false);
     const [searchModalVisible, setSearchModalVisible] = useState(false);
-    const [searchResults, setSearchResults] = useState<string[]>([]);
+    const [searchResults, setSearchResults] = useState<any[]>([]);
     const [fileList, setFileList] = useState<UploadFile[]>([]);
     const [uploadMode, setUploadMode] = useState<'file' | 'text'>('file');
     const [pasteImagePreview, setPasteImagePreview] = useState<string | null>(null);
@@ -149,7 +150,8 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                 agentId?.toString() || '',
                 values.kbName,
                 values.kbDesc,
-                file
+                file,
+                values.catalog
             );
 
             if (result.success) {
@@ -191,7 +193,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
     const handleSearch = async (values: any) => {
         setLoading(true);
         try {
-            const result = await knowledgeBaseApi.search(values.query, values.topK || 5);
+            const result = await knowledgeBaseApi.search(values.query, values.topK || 5, values.catalog, values.threshold);
             if (result.success) {
                 setSearchResults(result.data || []);
                 if (result.data && result.data.length === 0) {
@@ -346,6 +348,13 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                         <Input.TextArea placeholder="请输入描述" rows={3} maxLength={500}/>
                     </Form.Item>
 
+                    <Form.Item
+                        label="分类（Catalog）"
+                        name="catalog"
+                    >
+                        <Input placeholder="请输入分类，用于搜索时过滤（可选）" maxLength={100}/>
+                    </Form.Item>
+
                     <Form.Item label="上传方式" required>
                         <Space direction="vertical" style={{width: '100%'}}>
                             <Space>
@@ -461,21 +470,42 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                 footer={null}
                 width={800}
             >
-                <Form form={searchForm} onFinish={handleSearch} layout="inline" style={{marginBottom: 16}}>
+                <Form form={searchForm} onFinish={handleSearch} style={{marginBottom: 16}}>
                     <Form.Item
+                        label="问题"
                         name="query"
                         rules={[{required: true, message: '请输入搜索内容'}]}
-                        style={{flex: 1}}
                     >
                         <Input placeholder="请输入搜索内容"/>
                     </Form.Item>
-                    <Form.Item name="topK" initialValue={5}>
-                        <InputNumber placeholder="返回结果数" min={1} max={20}/>
-                    </Form.Item>
                     <Form.Item>
-                        <Button type="primary" htmlType="submit" loading={loading} icon={<SearchOutlined/>}>
-                            搜索
-                        </Button>
+                        <Space>
+                            <Form.Item
+                                label="topK"
+                                name="topK"
+                                initialValue={5}
+                                style={{marginBottom: 0}}
+                            >
+                                <InputNumber placeholder="返回结果数" min={1} max={20} style={{width: 120}}/>
+                            </Form.Item>
+                            <Form.Item
+                                label="catalog"
+                                name="catalog"
+                                style={{marginBottom: 0}}
+                            >
+                                <Input placeholder="分类筛选" style={{width: 150}}/>
+                            </Form.Item>
+                            <Form.Item
+                                label="threshold"
+                                name="threshold"
+                                style={{marginBottom: 0}}
+                            >
+                                <InputNumber placeholder="相似度阈值" min={0} max={1} step={0.1} style={{width: 120}}/>
+                            </Form.Item>
+                            <Button type="primary" htmlType="submit" loading={loading} icon={<SearchOutlined/>}>
+                                搜索
+                            </Button>
+                        </Space>
                     </Form.Item>
                 </Form>
 
@@ -483,8 +513,16 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                     <div style={{maxHeight: 500, overflow: 'auto'}}>
                         {searchResults.map((result, index) => (
                             <Card key={index} size="small" style={{marginBottom: 12}}>
+                                <div style={{marginBottom: 8}}>
+                                    <Space>
+                                        <Tag color="blue">阈值: {(result.score || 0).toFixed(2)}</Tag>
+                                        <Tag color="geekblue">{result.kbName}</Tag>
+                                        <Tag color="cyan">{result.fileName}</Tag>
+                                        {result.catalog && <Tag color="purple">{result.catalog}</Tag>}
+                                    </Space>
+                                </div>
                                 <pre style={{margin: 0, whiteSpace: 'pre-wrap', wordWrap: 'break-word'}}>
-                  {result}
+                  {result.text}
                 </pre>
                             </Card>
                         ))}

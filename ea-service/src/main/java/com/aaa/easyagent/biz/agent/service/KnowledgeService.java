@@ -1,6 +1,9 @@
 package com.aaa.easyagent.biz.agent.service;
 
 import com.aaa.easyagent.core.domain.DO.EaKnowledgeBaseDO;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseSearchRequest;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseUploadRequest;
+import com.aaa.easyagent.core.domain.result.KnowledgeSearchResult;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -16,13 +19,11 @@ public interface KnowledgeService {
     /**
      * 上传文档到知识库
      *
-     * @param agentId 代理ID
-     * @param kbName  知识库名称
-     * @param kbDesc  知识库描述
+     * @param request 上传请求
      * @param file    文件
      * @return 知识库记录
      */
-    EaKnowledgeBaseDO uploadDocument(String agentId, String kbName, String kbDesc, MultipartFile file);
+    EaKnowledgeBaseDO uploadDocument(KnowledgeBaseUploadRequest request, MultipartFile file);
 
     /**
      * 删除知识库
@@ -34,11 +35,18 @@ public interface KnowledgeService {
     /**
      * 搜索知识
      *
-     * @param query 搜索内容
-     * @param topK  返回结果数量
+     * @param request 搜索请求
      * @return 搜索结果
      */
-    List<String> searchKnowledge(String agentId,String query, Integer topK);
+    List<KnowledgeSearchResult> searchKnowledge(KnowledgeBaseSearchRequest request);
+
+    /**
+     * 搜索知识(支持按catalog筛选)
+     *
+     * @param request 搜索请求
+     * @return 搜索结果
+     */
+    List<KnowledgeSearchResult> searchKnowledgeWithFilter(KnowledgeBaseSearchRequest request);
 
     /**
      * 加载PDF文档

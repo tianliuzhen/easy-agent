@@ -31,15 +31,29 @@ interface KnowledgeBaseUnbindRequest {
     knowledgeBaseId: number;
 }
 
+// 知识库上传请求
+interface KnowledgeBaseUploadRequest {
+    agentId: string;
+    kbName: string;
+    kbDesc: string;
+    catalog?: string;
+    file: File;
+}
+
 export const knowledgeBaseApi = {
     /**
      * 上传文档
      */
-    upload: async (agentId: string, kbName: string, kbDesc: string, file: File): Promise<BaseResult<any>> => {
+    upload: async (agentId: string, kbName: string, kbDesc: string, file: File, catalog?: string): Promise<BaseResult<any>> => {
         const formData = new FormData();
-        formData.append('agentId', agentId);
-        formData.append('kbName', kbName);
-        formData.append('kbDesc', kbDesc);
+        // 将元数据作为JSON字符串放入request部分
+        const request = {
+            agentId,
+            kbName,
+            kbDesc,
+            catalog
+        };
+        formData.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }));
         formData.append('file', file);
 
         const response = await fetch(`${API_BASE_URL}/knowledge/upload`, {
@@ -134,13 +148,13 @@ export const knowledgeBaseApi = {
     /**
      * 搜索知识
      */
-    search: async (query: string, topK: number = 5): Promise<BaseResult<string[]>> => {
+    search: async (query: string, topK: number = 5, catalog?: string, threshold?: number): Promise<BaseResult<any[]>> => {
         const response = await fetch(`${API_BASE_URL}/knowledge/search`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({query, topK}),
+            body: JSON.stringify({ query, topK, catalog, threshold }),
         });
         return response.json();
     },

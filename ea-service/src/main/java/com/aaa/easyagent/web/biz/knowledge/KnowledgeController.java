@@ -4,8 +4,11 @@ import com.aaa.easyagent.biz.agent.service.KnowledgeService;
 import com.aaa.easyagent.core.domain.DO.EaKnowledgeBaseDO;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.KnowledgeBaseQueryRequest;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseUploadRequest;
 import com.aaa.easyagent.core.domain.request.KnowledgeBaseBindRequest;
 import com.aaa.easyagent.core.domain.request.KnowledgeBaseUnbindRequest;
+import com.aaa.easyagent.core.domain.request.KnowledgeBaseSearchRequest;
+import com.aaa.easyagent.core.domain.result.KnowledgeSearchResult;
 import com.aaa.easyagent.core.service.KnowledgeBaseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,20 +36,16 @@ public class KnowledgeController {
     /**
      * 上传文档
      *
-     * @param agentId Agent ID
-     * @param kbName  知识库名称
-     * @param kbDesc  知识库描述
+     * @param request 上传请求（JSON格式）
      * @param file    文件
      * @return 上传结果
      */
     @PostMapping("upload")
     public BaseResult<EaKnowledgeBaseDO> uploadDocument(
-            @RequestParam("agentId") String agentId,
-            @RequestParam("kbName") String kbName,
-            @RequestParam("kbDesc") String kbDesc,
-            @RequestParam("file") MultipartFile file) {
+            @RequestPart("request") KnowledgeBaseUploadRequest request,
+            @RequestPart("file") MultipartFile file) {
         try {
-            EaKnowledgeBaseDO kb = knowledgeService.uploadDocument(agentId, kbName, kbDesc, file);
+            EaKnowledgeBaseDO kb = knowledgeService.uploadDocument(request, file);
             return BaseResult.buildSuc(kb);
         } catch (Exception e) {
             log.error("上传文档失败", e);
@@ -159,17 +158,13 @@ public class KnowledgeController {
     /**
      * 搜索知识
      *
-     * @param params 包含query和topK的参数
+     * @param request 搜索请求
      * @return 搜索结果
      */
     @PostMapping("search")
-    public BaseResult<List<String>> searchKnowledge(@RequestBody Map<String, Object> params) {
+    public BaseResult<?> searchKnowledge(@RequestBody KnowledgeBaseSearchRequest request) {
         try {
-            String query = (String) params.get("query");
-            String agentId = (String) params.get("agentId");
-            Integer topK = params.get("topK") != null ? (Integer) params.get("topK") : 5;
-            List<String> data = knowledgeService.searchKnowledge(agentId,query, topK);
-            return BaseResult.buildSuc(data);
+            return BaseResult.buildSuc(knowledgeService.searchKnowledgeWithFilter(request));
         } catch (Exception e) {
             log.error("搜索知识失败", e);
             return BaseResult.buildFail(e.getMessage());
