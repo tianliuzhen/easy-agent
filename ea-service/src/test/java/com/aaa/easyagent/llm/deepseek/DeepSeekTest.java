@@ -40,7 +40,7 @@ public class DeepSeekTest {
     /**
      * 手动创建 DeepSeekChatModel
      */
-    private static DeepSeekChatModel createChatModel() {
+    public static DeepSeekChatModel createChatModel() {
         // 1. 创建 API 实例
         DeepSeekApi deepSeekApi = DeepSeekApi.builder()
                 .apiKey(API_KEY)
