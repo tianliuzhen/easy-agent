@@ -3,6 +3,7 @@ package com.aaa.easyagent.biz.agent.service.impl;
 import com.aaa.easyagent.biz.agent.ReActAgentExecutor;
 import com.aaa.easyagent.biz.agent.ToolAgentExecutor;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
+import com.aaa.easyagent.biz.agent.data.AgentModelConfig;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
 import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
@@ -20,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,6 +40,66 @@ public class AgentChatServiceImpl implements AgentChatService {
     private final McpToolIntegrationService mcpToolIntegrationService;
     private final ChatRecordService chatRecordService;
 
+    /**
+     * 非流式 SSE 发射器：缓冲所有 send 调用，在 complete 时一次性发送
+     */
+    private static class NonStreamingSseEmitter extends SseEmitter {
+
+        private final SseEmitter delegate;
+        private final List<SseEventBuilder> bufferedEvents = new ArrayList<>();
+        private boolean completed = false;
+
+        public NonStreamingSseEmitter(SseEmitter delegate) {
+            super(delegate.getTimeout());
+            this.delegate = delegate;
+            // 设置完成回调，将委托的完成转发给原始发射器
+            delegate.onCompletion(() -> {
+                if (!completed) {
+                    complete();
+                }
+            });
+            delegate.onError(throwable -> {
+                if (!completed) {
+                    completeWithError(throwable);
+                }
+            });
+        }
+
+        @Override
+        public void send(SseEventBuilder builder) throws IOException {
+            if (!completed) {
+                bufferedEvents.add(builder);
+            }
+        }
+
+        @Override
+        public void complete() {
+            if (!completed) {
+                completed = true;
+                // 先发送一个"开始"标记（可选）
+                // 再一次性发送所有缓冲的事件
+                for (SseEventBuilder event : bufferedEvents) {
+                    try {
+                        delegate.send(event);
+                    } catch (IOException e) {
+                        log.error("非流式模式发送缓冲事件失败", e);
+                        break;
+                    }
+                }
+                bufferedEvents.clear();
+                delegate.complete();
+            }
+        }
+
+        @Override
+        public void completeWithError(Throwable ex) {
+            if (!completed) {
+                completed = true;
+                delegate.completeWithError(ex);
+            }
+        }
+    }
+
 
     /**
      * 流式对话
@@ -53,6 +116,13 @@ public class AgentChatServiceImpl implements AgentChatService {
             sseEmitter.complete();
             return;
         }
+
+        // 根据 modelConfig 中的 streamEnabled 决定是否使用非流式模式
+        AgentModelConfig modelConfig = agent.getAgentModelConfig();
+        boolean streamEnabled = modelConfig == null || modelConfig.isStreamEnabled();
+
+        // 如果关闭了流式输出，使用缓冲型 SseEmitter
+        SseEmitter effectiveEmitter = streamEnabled ? sseEmitter : new NonStreamingSseEmitter(sseEmitter);
 
 
         // agent 基础信息
@@ -82,7 +152,7 @@ public class AgentChatServiceImpl implements AgentChatService {
         agentContext.setToolRunMode(runMode);
 
         // sse
-        agentContext.setSseEmitter(sseEmitter);
+        agentContext.setSseEmitter(effectiveEmitter);
         agentContext.setSessionId(sessionId);
 
         // 开始新的聊天会话并保存到数据库

@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useCallback, useRef} from 'react';
 import type {CollapseProps} from 'antd';
 import {Collapse, Button, message, Tabs} from 'antd';
-import {PlusCircleFilled, AppstoreOutlined, ToolOutlined, DatabaseOutlined, HistoryOutlined} from '@ant-design/icons';
+import {PlusCircleFilled, AppstoreOutlined, ToolOutlined, DatabaseOutlined, HistoryOutlined, SettingOutlined} from '@ant-design/icons';
 import AgentKnowledgeBinding from './knowledge/AgentKnowledgeBinding';
 import AgentToolBinding from './tool/AgentToolBinding';
 import MCPSkillList from './mcp/MCPSkillList';
@@ -9,6 +9,7 @@ import SkillList from './skill/SkillList';
 import SkillSelector from './skill/SkillSelector';
 import AddResourceModal from './common/AddResourceModal';
 import MemoryConfig, {type MemoryConfigRef} from './memory/MemoryConfig';
+import AgentSettings, {type AgentSettingsRef} from './settings/AgentSettings';
 import {eaToolApi} from '../../api/EaToolApi';
 import {mcpApi} from '../../api/McpApi';
 import {skillApi} from '../../api/SkillApi';
@@ -20,6 +21,7 @@ interface ResourceBindingPanelProps {
 
 export interface ResourceBindingPanelRef {
     getMemoryConfig: () => any;
+    getSettings: () => any;
 }
 
 const ResourceBindingPanel = React.forwardRef<ResourceBindingPanelRef, ResourceBindingPanelProps>(({agentId, className}, ref) => {
@@ -29,11 +31,15 @@ const ResourceBindingPanel = React.forwardRef<ResourceBindingPanelRef, ResourceB
 
     // MemoryConfig ref
     const memoryConfigRef = useRef<MemoryConfigRef>(null);
+    const settingsConfigRef = useRef<AgentSettingsRef>(null);
 
-    // 暴露获取记忆配置的方法
+    // 暴露获取记忆配置和设置的方法
     React.useImperativeHandle(ref, () => ({
         getMemoryConfig: () => {
             return memoryConfigRef.current?.getMemoryConfig();
+        },
+        getSettings: () => {
+            return settingsConfigRef.current?.getSettings();
         }
     }));
 
@@ -277,6 +283,20 @@ const ResourceBindingPanel = React.forwardRef<ResourceBindingPanelRef, ResourceB
             children: (
                 <div style={{padding: '16px 0'}}>
                     <MemoryConfig agentId={agentId} ref={memoryConfigRef}/>
+                </div>
+            )
+        },
+        {
+            key: 'settings',
+            label: (
+                <span>
+                    <SettingOutlined style={{marginRight: 6}}/>
+                    设置
+                </span>
+            ),
+            children: (
+                <div style={{padding: '16px 0'}}>
+                    <AgentSettings agentId={agentId} ref={settingsConfigRef}/>
                 </div>
             )
         }

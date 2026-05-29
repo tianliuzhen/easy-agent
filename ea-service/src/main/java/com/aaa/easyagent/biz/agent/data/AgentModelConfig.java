@@ -51,4 +51,10 @@ public class AgentModelConfig {
      * 通常的建议范围：1 到 50
      */
     private int topK;
+
+    /**
+     * 是否启用流式输出
+     * 默认为 true，开启流式 SSE 输出；设为 false 则等待全部输出完成后一次性返回
+     */
+    private boolean streamEnabled = true;
 }

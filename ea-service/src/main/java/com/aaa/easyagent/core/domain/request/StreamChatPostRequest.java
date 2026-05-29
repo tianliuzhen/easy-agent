@@ -12,22 +12,27 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 public class StreamChatPostRequest {
-    
+
     /**
      * 会话 ID
      */
     private String sessionId;
-    
+
     /**
      * 消息内容
      */
     private String msg;
-    
+
     /**
      * 智能体 ID
      */
     private String agentId;
-    
+
+    /**
+     * 是否启用流式输出，默认 true
+     */
+    private Boolean streamEnabled;
+
     /**
      * 默认构造函数
      */
@@ -36,7 +41,7 @@ public class StreamChatPostRequest {
         this.msg = "你好";
         this.agentId = "1";
     }
-    
+
     /**
      * 验证请求参数是否有效
      *

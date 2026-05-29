@@ -8,7 +8,8 @@ import ResourceBindingPanel, {type ResourceBindingPanelRef} from './agent/Resour
 import ChatDebugPanel from './agent/debug/ChatDebugPanel';
 import {eaAgentApi} from '../api/EaAgentApi';
 import AgentEditModal, {type ModelConfigField} from './agent/AgentEditModal';
-
+// 引入主SDK
+import sensors from 'sa-sdk-javascript';
 
 // 默认面板大小
 const defaultSizes = ['33%', '33%', '33%'];
@@ -92,6 +93,24 @@ const AgentConfigContent: React.FC = () => {
                 }
             });
 
+            // 保留已有的 modelConfig 中的其他字段（streamEnabled、topP、topK）
+            if (agentDetail?.modelConfig) {
+                try {
+                    const existingConfig = JSON.parse(agentDetail.modelConfig);
+                    if (existingConfig.streamEnabled !== undefined) {
+                        modelConfigObj.streamEnabled = existingConfig.streamEnabled;
+                    }
+                    if (existingConfig.topP !== undefined) {
+                        modelConfigObj.topP = existingConfig.topP;
+                    }
+                    if (existingConfig.topK !== undefined) {
+                        modelConfigObj.topK = existingConfig.topK;
+                    }
+                } catch (e) {
+                    console.error('解析已有 modelConfig 失败:', e);
+                }
+            }
+
             // 获取记忆配置
             const memoryConfig = resourceBindingRef.current?.getMemoryConfig();
             console.log('获取到的记忆配置:', memoryConfig);
@@ -110,7 +129,7 @@ const AgentConfigContent: React.FC = () => {
             await eaAgentApi.saveAgent(agentData);
             message.success('更新成功');
             setIsEditModalOpen(false);
-            
+
             // 重新加载 agent 详情以刷新顶部信息
             if (agentIdNum) {
                 const result = await eaAgentApi.queryAgent(agentIdNum);

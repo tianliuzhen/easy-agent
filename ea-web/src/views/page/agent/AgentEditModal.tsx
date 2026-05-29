@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Modal, Form, Input, Select, Row, Col} from 'antd';
+import {Modal, Form, Input, Select, Row, Col, AutoComplete} from 'antd';
 import {EyeOutlined, EyeInvisibleOutlined} from '@ant-design/icons';
 
 export interface ModelConfigField {
@@ -234,21 +234,19 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({
                                 <Form.Item
                                     label="模型版本"
                                 >
-                                    <Select
+                                    <AutoComplete
                                         value={modelConfigFields.find(f => f.fieldName === 'modelVersion')?.fieldValue || ''}
                                         onChange={(value) => {
                                             handleModelConfigFieldChange('modelVersion', value);
                                         }}
-                                        placeholder="请选择模型版本"
+                                        placeholder="请选择或输入模型版本"
                                         style={{width: '100%'}}
-                                        showSearch
-                                        notFoundContent="暂无推荐版本，请输入自定义版本"
                                         options={(modelVersions?.get(form.getFieldValue('modelPlatform')) || []).map((version: string) => ({
                                             label: version,
                                             value: version
                                         }))}
-                                    >
-                                    </Select>
+                                        notFoundContent="暂无推荐版本，请输入自定义版本"
+                                    />
                                 </Form.Item>
                             </Col>
                             <Col span={12}>

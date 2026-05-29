@@ -349,16 +349,18 @@ public class CommonLlmChatModel implements ChatModel {
             request.setStreamOptions(CommonLlmApi.StreamOptions.INCLUDE_USAGE);
         }
 
-
-        ToolCallingChatOptions requestOptions = (ToolCallingChatOptions) prompt.getOptions();
-        if (requestOptions != null) {
-            // request = ModelOptionsUtils.merge(requestOptions, request, CommonLlmApi.ChatCompletionRequest.class);
-            // Add the tool definitions to the request's tools parameter.
-            List<ToolDefinition> toolDefinitions = this.toolCallingManager.resolveToolDefinitions(requestOptions);
-            if (!CollectionUtils.isEmpty(toolDefinitions)) {
-                request.setTools(getFunctionTools(toolDefinitions));
+        if (prompt.getOptions() instanceof ToolCallingChatOptions) {
+            ToolCallingChatOptions requestOptions = (ToolCallingChatOptions) prompt.getOptions();
+            if (requestOptions != null) {
+                // request = ModelOptionsUtils.merge(requestOptions, request, CommonLlmApi.ChatCompletionRequest.class);
+                // Add the tool definitions to the request's tools parameter.
+                List<ToolDefinition> toolDefinitions = this.toolCallingManager.resolveToolDefinitions(requestOptions);
+                if (!CollectionUtils.isEmpty(toolDefinitions)) {
+                    request.setTools(getFunctionTools(toolDefinitions));
+                }
             }
         }
+
         return request;
     }
 
