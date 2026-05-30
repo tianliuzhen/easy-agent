@@ -3,6 +3,8 @@ package com.aaa.easyagent.web.example.llm;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Resource;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -12,6 +14,8 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiImageModel;
 import org.springframework.ai.openai.OpenAiImageOptions;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,7 +33,7 @@ import java.util.List;
  * @version 1.0 OpenApiChatController.java  2024/10/27 18:52
  */
 @RestController
-@RequestMapping("openai")
+@RequestMapping("example/openai")
 public class OpenApiChatController {
     @Resource
     private OpenAiChatModel chatModel;
@@ -44,9 +48,33 @@ public class OpenApiChatController {
      * @return
      */
     @GetMapping("/ai/chat")
+
     public String chat(@RequestParam(value = "msg", defaultValue = "你好") String msg) {
-        String called = chatModel.call(msg);
-        return called;
+        // String called = chatModel.call(msg);
+
+        ChatClient chatClient = ChatClient.builder(chatModel)
+                .defaultSystem("wu")
+                .defaultToolCallbacks(new ToolCallback(){
+                    @Override
+                    public ToolDefinition getToolDefinition() {
+                        return ToolDefinition.builder()
+                                .name("查询天气")
+                                .description("查询天气")
+                                .inputSchema("{}")
+                                .build();
+                    }
+
+                    @Override
+                    public String call(String s) {
+                        return "mockData";
+                    }
+                })
+                .build();
+        ChatClient.ChatClientRequestSpec prompt = chatClient.prompt(msg);
+        ChatClient.CallResponseSpec call = prompt.call();
+        ChatResponse chatResponse = call.chatResponse();
+
+        return "";
     }
 
     @GetMapping("/ai/generateStream")
@@ -88,9 +116,18 @@ public class OpenApiChatController {
     @GetMapping("/ai/chatWithTool2")
     public Object chatWithTool2(@RequestParam(value = "msg", defaultValue = "查询价格") String msg) {
         UserMessage userMessage = new UserMessage("查询白银价格");
-        record QueryDateRequest(@JsonPropertyDescription("type类型只能是[黄金,白银]") String type) {
-        }
 
+
+        FunctionToolCallback<Object, String> build = getObjectStringFunctionToolCallback();
+
+        OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
+                .toolCallbacks(List.of(build))
+                .build();
+        ChatResponse response = this.chatModel.call(new Prompt(userMessage, chatOptions));
+        return ChatResponseUtil.getResStr(response);
+    }
+
+    private static @NotNull FunctionToolCallback<Object, String> getObjectStringFunctionToolCallback() {
         FunctionToolCallback<Object, String> build = FunctionToolCallback.builder("queryMetalPrice", (request, toolContext) -> {
                     if (request.equals("黄金")) {
                         return "600人民币";
@@ -100,14 +137,10 @@ public class OpenApiChatController {
                 .description("查询黄金白金贵金属价格")
                 .inputType(QueryDateRequest.class)
                 .build();
-
-        OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
-                .toolCallbacks(List.of(build))
-                .build();
-        ChatResponse response = this.chatModel.call(new Prompt(userMessage, chatOptions));
-        return ChatResponseUtil.getResStr(response);
+        return build;
     }
-
+    record QueryDateRequest(@JsonPropertyDescription("type类型只能是[黄金,白银]") String type) {
+    }
 
     /**
      * 聊天的方法。底层调用的openAi的方法

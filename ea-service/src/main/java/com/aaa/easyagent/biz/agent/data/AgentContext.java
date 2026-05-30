@@ -87,4 +87,9 @@ public class AgentContext {
      * 会话 Id
      */
     private String sessionId;
+
+    /**
+     * 图片数据（Base64 Data URL 格式，如 data:image/jpeg;base64,/9j/4AAQ...）
+     */
+    private String imageBase64;
 }

@@ -8,6 +8,8 @@ import {
     EyeInvisibleOutlined,
     CodeOutlined,
     EditOutlined,
+    PictureOutlined,
+    CloseOutlined,
 } from '@ant-design/icons';
 import type {ThoughtChainProps} from '@ant-design/x';
 import {ThoughtChain, Think} from '@ant-design/x';
@@ -32,6 +34,8 @@ export interface ChatMessage {
     type: 'data' | 'log';
     id: string;
     timestamp: number;
+    /** 图片数据（Base64 Data URL），仅用户消息可能有 */
+    imageBase64?: string;
 }
 
 // ==================== 类型配置 ====================
@@ -381,6 +385,25 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                                     onToggle={onToggleThinkingLog}
                                 />
                             )}
+                            {/* 图片渲染 */}
+                            {msg.imageBase64 && (
+                                <div style={{marginBottom: msg.text ? '12px' : 0}}>
+                                    <img
+                                        src={msg.imageBase64}
+                                        alt="用户发送的图片"
+                                        style={{
+                                            maxWidth: '300px',
+                                            maxHeight: '200px',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                        }}
+                                        onClick={() => {
+                                            // 点击图片在新窗口打开
+                                            window.open(msg.imageBase64, '_blank');
+                                        }}
+                                    />
+                                </div>
+                            )}
                             <div style={{whiteSpace: 'pre-wrap'}}>
                                 {isThinkingMessage ? (
                                     <>
@@ -537,6 +560,10 @@ export interface ChatInputAreaProps {
     onKeyPress?: (e: React.KeyboardEvent) => void;
     disabled?: boolean;
     placeholder?: string;
+    /** 选中的图片（Base64 Data URL） */
+    selectedImage?: string;
+    /** 图片变化回调 */
+    onImageChange?: (imageBase64: string | undefined) => void;
 }
 
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
@@ -546,8 +573,61 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                                                                 onKeyPress,
                                                                 disabled = false,
                                                                 placeholder = "输入您的问题...（按 Enter 发送，Shift + Enter 换行）",
+                                                                selectedImage,
+                                                                onImageChange,
                                                             }) => {
     const {TextArea} = Input;
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | undefined>(selectedImage);
+
+    // 同步外部 selectedImage 变化
+    useEffect(() => {
+        setPreviewUrl(selectedImage);
+    }, [selectedImage]);
+
+    // 处理文件选择
+    const handleFileSelect = (file: File) => {
+        console.log('handleFileSelect 被调用，文件类型:', file.type, '文件大小:', file.size);
+        if (!file.type.startsWith('image/')) {
+            console.warn('不是图片文件');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const base64 = e.target?.result as string;
+            console.log('FileReader 读取完成，base64 长度:', base64.length);
+            setPreviewUrl(base64);
+            onImageChange?.(base64);
+            console.log('onImageChange 已调用');
+        };
+        reader.onerror = (e) => {
+            console.error('FileReader 读取失败:', e);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // 处理粘贴事件（支持粘贴截图）
+    const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.startsWith('image/')) {
+                e.preventDefault();
+                const file = items[i].getAsFile();
+                if (file) {
+                    handleFileSelect(file);
+                }
+                break;
+            }
+        }
+    };
+
+    // 移除图片
+    const handleRemoveImage = () => {
+        setPreviewUrl(undefined);
+        onImageChange?.(undefined);
+    };
 
     return (
         <div style={{
@@ -556,11 +636,93 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             borderTop: '1px solid #e8e8e8',
             boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.06)',
         }}>
+            {/* 图片预览区域 */}
+            {previewUrl && (
+                <div style={{
+                    marginBottom: '12px',
+                    display: 'inline-block',
+                    position: 'relative',
+                }}>
+                    <img
+                        src={previewUrl}
+                        alt="预览图片"
+                        style={{
+                            maxHeight: '120px',
+                            maxWidth: '200px',
+                            borderRadius: '8px',
+                            border: '1px solid #e8e8e8',
+                            objectFit: 'contain',
+                        }}
+                    />
+                    <Button
+                        type="text"
+                        size="small"
+                        icon={<CloseOutlined style={{fontSize: '12px'}}/>}
+                        onClick={handleRemoveImage}
+                        style={{
+                            position: 'absolute',
+                            top: '-8px',
+                            right: '-8px',
+                            background: '#fff',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
+                        }}
+                    />
+                </div>
+            )}
+
             <div style={{display: 'flex', gap: '12px', alignItems: 'stretch', width: '100%'}}>
+                {/* 隐藏的文件输入 */}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{display: 'none'}}
+                    onChange={(e) => {
+                        console.log('文件输入 onChange 触发', e.target.files);
+                        const file = e.target.files?.[0];
+                        if (file) {
+                            handleFileSelect(file);
+                        } else {
+                            console.log('没有选择文件');
+                        }
+                        // 清空 input 值以支持重复选择同一文件
+                        if (e.target) e.target.value = '';
+                    }}
+                />
+
+                {/* 图片上传按钮 */}
+                <Tooltip title="上传图片">
+                    <Button
+                        type="text"
+                        icon={<PictureOutlined style={{fontSize: '18px'}}/>}
+                        onClick={() => {
+                            console.log('上传图片按钮被点击');
+                            fileInputRef.current?.click();
+                        }}
+                        disabled={disabled}
+                        style={{
+                            height: '60px',
+                            width: '44px',
+                            borderRadius: '20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    />
+                </Tooltip>
+
                 <TextArea
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     onKeyPress={onKeyPress}
+                    onPaste={handlePaste}
                     placeholder={placeholder}
                     disabled={disabled}
                     style={{
@@ -578,7 +740,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                 <Button
                     type="primary"
                     onClick={onSend}
-                    disabled={disabled || value.trim() === ''}
+                    disabled={disabled || (value.trim() === '' && !previewUrl)}
                     icon={<SendOutlined style={{fontSize: '20px'}}/>}
                     style={{
                         height: '60px',
@@ -652,6 +814,10 @@ export interface ChatRightPanelProps {
     error?: string | null;
     emptyTitle?: string;
     emptySubtitle?: string;
+    /** 选中的图片（Base64 Data URL） */
+    selectedImage?: string;
+    /** 图片变化回调 */
+    onImageChange?: (imageBase64: string | undefined) => void;
 }
 
 export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
@@ -669,6 +835,8 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                                                                   error,
                                                                   emptyTitle = '开始新的对话',
                                                                   emptySubtitle = '在下方输入您的消息，智能助手将为您解答',
+                                                                  selectedImage,
+                                                                  onImageChange,
                                                               }) => {
     const chatMessagesEndRef = useRef<HTMLDivElement>(null);
     const thinkingContentRef = useRef<HTMLDivElement>(null);
@@ -777,6 +945,8 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                 onSend={onSend}
                 onKeyPress={onKeyPress}
                 disabled={isThinking}
+                selectedImage={selectedImage}
+                onImageChange={onImageChange}
             />
         </div>
     );

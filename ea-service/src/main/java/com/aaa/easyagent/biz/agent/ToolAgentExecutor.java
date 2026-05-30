@@ -14,14 +14,18 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.EmptyUsage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.util.MimeType;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -81,7 +85,10 @@ public class ToolAgentExecutor extends BaseAgent {
         if (agentMemoryConfig != null) {
             // 轮数限制（MessageChatMemoryAdvisor）
             if (agentMemoryConfig.isRoundLimitEnabled() && agentMemoryConfig.getRoundLimit() > 0) {
-                advisors.add(MessageChatMemoryAdvisor.builder(SpringContextUtil.getBean(ChatMemory.class)).build());
+                advisors.add(MessageChatMemoryAdvisor
+                        .builder(SpringContextUtil.getBean(ChatMemory.class))
+                        .conversationId(agentContext.getSessionId())
+                        .build());
             }
 
             // 滑动窗口（SlidingWindowAdvisor）：基于 token 计数
@@ -119,6 +126,33 @@ public class ToolAgentExecutor extends BaseAgent {
         // 注入历史消息（用户问题 + 之前的 assistant/tool 消息）
         if (!messages.isEmpty()) {
             spec.messages(messages.toArray(new Message[0]));
+        }
+
+        // 如果是第一轮对话且存在图片，使用 ChatClient 的多模态 API
+        String imageBase64 = agentContext.getImageBase64();
+        if (messages.size() <= 1 && imageBase64 != null && !imageBase64.isEmpty()) {
+            // 解析 Data URL 格式: data:image/jpeg;base64,/9j/4AAQ...
+            String mimeType = "image/jpeg";
+            String base64Data = imageBase64;
+            if (imageBase64.startsWith("data:")) {
+                int semicolonIndex = imageBase64.indexOf(';');
+                if (semicolonIndex > 0) {
+                    mimeType = imageBase64.substring(5, semicolonIndex);
+                }
+                int commaIndex = imageBase64.indexOf(',');
+                if (commaIndex > 0) {
+                    base64Data = imageBase64.substring(commaIndex + 1);
+                }
+            }
+
+            // 将 base64 转为 ByteArrayResource
+            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+            ByteArrayResource imageResource = new ByteArrayResource(imageBytes);
+            MimeType mime = MimeType.valueOf(mimeType);
+
+            // 使用 ChatClient 的多模态 user() API 覆盖当前用户消息
+            String question = messages.isEmpty() ? "" : ((UserMessage) messages.get(0)).getText();
+            spec.user(u -> u.text(question).media(mime, imageResource));
         }
 
         // 每轮变化的参数（messages、withToolCall）通过 advisor params 传入
@@ -204,7 +238,9 @@ public class ToolAgentExecutor extends BaseAgent {
 
     @Override
     protected void addUserMessage(String question) {
-        messages.add(new org.springframework.ai.chat.messages.UserMessage(question));
+        // ToolAgentExecutor 中消息已经通过 messages 列表管理
+        // 图片在 run() 方法中通过 ChatClient 多模态 API 处理
+        messages.add(new UserMessage(question));
     }
 
     public long getAccumulateInputTokenCount() {

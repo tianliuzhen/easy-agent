@@ -82,6 +82,8 @@ const ChatDemo: React.FC = () => {
     const [agentDetail, setAgentDetail] = useState<AgentDetail | null>(null);
     // 当前会话 ID（每次新开对话时从后端获取）
     const [conversationId, setConversationId] = useState<number | null>(null);
+    // 新增：选中的图片（Base64 Data URL）
+    const [selectedImage, setSelectedImage] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         const newUuid = crypto.randomUUID();
@@ -316,7 +318,7 @@ const ChatDemo: React.FC = () => {
     };
 
     const handleSendMessage = async () => {
-        if (input.trim() === '') return;
+        if (input.trim() === '' && !selectedImage) return;
 
         let activeConversationId = conversationId;
         if (!activeConversationId) {
@@ -341,17 +343,21 @@ const ChatDemo: React.FC = () => {
 
         setError(null);
         const userMessageId = crypto.randomUUID();
-        const newUserMessage = {
+        const newUserMessage: ChatMessage = {
             text: input,
             isUser: true,
             type: 'data' as const,
             id: userMessageId,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            imageBase64: selectedImage,
         };
 
         setMessages(prev => [...prev, newUserMessage]);
         setInput('');
         setIsThinking(true);
+        // 发送后清空选中的图片
+        const currentImage = selectedImage;
+        setSelectedImage(undefined);
 
         const aiMessageId = crypto.randomUUID();
         setCurrentAnsweringMsgId(aiMessageId);
@@ -384,6 +390,7 @@ const ChatDemo: React.FC = () => {
             input,
             activeConversationId.toString(),
             agentId,
+            currentImage,
             (log: string) => {
                 const currentAiMessageId = aiMessageId;
                 setMessageThinkingLogs(prev => {
@@ -522,6 +529,7 @@ const ChatDemo: React.FC = () => {
 
     const startNewChat = async () => {
         setConversationId(null);
+        setSelectedImage(undefined);
         const urlParams = new URLSearchParams(location.search);
         urlParams.delete('sessionId');
         const newUrl = `${location.pathname}?${urlParams.toString()}`;
@@ -814,6 +822,8 @@ const ChatDemo: React.FC = () => {
                     modelVersion={null}
                     conversationId={conversationId}
                     error={error}
+                    selectedImage={selectedImage}
+                    onImageChange={setSelectedImage}
                 />
             </div>
         </div>

@@ -14,8 +14,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Spring Security 配置
@@ -70,6 +74,23 @@ public class SecurityConfig {
     }
 
     /**
+     * CORS 配置 Bean
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:5170", "http://127.0.0.1:5170"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    /**
      * Security 过滤器链配置
      *
      * @param http HttpSecurity
@@ -82,8 +103,8 @@ public class SecurityConfig {
                 // 禁用 CSRF（使用 Cookie 存储 JWT）
                 .csrf(csrf -> csrf.disable())
 
-                // 启用 CORS 支持
-                .cors(cors -> cors.configure(http))
+                // 启用 CORS 支持，使用自定义配置
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // 无状态 Session（使用 JWT）
                 .sessionManagement(session -> session
@@ -104,7 +125,8 @@ public class SecurityConfig {
                                 "/swagger-ui.html",    // Swagger页面
                                 "/example/**",         // 演示接口
                                 "/eaAgent/ai/streamChatWith",   // ai流接口
-                                "/eaAgent/ai/chat"    // ai流接口
+                                "/eaAgent/ai/chat",   // ai流接口
+                                "/example/**"    // ai流接口
                         ).permitAll()
 
                         // 所有其他请求需要认证

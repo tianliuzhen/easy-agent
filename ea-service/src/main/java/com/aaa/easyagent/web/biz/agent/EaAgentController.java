@@ -92,7 +92,7 @@ public class EaAgentController {
             try {
                 // 在子线程中设置 SecurityContext
                 org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
-                agentChatService.streamChatWith(sessionId, msg, agentId, sseEmitter);
+                agentChatService.streamChatWith(sessionId, msg, agentId, sseEmitter, null);
             } catch (Throwable e) {
                 log.error("streamChatWith:{}", e.getMessage(), e);
             } finally {
@@ -123,7 +123,10 @@ public class EaAgentController {
             try {
                 // 在子线程中设置 SecurityContext
                 org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
-                agentChatService.streamChatWith(request.getSessionId(), request.getMsg(), request.getAgentId(), sseEmitter);
+                log.info("chat POST: sessionId={}, msg={}, agentId={}, imageBase64={}",
+                        request.getSessionId(), request.getMsg(), request.getAgentId(),
+                        request.getImageBase64() != null ? "长度=" + request.getImageBase64().length() : "null");
+                agentChatService.streamChatWith(request.getSessionId(), request.getMsg(), request.getAgentId(), sseEmitter, request.getImageBase64());
             } catch (Throwable e) {
                 log.error("streamChatWithPost:{}", e.getMessage(), e);
                 SseHelper.sendError(sseEmitter, "系统异常：" + e.getMessage());

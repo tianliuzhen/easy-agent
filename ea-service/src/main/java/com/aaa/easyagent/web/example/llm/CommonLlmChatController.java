@@ -28,7 +28,7 @@ import java.util.Optional;
  * @version 1.0 CommonLlmChatController.java  2025/7/9 21:34
  */
 @RestController
-@RequestMapping("commonLlm")
+@RequestMapping("example/commonLlm")
 public class CommonLlmChatController {
     @Resource
     private CommonLlmChatModel dpChatModel;

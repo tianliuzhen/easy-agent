@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.*;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -26,6 +27,7 @@ import org.springframework.ai.chat.observation.ChatModelObservationConvention;
 import org.springframework.ai.chat.observation.ChatModelObservationDocumentation;
 import org.springframework.ai.chat.observation.DefaultChatModelObservationConvention;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.content.Media;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.model.tool.ToolExecutionResult;
@@ -38,7 +40,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -128,7 +134,7 @@ public class CommonLlmChatModel implements ChatModel {
 
 
         // openAi的call和Stream【delta】，返回数据格式不一样：解析返回值和推理内容
-        String content = Optional.ofNullable(choice.getMessage()).map(CommonLlmApi.ChatCompletionMessage::getContent).orElse("");
+        String content = Optional.ofNullable(choice.getMessage()).map(CommonLlmApi.ChatCompletionMessage::getContent).map(Object::toString).orElse("");
         String reasoning_content = Optional.ofNullable(choice.getMessage()).map(CommonLlmApi.ChatCompletionMessage::getReasoningContent).orElse("");
         // if (StringUtils.isBlank(content)) {
         //     content = Optional.ofNullable(choice.getDelta()).map(CommonLlmApi.Delta::getContent).orElse("");
@@ -311,6 +317,24 @@ public class CommonLlmChatModel implements ChatModel {
 
         List<CommonLlmApi.ChatCompletionMessage> messages = prompt.getInstructions().stream().map(message -> {
             if (message.getMessageType() == MessageType.USER || message.getMessageType() == MessageType.SYSTEM) {
+                // 多模态支持：检测 UserMessage 是否包含图片/媒体内容
+                if (message instanceof UserMessage userMessage && !userMessage.getMedia().isEmpty()) {
+                    List<CommonLlmApi.ContentPart> parts = new ArrayList<>();
+                    // 添加文本部分
+                    if (userMessage.getText() != null && !userMessage.getText().isEmpty()) {
+                        parts.add(CommonLlmApi.ContentPart.text(userMessage.getText()));
+                    }
+                    // 添加图片部分
+                    for (Media media : userMessage.getMedia()) {
+                        byte[] data = media.getDataAsByteArray();
+                        String b64 = Base64.getEncoder().encodeToString(data);
+                        String dataUrl = "data:" + media.getMimeType() + ";base64," + b64;
+                        parts.add(CommonLlmApi.ContentPart.image(dataUrl));
+                    }
+                    var resultMsg = new CommonLlmApi.ChatCompletionMessage(null, message.getMessageType().getValue());
+                    resultMsg.setContent(parts);
+                    return List.of(resultMsg);
+                }
                 return List.of(new CommonLlmApi.ChatCompletionMessage(message.getText(), message.getMessageType().getValue()));
             } else if (message.getMessageType() == MessageType.ASSISTANT) {
                 var assistantMessage = (AssistantMessage) message;
@@ -397,7 +421,7 @@ public class CommonLlmChatModel implements ChatModel {
             }
 
             generations = response.getChoices().stream().map(choice -> {
-                String content = Optional.ofNullable(choice.getMessage()).map(CommonLlmApi.ChatCompletionMessage::getContent).orElse("");
+                String content = Optional.ofNullable(choice.getMessage()).map(CommonLlmApi.ChatCompletionMessage::getContent).map(Object::toString).orElse("");
                 String reasoning_content = Optional.ofNullable(choice.getMessage()).map(CommonLlmApi.ChatCompletionMessage::getReasoningContent).orElse("");
                 // if (StringUtils.isBlank(content)) {
                 //     content = Optional.ofNullable(choice.getDelta()).map(CommonLlmApi.Delta::getContent).orElse("");

@@ -10,6 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("deepseek")
+@RequestMapping("example/deepseek")
 public class DeepseekController {
 }

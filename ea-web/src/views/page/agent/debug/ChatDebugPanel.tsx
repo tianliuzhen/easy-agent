@@ -22,6 +22,8 @@ interface ChatMessage {
     type: 'data' | 'log';
     id: string;
     timestamp: number;
+    /** 图片数据（Base64 Data URL），仅用户消息可能有 */
+    imageBase64?: string;
 }
 
 interface ThinkingLogEntry {
@@ -53,6 +55,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
     const [messageThinkingLogs, setMessageThinkingLogs] = useState<ThinkingLogState>({});
     const {agentDetail} = useAgentConfig();
     const [conversationId, setConversationId] = useState<number | null>(null);
+    const [selectedImage, setSelectedImage] = useState<string | undefined>(undefined);
     const location = useLocation();
 
     // 从props或URL参数获取agentId
@@ -129,8 +132,8 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
 
     // 发送消息
     const handleSendMessage = async () => {
-        if (!input.trim()) {
-            message.warning('请输入消息内容');
+        if (!input.trim() && !selectedImage) {
+            message.warning('请输入消息内容或选择图片');
             return;
         }
 
@@ -144,11 +147,15 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
             isUser: true,
             type: 'data',
             id: crypto.randomUUID(),
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            imageBase64: selectedImage,
         };
 
         setMessages(prev => [...prev, userMessage]);
         setInput('');
+        // 发送后清空选中的图片
+        const currentImage = selectedImage;
+        setSelectedImage(undefined);
         setIsThinking(true);
         setError(null);
 
@@ -187,6 +194,7 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                 input,
                 currentConversationId!.toString(),
                 agentId.toString(),
+                currentImage,
                 (logText: string) => {
                     // onLog
                     const currentMessageId = messageId;
@@ -464,6 +472,8 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                 error={error}
                 emptyTitle="开始调试对话"
                 emptySubtitle="输入消息与AI进行对话调试"
+                selectedImage={selectedImage}
+                onImageChange={setSelectedImage}
             />
         </div>
     );

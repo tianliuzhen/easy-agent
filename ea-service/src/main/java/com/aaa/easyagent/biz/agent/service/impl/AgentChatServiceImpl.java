@@ -104,13 +104,14 @@ public class AgentChatServiceImpl implements AgentChatService {
     /**
      * 流式对话
      *
-     * @param sessionId  会话 ID
-     * @param question   问题
-     * @param agentId    Agent ID
-     * @param sseEmitter SSE 发射器
+     * @param sessionId   会话 ID
+     * @param question    问题
+     * @param agentId     Agent ID
+     * @param sseEmitter  SSE 发射器
+     * @param imageBase64 图片数据（Base64 Data URL 格式，可为 null）
      */
     @Override
-    public void streamChatWith(String sessionId, String question, String agentId, SseEmitter sseEmitter) {
+    public void streamChatWith(String sessionId, String question, String agentId, SseEmitter sseEmitter, String imageBase64) {
         EaAgentResult agent = agentManagerService.getAgent(Long.valueOf(agentId));
         if (agent == null) {
             sseEmitter.complete();
@@ -131,6 +132,7 @@ public class AgentChatServiceImpl implements AgentChatService {
         agentContext.setAgentName(agent.getAgentName());
         agentContext.setPrompt(agent.getPrompt());
         agentContext.setAgentMemoryConfig(agent.getAgentMemoryConfig());
+        agentContext.setImageBase64(imageBase64);
 
         // Agent来源
         agentContext.setModelType(ModelTypeEnum.getByModel(agent.getModelPlatform()));

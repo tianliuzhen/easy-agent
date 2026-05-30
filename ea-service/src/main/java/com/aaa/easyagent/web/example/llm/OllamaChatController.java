@@ -42,7 +42,7 @@ import java.util.UUID;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("ollama")
+@RequestMapping("example/ollama")
 public class OllamaChatController {
     private final OllamaChatModel chatModel;
     // 文档检索

@@ -22,6 +22,9 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.content.Media;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.util.MimeTypeUtils;
 import org.springframework.util.StopWatch;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -150,8 +153,13 @@ public abstract class BaseAgent {
         // 提示词构建
         prompt = this.buildPrompt();
 
-        // 添加用户信息
-        addUserMessage(question);
+        // 添加用户信息（支持多模态图片）
+        String imageBase64 = agentContext.getImageBase64();
+        if (imageBase64 != null && !imageBase64.isEmpty()) {
+            addUserMessage(question, imageBase64);
+        } else {
+            addUserMessage(question);
+        }
 
         // 限制决策轮数，防止无限调用
         int decisionCnt = 1;
@@ -315,5 +323,43 @@ public abstract class BaseAgent {
 
     protected void addUserMessage(String question) {
         prompt.getInstructions().add(new UserMessage(question));
+    }
+
+    /**
+     * 添加带图片的用户消息（多模态）
+     * ReAct 模式：将图片作为 Base64 文本嵌入到 prompt 中
+     *
+     * @param question   文本问题
+     * @param imageBase64 图片数据（Base64 Data URL 格式，如 data:image/jpeg;base64,...）
+     */
+    protected void addUserMessage(String question, String imageBase64) {
+        if (imageBase64 != null && !imageBase64.isEmpty()) {
+            // 剥离 Data URL 前缀（data:image/xxx;base64,），只保留纯 Base64 数据
+            String rawBase64 = imageBase64;
+            if (imageBase64.contains(",")) {
+                rawBase64 = imageBase64.substring(imageBase64.indexOf(",") + 1);
+            }
+
+            // 3. 将 Base64 数据解码为字节数组
+            byte[] imageBytes = Base64.getDecoder().decode(rawBase64);
+
+            // 4. 创建 ByteArrayResource 包装字节数组
+            ByteArrayResource resource = new ByteArrayResource(imageBytes);
+
+            String[] parts = imageBase64.split(",");
+            String imageMimeType = parts[0].split(":")[1].split(";")[0]; // 得到 image/png
+
+            Media media = new Media(MimeTypeUtils.parseMimeType(imageMimeType), resource);
+            // ReAct 模式：将图片作为文本嵌入到 prompt 中
+            UserMessage userMessage = UserMessage.builder()
+                    .text(question)
+                    .media(media)
+                    .build();
+            prompt.getInstructions().add(userMessage);
+            messages.add(userMessage);
+        } else {
+            // 无图片，使用普通文本消息
+            addUserMessage(question);
+        }
     }
 }

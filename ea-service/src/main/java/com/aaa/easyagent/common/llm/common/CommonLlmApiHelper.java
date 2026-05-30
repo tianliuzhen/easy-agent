@@ -92,8 +92,10 @@ public class CommonLlmApiHelper {
     }
 
     private static CommonLlmApi.ChatCompletionMessage merge(CommonLlmApi.ChatCompletionMessage previous, CommonLlmApi.ChatCompletionMessage current) {
-        String content = (current.getContent() != null ? current.getContent()
-                : "" + ((previous.getContent() != null) ? previous.getContent() : ""));
+        Object currentContent = current.getContent();
+        Object previousContent = previous.getContent();
+        String content = currentContent != null ? currentContent.toString()
+                : (previousContent != null ? previousContent.toString() : "");
         String role = (current.getRole() != null ? current.getRole() : previous.getRole());
         role = (role != null ? role : "assistant"); // default to ASSISTANT (if null
         String name = (current.getName() != null ? current.getName() : previous.getName());

@@ -135,16 +135,16 @@ public class CommonLlmApi {
                             // 只对特定类型的错误进行重试
                             String errorMsg = throwable.getMessage();
                             return errorMsg != null && (
-                                errorMsg.contains("Connection reset") ||
-                                errorMsg.contains("connection closed") ||
-                                errorMsg.contains("Broken pipe") ||
-                                errorMsg.contains("timeout")
+                                    errorMsg.contains("Connection reset") ||
+                                            errorMsg.contains("connection closed") ||
+                                            errorMsg.contains("Broken pipe") ||
+                                            errorMsg.contains("timeout")
                             );
                         })
                         .doBeforeRetry(retrySignal ->
-                            log.warn("SSE流发生错误，准备第{}次重试: {}",
-                                    retrySignal.totalRetries() + 1,
-                                    retrySignal.failure().getMessage()))
+                                log.warn("SSE流发生错误，准备第{}次重试: {}",
+                                        retrySignal.totalRetries() + 1,
+                                        retrySignal.failure().getMessage()))
                 )
                 // 9. 错误降级：如果重试后仍然失败，返回空流而不是抛出异常
                 .onErrorResume(e -> {
@@ -264,6 +264,7 @@ public class CommonLlmApi {
     @JsonIgnoreProperties(ignoreUnknown = true)
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ChatCompletionMessage {
         /**
          * @JsonProperty("content") Object rawContent,
@@ -277,7 +278,7 @@ public class CommonLlmApi {
          */
 
         private String role;
-        private String content;
+        private Object content;
         @JsonProperty("reasoning_content")
         private String reasoningContent;
         private String name;
@@ -291,18 +292,18 @@ public class CommonLlmApi {
         @JsonProperty("audio")
         private AudioOutput audioOutput;
 
-        public ChatCompletionMessage(String content, String role) {
+        public ChatCompletionMessage(Object content, String role) {
             this.role = role;
             this.content = content;
         }
 
-        public ChatCompletionMessage(String content, String role, List<ToolCall> toolCalls) {
+        public ChatCompletionMessage(Object content, String role, List<ToolCall> toolCalls) {
             this.role = role;
             this.content = content;
             this.toolCalls = toolCalls;
         }
 
-        public ChatCompletionMessage(String content, String role, String reasoningContent, String name, String toolCallId, List<ToolCall> toolCalls, String refusal) {
+        public ChatCompletionMessage(Object content, String role, String reasoningContent, String name, String toolCallId, List<ToolCall> toolCalls, String refusal) {
             this.role = role;
             this.content = content;
             this.reasoningContent = reasoningContent;
@@ -310,6 +311,48 @@ public class CommonLlmApi {
             this.toolCallId = toolCallId;
             this.toolCalls = toolCalls;
             this.refusal = refusal;
+        }
+    }
+
+    /**
+     * 多模态内容部分（用于支持图片 + 文本混合输入）
+     * <pre>
+     * {"type": "text", "text": "描述文本"}
+     * {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class ContentPart {
+        private String type;
+        private String text;
+        @JsonProperty("image_url")
+        private ImageUrlContent imageUrl;
+
+        /**
+         * 创建文本类型的内容部分
+         */
+        public static ContentPart text(String text) {
+            return new ContentPart("text", text, null);
+        }
+
+        /**
+         * 创建图片类型的内容部分
+         *
+         * @param dataUrl Base64 Data URL，如 data:image/png;base64,iVBOR...
+         */
+        public static ContentPart image(String dataUrl) {
+            return new ContentPart("image_url", null, new ImageUrlContent(dataUrl));
+        }
+
+        @Data
+        @NoArgsConstructor
+        @AllArgsConstructor
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public static class ImageUrlContent {
+            private String url;
         }
     }
 

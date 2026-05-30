@@ -10,6 +10,7 @@ let currentAbortController: AbortController | null = null;
  * @param message 用户输入的消息
  * @param sessionId 会话 ID
  * @param agentId 代理 ID
+ * @param imageBase64 图片数据（Base64 Data URL 格式，可选）
  * @param onLog 每次接收到日志数据时的回调
  * @param onFinalAnswer 每次接收到最终答案数据时的回调
  * @param onThink 每次接收到思考过程数据时的回调
@@ -23,6 +24,7 @@ export const sendMessage = (
     message: string,
     sessionId: string,
     agentId: string,
+    imageBase64: string | undefined,
     onLog: (log: string) => void,
     onFinalAnswer: (data: string) => void,
     onThink: (think: string) => void,
@@ -33,14 +35,24 @@ export const sendMessage = (
 ): (() => void) => {
     const url = `${API_BASE_URL}/eaAgent/ai/chat`;
     console.log('创建 SSE 连接:', url);
-    console.log('请求参数:', {sessionId, msg: message, agentId});
+    console.log('请求参数:', {sessionId, msg: message, agentId, hasImage: !!imageBase64});
 
     // 创建请求体
-    const requestBody = {
+    const requestBody: any = {
         sessionId: sessionId || "110",
         msg: message || "你好",
         agentId: agentId || "1"
     };
+
+    // 如果有图片，添加到请求体
+    if (imageBase64) {
+        requestBody.imageBase64 = imageBase64;
+        console.log('发送图片数据，长度:', imageBase64.length);
+    } else {
+        console.log('没有图片数据，imageBase64:', imageBase64);
+    }
+
+    console.log('完整请求体:', JSON.stringify(requestBody, null, 2));
 
     // 创建 AbortController 用于手动关闭连接
     const abortController = new AbortController();

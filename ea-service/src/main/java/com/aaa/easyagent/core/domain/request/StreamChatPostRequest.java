@@ -34,6 +34,12 @@ public class StreamChatPostRequest {
     private Boolean streamEnabled;
 
     /**
+     * 图片数据（Base64 Data URL 格式，如 data:image/jpeg;base64,/9j/4AAQ...）
+     * 支持粘贴截图或选择图片文件上传
+     */
+    private String imageBase64;
+
+    /**
      * 默认构造函数
      */
     public StreamChatPostRequest() {
