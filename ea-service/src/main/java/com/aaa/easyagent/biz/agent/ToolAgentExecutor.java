@@ -128,32 +128,7 @@ public class ToolAgentExecutor extends BaseAgent {
             spec.messages(messages.toArray(new Message[0]));
         }
 
-        // 如果是第一轮对话且存在图片，使用 ChatClient 的多模态 API
-        String imageBase64 = agentContext.getImageBase64();
-        if (messages.size() <= 1 && imageBase64 != null && !imageBase64.isEmpty()) {
-            // 解析 Data URL 格式: data:image/jpeg;base64,/9j/4AAQ...
-            String mimeType = "image/jpeg";
-            String base64Data = imageBase64;
-            if (imageBase64.startsWith("data:")) {
-                int semicolonIndex = imageBase64.indexOf(';');
-                if (semicolonIndex > 0) {
-                    mimeType = imageBase64.substring(5, semicolonIndex);
-                }
-                int commaIndex = imageBase64.indexOf(',');
-                if (commaIndex > 0) {
-                    base64Data = imageBase64.substring(commaIndex + 1);
-                }
-            }
-
-            // 将 base64 转为 ByteArrayResource
-            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
-            ByteArrayResource imageResource = new ByteArrayResource(imageBytes);
-            MimeType mime = MimeType.valueOf(mimeType);
-
-            // 使用 ChatClient 的多模态 user() API 覆盖当前用户消息
-            String question = messages.isEmpty() ? "" : ((UserMessage) messages.get(0)).getText();
-            spec.user(u -> u.text(question).media(mime, imageResource));
-        }
+        setImageMsg(spec);
 
         // 每轮变化的参数（messages、withToolCall）通过 advisor params 传入
         spec.advisors(as -> {
@@ -197,7 +172,7 @@ public class ToolAgentExecutor extends BaseAgent {
 
         }, e -> {
             log.error("ToolAgentExecutor.run.error", e);
-            SseHelper.sendData(sse, "系统异常：" + e.getMessage());
+            SseHelper.sendError(sse, "系统异常：" + e.getMessage());
             runOver.countDown();
         }, () -> {
             log.info("ToolAgentExecutor.run.complete");
@@ -234,6 +209,35 @@ public class ToolAgentExecutor extends BaseAgent {
         }
 
         return new AgentFinish(resStr.toString());
+    }
+
+    private void setImageMsg(ChatClient.ChatClientRequestSpec spec) {
+        // 如果是第一轮对话且存在图片，使用 ChatClient 的多模态 API
+        String imageBase64 = agentContext.getImageBase64();
+        if (messages.size() <= 1 && imageBase64 != null && !imageBase64.isEmpty()) {
+            // 解析 Data URL 格式: data:image/jpeg;base64,/9j/4AAQ...
+            String mimeType = "image/jpeg";
+            String base64Data = imageBase64;
+            if (imageBase64.startsWith("data:")) {
+                int semicolonIndex = imageBase64.indexOf(';');
+                if (semicolonIndex > 0) {
+                    mimeType = imageBase64.substring(5, semicolonIndex);
+                }
+                int commaIndex = imageBase64.indexOf(',');
+                if (commaIndex > 0) {
+                    base64Data = imageBase64.substring(commaIndex + 1);
+                }
+            }
+
+            // 将 base64 转为 ByteArrayResource
+            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+            ByteArrayResource imageResource = new ByteArrayResource(imageBytes);
+            MimeType mime = MimeType.valueOf(mimeType);
+
+            // 使用 ChatClient 的多模态 user() API 覆盖当前用户消息
+            String question = messages.isEmpty() ? "" : ((UserMessage) messages.get(0)).getText();
+            spec.user(u -> u.text(question).media(mime, imageResource));
+        }
     }
 
     @Override

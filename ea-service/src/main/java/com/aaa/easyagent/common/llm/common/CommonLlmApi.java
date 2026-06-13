@@ -6,6 +6,7 @@ package com.aaa.easyagent.common.llm.common;
  */
 
 import com.aaa.easyagent.common.util.JacksonUtil;
+import com.aaa.easyagent.common.util.LogUtil;
 import com.fasterxml.jackson.annotation.*;
 import io.netty.channel.ChannelOption;
 import lombok.AllArgsConstructor;
@@ -95,6 +96,8 @@ public class CommonLlmApi {
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .retrieve()
                 .bodyToFlux(String.class)
+                // 标记装配点：异步出错时（如 401）在 suppressed 轨迹中补回业务调用点
+                .checkpoint("CommonLlmApi#chatCompletionStream")
                 // 4. 流处理管道
                 .takeUntil(SSE_DONE_PREDICATE) // 遇到"[DONE]"时终止流
                 .filter(SSE_DONE_PREDICATE.negate())  // 过滤掉"[DONE]"消息
@@ -148,7 +151,7 @@ public class CommonLlmApi {
                 )
                 // 9. 错误降级：如果重试后仍然失败，返回空流而不是抛出异常
                 .onErrorResume(e -> {
-                    log.error("SSE流处理后仍然失败，返回空流: {}", e.getMessage(), e);
+                    LogUtil.error(log, e,"SSE流处理后仍然失败，返回空流: {}", e.getMessage());
                     return Flux.empty();
                 });
     }

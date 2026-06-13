@@ -169,7 +169,14 @@ const AgentConfigContent: React.FC = () => {
                         borderRadius: '5px',
                     }}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <LeftOutlined style={{margin: '0px', padding: '0px'}}/>
+                            <LeftOutlined
+                                onClick={() => {
+                                    window.close();
+                                    // 若非新标签页打开（无法关闭），回退到 Agent 管理页
+                                    window.location.href = '/home/AgentConfig';
+                                }}
+                                style={{margin: '0px', padding: '0px', cursor: 'pointer'}}
+                            />
                             {/* 这个地方展示一下 avatar */}
                             <span style={{fontSize: '16px', fontWeight: '500', color: '#333'}}>
                                 {agentDetail?.avatar} {agentDetail?.agentName}

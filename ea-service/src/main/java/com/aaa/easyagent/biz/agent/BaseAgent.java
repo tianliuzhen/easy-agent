@@ -197,7 +197,10 @@ public abstract class BaseAgent {
                 }
             } catch (Exception e) {
                 log.error("大模型执行异常:", e);
-                SseHelper.sendData(sse, "第{}次大模型决策异常：{}", decisionCnt, e.getMessage());
+                SseHelper.sendError(sse, "第{}次大模型决策异常：{}", decisionCnt, e.getMessage());
+                if (sse != null) {
+                    sse.complete();
+                }
                 return null;
             }
 

@@ -170,7 +170,7 @@ public class ReActAgentExecutor extends BaseReActAgent {
                                 // 执行异常
                                 log.error("ReActAgentExecutor.think.error:" + error.getMessage(), error);
                                 runOver.countDown();
-                                SseHelper.sendData(sse, "系统异常：" + error.getMessage());
+                                SseHelper.sendError(sse, "系统异常：" + error.getMessage());
                             }, () -> {
                                 // 执行结束
                                 runOver.countDown();

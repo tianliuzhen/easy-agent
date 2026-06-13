@@ -572,13 +572,14 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                                                                 onSend,
                                                                 onKeyPress,
                                                                 disabled = false,
-                                                                placeholder = "输入您的问题...（按 Enter 发送，Shift + Enter 换行）",
+                                                                placeholder = "输入您的问题…",
                                                                 selectedImage,
                                                                 onImageChange,
                                                             }) => {
     const {TextArea} = Input;
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [previewUrl, setPreviewUrl] = useState<string | undefined>(selectedImage);
+    const [focused, setFocused] = useState(false);
 
     // 同步外部 selectedImage 变化
     useEffect(() => {
@@ -629,132 +630,165 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
         onImageChange?.(undefined);
     };
 
+    const canSend = !disabled && (value.trim() !== '' || !!previewUrl);
+
     return (
         <div style={{
-            background: 'white',
-            padding: '20px 32px',
-            borderTop: '1px solid #e8e8e8',
-            boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.06)',
+            background: 'transparent',
+            padding: '16px 32px 24px',
         }}>
-            {/* 图片预览区域 */}
-            {previewUrl && (
-                <div style={{
-                    marginBottom: '12px',
-                    display: 'inline-block',
-                    position: 'relative',
-                }}>
-                    <img
-                        src={previewUrl}
-                        alt="预览图片"
-                        style={{
-                            maxHeight: '120px',
-                            maxWidth: '200px',
-                            borderRadius: '8px',
-                            border: '1px solid #e8e8e8',
-                            objectFit: 'contain',
-                        }}
-                    />
-                    <Button
-                        type="text"
-                        size="small"
-                        icon={<CloseOutlined style={{fontSize: '12px'}}/>}
-                        onClick={handleRemoveImage}
-                        style={{
-                            position: 'absolute',
-                            top: '-8px',
-                            right: '-8px',
-                            background: '#fff',
-                            borderRadius: '50%',
-                            width: '24px',
-                            height: '24px',
-                            padding: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
-                        }}
-                    />
-                </div>
-            )}
+            {/* 隐藏的文件输入 */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{display: 'none'}}
+                onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                        handleFileSelect(file);
+                    }
+                    // 清空 input 值以支持重复选择同一文件
+                    if (e.target) e.target.value = '';
+                }}
+            />
 
-            <div style={{display: 'flex', gap: '12px', alignItems: 'stretch', width: '100%'}}>
-                {/* 隐藏的文件输入 */}
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{display: 'none'}}
-                    onChange={(e) => {
-                        console.log('文件输入 onChange 触发', e.target.files);
-                        const file = e.target.files?.[0];
-                        if (file) {
-                            handleFileSelect(file);
-                        } else {
-                            console.log('没有选择文件');
-                        }
-                        // 清空 input 值以支持重复选择同一文件
-                        if (e.target) e.target.value = '';
-                    }}
-                />
+            {/* 统一输入容器 */}
+            <div style={{
+                maxWidth: '860px',
+                margin: '0 auto',
+                background: '#fff',
+                borderRadius: '26px',
+                border: `1.5px solid ${focused ? '#5c74a8' : '#e6e9f0'}`,
+                boxShadow: focused
+                    ? '0 8px 28px rgba(92, 116, 168, 0.18)'
+                    : '0 4px 18px rgba(17, 24, 39, 0.06)',
+                transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                padding: '8px 8px 8px 12px',
+            }}>
+                {/* 图片预览区域 */}
+                {previewUrl && (
+                    <div style={{
+                        margin: '4px 0 10px 4px',
+                        display: 'inline-block',
+                        position: 'relative',
+                    }}>
+                        <img
+                            src={previewUrl}
+                            alt="预览图片"
+                            style={{
+                                maxHeight: '96px',
+                                maxWidth: '180px',
+                                borderRadius: '12px',
+                                border: '1px solid #eef0f5',
+                                objectFit: 'cover',
+                                display: 'block',
+                            }}
+                        />
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={<CloseOutlined style={{fontSize: '11px', color: '#fff'}}/>}
+                            onClick={handleRemoveImage}
+                            style={{
+                                position: 'absolute',
+                                top: '-8px',
+                                right: '-8px',
+                                background: 'rgba(0, 0, 0, 0.55)',
+                                borderRadius: '50%',
+                                width: '22px',
+                                height: '22px',
+                                minWidth: '22px',
+                                padding: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+                            }}
+                        />
+                    </div>
+                )}
 
-                {/* 图片上传按钮 */}
-                <Tooltip title="上传图片">
-                    <Button
-                        type="text"
-                        icon={<PictureOutlined style={{fontSize: '18px'}}/>}
-                        onClick={() => {
-                            console.log('上传图片按钮被点击');
-                            fileInputRef.current?.click();
-                        }}
+                <div style={{display: 'flex', alignItems: 'flex-end', gap: '6px', width: '100%'}}>
+                    {/* 图片上传按钮 */}
+                    <Tooltip title="上传图片">
+                        <Button
+                            type="text"
+                            shape="circle"
+                            icon={<PictureOutlined style={{fontSize: '19px', color: '#8a93a6'}}/>}
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={disabled}
+                            style={{
+                                width: '40px',
+                                height: '40px',
+                                flexShrink: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        />
+                    </Tooltip>
+
+                    <TextArea
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        onKeyPress={onKeyPress}
+                        onPaste={handlePaste}
+                        onFocus={() => setFocused(true)}
+                        onBlur={() => setFocused(false)}
+                        placeholder={placeholder}
                         disabled={disabled}
+                        variant="borderless"
+                        autoSize={{minRows: 1, maxRows: 6}}
                         style={{
-                            height: '60px',
-                            width: '44px',
-                            borderRadius: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            flex: 1,
+                            fontSize: '15px',
+                            lineHeight: 1.6,
+                            padding: '8px 4px',
+                            resize: 'none',
+                            background: 'transparent',
+                            boxShadow: 'none',
                         }}
                     />
-                </Tooltip>
 
-                <TextArea
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    onKeyPress={onKeyPress}
-                    onPaste={handlePaste}
-                    placeholder={placeholder}
-                    disabled={disabled}
-                    style={{
-                        flex: 1,
-                        borderRadius: '20px',
-                        border: '1px solid #d9d9d9',
-                        fontSize: '14px',
-                        padding: '14px 20px',
-                        resize: 'vertical',
-                        background: 'var(--ea-theme-background)',
-                        minHeight: '60px',
-                        height: '60px',
-                    }}
-                />
-                <Button
-                    type="primary"
-                    onClick={onSend}
-                    disabled={disabled || (value.trim() === '' && !previewUrl)}
-                    icon={<SendOutlined style={{fontSize: '20px'}}/>}
-                    style={{
-                        height: '60px',
-                        width: '60px',
-                        borderRadius: '50%',
-                        padding: 0,
-                        background: 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)',
-                        border: 'none',
-                        boxShadow: '0 4px 12px rgba(92, 116, 168, 0.4)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                    }}
-                />
+                    {/* 发送按钮 */}
+                    <Tooltip title="发送">
+                        <Button
+                            type="primary"
+                            onClick={onSend}
+                            disabled={!canSend}
+                            icon={<SendOutlined style={{fontSize: '18px'}}/>}
+                            style={{
+                                height: '40px',
+                                width: '40px',
+                                minWidth: '40px',
+                                flexShrink: 0,
+                                borderRadius: '14px',
+                                padding: 0,
+                                background: canSend
+                                    ? 'linear-gradient(135deg, #5c74a8 0%, #7d8fc0 100%)'
+                                    : '#e6e9f0',
+                                border: 'none',
+                                boxShadow: canSend ? '0 4px 12px rgba(92, 116, 168, 0.35)' : 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'background 0.2s ease, box-shadow 0.2s ease',
+                            }}
+                        />
+                    </Tooltip>
+                </div>
+            </div>
+
+            {/* 提示文字 */}
+            <div style={{
+                maxWidth: '860px',
+                margin: '8px auto 0',
+                textAlign: 'center',
+                fontSize: '12px',
+                color: '#aab1c0',
+            }}>
+                按 Enter 发送，Shift + Enter 换行
             </div>
         </div>
     );

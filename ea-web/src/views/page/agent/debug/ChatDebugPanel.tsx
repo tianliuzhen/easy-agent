@@ -5,7 +5,6 @@ import {useLocation} from 'react-router-dom';
 import {useAgentConfig} from '../AgentConfigContext';
 import {
     SendOutlined,
-    RobotOutlined,
     DeleteOutlined,
     PlusCircleOutlined
 } from '@ant-design/icons';
@@ -372,8 +371,8 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
         }}>
             {/* 顶部标题栏 */}
             <div style={{
-                padding: '6px 6px 6px',
-                borderBottom: '1px solid #d9e6f2',
+                padding: '12px 20px',
+                borderBottom: '1px solid #eef0f5',
                 background: '#fff',
                 flexShrink: 0
             }}>
@@ -383,75 +382,50 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
                     justifyContent: 'space-between',
                 }}>
                     <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                        <div style={{
-                            width: '30px',
-                            height: '30px',
-                            borderRadius: '8px',
-                            background: 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 4px 12px rgba(92, 116, 168, 0.3)'
-                        }}>
-                            <RobotOutlined style={{color: 'white', fontSize: '20px'}}/>
-                        </div>
-                        <div>
-                            {getModelVersion() && (
-                                <div style={{
-                                    fontSize: '11px',
-                                    color: '#666',
-                                    fontWeight: 500,
-                                    background: 'rgba(255, 255, 255, 0.9)',
-                                    border: '1px solid #d9e6f2',
-                                    borderRadius: '16px',
-                                    padding: '4px 10px',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
-                                }}>
-                                    {agentDetail?.modelIcon && (
-                                        <img 
-                                            src={agentDetail.modelIcon} 
-                                            alt="model icon" 
-                                            style={{
-                                                width: '16px',
-                                                height: '16px',
-                                                objectFit: 'contain'
-                                            }}
-                                        />
-                                    )}
-                                    模型版本：{getModelVersion()}
-                                </div>
-                            )}
-                        </div>
+                        {getModelVersion() && (
+                            <div style={{
+                                fontSize: '13px',
+                                color: '#5c74a8',
+                                fontWeight: 500,
+                                background: '#f0f3fa',
+                                borderRadius: '12px',
+                                padding: '5px 12px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                            }}>
+                                {agentDetail?.modelIcon && (
+                                    <img
+                                        src={agentDetail.modelIcon}
+                                        alt="model icon"
+                                        style={{
+                                            width: '16px',
+                                            height: '16px',
+                                            objectFit: 'contain'
+                                        }}
+                                    />
+                                )}
+                                {getModelVersion()}
+                            </div>
+                        )}
                     </div>
 
-                    <div style={{display: 'flex', gap: '12px'}}>
-                        <Button
-                            type="primary"
-                            onClick={startNewChat}
-                            icon={<PlusCircleOutlined/>}
-                            style={{
-                                height: '30px',
-                                width: '78px',
-                                background: 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)',
-                                border: 'none',
-                                borderRadius: '10px',
-                                fontWeight: 500
-                            }}
-                        >
-                            新对话
-                        </Button>
-                        {/*<Button*/}
-                        {/*    danger*/}
-                        {/*    onClick={handleClearChat}*/}
-                        {/*    icon={<DeleteOutlined/>}*/}
-                        {/*    style={{height: '30px', borderRadius: '10px'}}*/}
-                        {/*>*/}
-                        {/*    清空*/}
-                        {/*</Button>*/}
-                    </div>
+                    <Button
+                        type="primary"
+                        onClick={startNewChat}
+                        icon={<PlusCircleOutlined/>}
+                        style={{
+                            height: '36px',
+                            padding: '0 16px',
+                            background: 'linear-gradient(135deg, #5c74a8 0%, #7d8fc0 100%)',
+                            border: 'none',
+                            borderRadius: '12px',
+                            fontWeight: 500,
+                            boxShadow: '0 4px 12px rgba(92, 116, 168, 0.3)',
+                        }}
+                    >
+                        新对话
+                    </Button>
                 </div>
             </div>
 
