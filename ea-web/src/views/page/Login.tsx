@@ -3,6 +3,7 @@ import {Form, Input, Button, Card, message, Alert} from 'antd';
 import {UserOutlined, LockOutlined} from '@ant-design/icons';
 import {authApi} from '../api/AuthApi';
 import {useNavigate, useLocation} from 'react-router-dom';
+import logo from '../../assets/eaLogo.png';
 
 /**
  * 登录页面
@@ -105,215 +106,121 @@ const Login: React.FC = () => {
             justifyContent: 'center',
             alignItems: 'center',
             minHeight: '100vh',
-            background: `
-        radial-gradient(ellipse at 30% 20%, rgba(90, 130, 180, 0.5) 0%, transparent 50%),
-        radial-gradient(ellipse at 70% 80%, rgba(100, 140, 190, 0.45) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(80, 120, 170, 0.35) 0%, transparent 60%),
-        linear-gradient(180deg, #b8d4e8 0%, #9ec5db 50%, #a8cce0 100%)
-      `,
-            backgroundSize: '100% 100%',
+            background: 'linear-gradient(160deg, #dde6f2 0%, #d0d6ec 50%, #cdc9e8 100%)',
             position: 'relative',
             overflow: 'hidden',
         }}>
-            {/* 网格背景 */}
+            {/* 柔光团 1 */}
             <div style={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundImage: `
-          linear-gradient(rgba(60, 100, 150, 0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(60, 100, 150, 0.05) 1px, transparent 1px)
-        `,
-                backgroundSize: '60px 60px',
-                pointerEvents: 'none',
-            }}/>
-            {/* 底部光晕 */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '30%',
-                background: 'linear-gradient(180deg, rgba(100, 150, 200, 0.08) 0%, transparent 100%)',
-                pointerEvents: 'none',
-            }}/>
-            {/* 流动线条 1 */}
-            <div style={{
-                position: 'absolute',
-                top: '10%',
-                left: '-10%',
-                width: '60%',
-                height: 2,
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%)',
-                animation: 'scanLine 8s linear infinite',
-                boxShadow: '0 0 20px rgba(255, 255, 255, 0.4)',
-            }}/>
-            {/* 流动线条 2 */}
-            <div style={{
-                position: 'absolute',
-                bottom: '20%',
-                right: '-10%',
-                width: '50%',
-                height: 1,
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%)',
-                animation: 'scanLine 12s linear infinite reverse',
-                boxShadow: '0 0 15px rgba(255, 255, 255, 0.3)',
-            }}/>
-            {/* 流动线条 3 */}
-            <div style={{
-                position: 'absolute',
-                top: '50%',
+                top: '-15%',
                 left: '-5%',
-                width: '40%',
-                height: 1,
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%)',
-                animation: 'scanLine 15s linear infinite',
-                boxShadow: '0 0 10px rgba(255, 255, 255, 0.25)',
-            }}/>
-            {/* 极光光晕 */}
-            <div style={{
-                position: 'absolute',
-                top: '5%',
-                left: '10%',
-                width: 500,
-                height: 400,
-                borderRadius: '60% 40% 50% 50% / 50% 60% 40% 50%',
-                background: 'radial-gradient(ellipse at center, rgba(80, 130, 190, 0.35) 0%, rgba(100, 150, 210, 0.2) 40%, transparent 70%)',
-                filter: 'blur(30px)',
-                animation: 'aurora1 12s ease-in-out infinite, breathe 6s ease-in-out infinite',
-            }}/>
-            <div style={{
-                position: 'absolute',
-                bottom: '10%',
-                right: '5%',
-                width: 450,
-                height: 350,
-                borderRadius: '40% 60% 45% 55% / 55% 45% 60% 40%',
-                background: 'radial-gradient(ellipse at center, rgba(70, 120, 180, 0.3) 0%, rgba(90, 140, 200, 0.15) 40%, transparent 70%)',
-                filter: 'blur(35px)',
-                animation: 'aurora2 15s ease-in-out infinite, breathe 8s ease-in-out infinite reverse',
-            }}/>
-            <div style={{
-                position: 'absolute',
-                top: '40%',
-                left: '50%',
-                width: 300,
-                height: 250,
-                borderRadius: '50% 50% 45% 55% / 45% 55% 50% 50%',
-                background: 'radial-gradient(ellipse at center, rgba(90, 140, 195, 0.25) 0%, rgba(110, 160, 220, 0.12) 40%, transparent 70%)',
-                filter: 'blur(25px)',
-                animation: 'aurora3 10s ease-in-out infinite, breathe 5s ease-in-out infinite',
-            }}/>
-            {/* 颗粒质感 */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-                opacity: 0.05,
-                pointerEvents: 'none',
-                animation: 'grainMove 0.5s steps(10) infinite',
-            }}/>
-            {/* 星光效果 */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundImage: `
-          radial-gradient(2px 2px at 15% 25%, rgba(255, 255, 255, 0.9), transparent),
-          radial-gradient(3px 3px at 35% 60%, rgba(255, 255, 255, 0.7), transparent),
-          radial-gradient(2px 2px at 55% 15%, rgba(255, 255, 255, 0.8), transparent),
-          radial-gradient(3px 3px at 75% 45%, rgba(255, 255, 255, 0.6), transparent),
-          radial-gradient(2px 2px at 25% 80%, rgba(255, 255, 255, 0.7), transparent),
-          radial-gradient(3px 3px at 85% 10%, rgba(255, 255, 255, 0.8), transparent),
-          radial-gradient(2px 2px at 45% 75%, rgba(255, 255, 255, 0.6), transparent),
-          radial-gradient(2px 2px at 10% 50%, rgba(255, 255, 255, 0.7), transparent),
-          radial-gradient(3px 3px at 65% 85%, rgba(255, 255, 255, 0.8), transparent),
-          radial-gradient(2px 2px at 90% 70%, rgba(255, 255, 255, 0.5), transparent),
-          radial-gradient(2px 2px at 30% 35%, rgba(255, 255, 255, 0.7), transparent),
-          radial-gradient(3px 3px at 50% 40%, rgba(255, 255, 255, 0.6), transparent),
-          radial-gradient(2px 2px at 80% 90%, rgba(255, 255, 255, 0.6), transparent),
-          radial-gradient(2px 2px at 20% 55%, rgba(255, 255, 255, 0.8), transparent)
-        `,
-                animation: 'twinkle 4s ease-in-out infinite',
+                width: '55vw',
+                height: '55vw',
+                background: 'radial-gradient(circle at center, rgba(70, 110, 175, 0.32) 0%, transparent 65%)',
+                filter: 'blur(90px)',
+                animation: 'drift1 22s ease-in-out infinite',
                 pointerEvents: 'none',
             }}/>
-            {/* 边框光效 - 左上角 */}
+            {/* 柔光团 2 */}
             <div style={{
                 position: 'absolute',
-                top: 30,
-                left: 30,
-                width: 100,
-                height: 100,
-                borderLeft: '2px solid rgba(80, 130, 180, 0.4)',
-                borderTop: '2px solid rgba(80, 130, 180, 0.4)',
+                bottom: '-20%',
+                right: '-10%',
+                width: '50vw',
+                height: '50vw',
+                background: 'radial-gradient(circle at center, rgba(124, 96, 190, 0.30) 0%, transparent 65%)',
+                filter: 'blur(100px)',
+                animation: 'drift2 28s ease-in-out infinite',
                 pointerEvents: 'none',
             }}/>
-            {/* 边框光效 - 右下角 */}
+            {/* 柔光团 3 - 紫调 */}
             <div style={{
                 position: 'absolute',
-                bottom: 30,
-                right: 30,
-                width: 100,
-                height: 100,
-                borderRight: '2px solid rgba(80, 130, 180, 0.4)',
-                borderBottom: '2px solid rgba(80, 130, 180, 0.4)',
+                top: '30%',
+                right: '15%',
+                width: '38vw',
+                height: '38vw',
+                background: 'radial-gradient(circle at center, rgba(140, 110, 205, 0.22) 0%, transparent 65%)',
+                filter: 'blur(110px)',
+                animation: 'drift1 26s ease-in-out infinite',
+                pointerEvents: 'none',
+            }}/>
+            {/* 浮动气泡 */}
+            <div style={{position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none'}}>
+                {[
+                    {size: 14, left: '12%', dur: 13, delay: 0, op: 0.5},
+                    {size: 26, left: '24%', dur: 18, delay: 2.5, op: 0.35},
+                    {size: 9, left: '38%', dur: 11, delay: 1, op: 0.6},
+                    {size: 40, left: '50%', dur: 22, delay: 4, op: 0.25},
+                    {size: 16, left: '63%', dur: 15, delay: 0.5, op: 0.45},
+                    {size: 22, left: '74%', dur: 19, delay: 3, op: 0.35},
+                    {size: 11, left: '85%', dur: 12, delay: 1.8, op: 0.55},
+                    {size: 32, left: '92%', dur: 24, delay: 5, op: 0.28},
+                    {size: 12, left: '6%', dur: 16, delay: 3.5, op: 0.5},
+                    {size: 18, left: '45%', dur: 20, delay: 6, op: 0.4},
+                ].map((b, i) => (
+                    <span key={i} style={{
+                        position: 'absolute',
+                        bottom: -60,
+                        left: b.left,
+                        width: b.size,
+                        height: b.size,
+                        borderRadius: '50%',
+                        background: `radial-gradient(circle at 32% 28%, rgba(255,255,255,0.95), rgba(24,144,255,${b.op}) 60%, rgba(92,116,168,${b.op * 0.6}) 100%)`,
+                        boxShadow: `0 0 ${b.size}px rgba(24,144,255,0.25)`,
+                        animation: `rise ${b.dur}s ease-in infinite, twinkle ${3 + (i % 3)}s ease-in-out infinite`,
+                        animationDelay: `${b.delay}s, ${b.delay}s`,
+                    }}/>
+                ))}
+            </div>
+            {/* 顶部高光带 */}
+            <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'radial-gradient(ellipse 120% 50% at 50% -10%, rgba(255, 255, 255, 0.6) 0%, transparent 55%)',
                 pointerEvents: 'none',
             }}/>
             <style>{`
-        @keyframes aurora1 {
-          0%, 100% { transform: translate(0, 0) rotate(0deg); border-radius: 60% 40% 50% 50% / 50% 60% 40% 50%; }
-          25% { transform: translate(30px, -20px) rotate(5deg); border-radius: 50% 50% 45% 55% / 55% 45% 50% 50%; }
-          50% { transform: translate(-20px, 20px) rotate(-3deg); border-radius: 45% 55% 50% 50% / 50% 50% 45% 55%; }
-          75% { transform: translate(15px, 10px) rotate(2deg); border-radius: 55% 45% 50% 50% / 45% 55% 50% 50%; }
-        }
-        @keyframes aurora2 {
-          0%, 100% { transform: translate(0, 0) rotate(0deg); border-radius: 40% 60% 45% 55% / 55% 45% 60% 40%; }
-          33% { transform: translate(-25px, 15px) rotate(-4deg); border-radius: 50% 50% 50% 50% / 45% 55% 45% 55%; }
-          66% { transform: translate(20px, -15px) rotate(3deg); border-radius: 45% 55% 40% 60% / 55% 45% 50% 50%; }
-        }
-        @keyframes aurora3 {
+        @keyframes drift1 {
           0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(10px, -10px) scale(1.1); }
+          50% { transform: translate(6vw, 4vh) scale(1.08); }
         }
-        @keyframes breathe {
-          0%, 100% { opacity: 0.7; }
-          50% { opacity: 1; }
+        @keyframes drift2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-5vw, -4vh) scale(1.1); }
         }
-        @keyframes scanLine {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
-        }
-        @keyframes grainMove {
-          0%, 100% { transform: translate(0, 0); }
-          10% { transform: translate(-1px, -1px); }
-          20% { transform: translate(1px, 1px); }
-          30% { transform: translate(-1px, 1px); }
-          40% { transform: translate(1px, -1px); }
-          50% { transform: translate(-1px, 0px); }
-          60% { transform: translate(1px, 0px); }
-          70% { transform: translate(0px, -1px); }
-          80% { transform: translate(0px, 1px); }
-          90% { transform: translate(-1px, -1px); }
+        @keyframes rise {
+          0% { transform: translateY(0) translateX(0); }
+          50% { transform: translateY(-55vh) translateX(20px); }
+          100% { transform: translateY(-110vh) translateX(-15px); }
         }
         @keyframes twinkle {
-          0%, 100% { opacity: 0.2; }
-          50% { opacity: 0.8; }
+          0%, 100% { opacity: 0.25; }
+          50% { opacity: 1; }
         }
+        .login-light-card .ant-form-item { margin-bottom: 22px !important; }
+        .login-light-card .login-submit-item { margin-bottom: 12px !important; }
+        .login-light-card .ant-input-affix-wrapper {
+          background: rgba(255, 255, 255, 0.7) !important;
+          border-color: rgba(24, 144, 255, 0.18) !important;
+        }
+        .login-light-card .ant-input-affix-wrapper:hover { border-color: rgba(24, 144, 255, 0.55) !important; }
+        .login-light-card .ant-input-affix-wrapper-focused { box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.15) !important; }
       `}</style>
             <Card
+                className="login-light-card"
+                styles={{body: {padding: '40px 40px 32px'}}}
                 style={{
-                    width: 420,
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(100, 150, 200, 0.3)',
-                    boxShadow: '0 8px 32px rgba(60, 100, 150, 0.2)',
+                    width: 400,
+                    background: 'rgba(255, 255, 255, 0.72)',
+                    backdropFilter: 'blur(24px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+                    border: '1px solid rgba(255, 255, 255, 0.8)',
+                    borderRadius: 20,
+                    boxShadow: '0 24px 60px rgba(60, 100, 160, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                    position: 'relative',
+                    zIndex: 1,
                 }}
             >
                 {showRedirectAlert && (
@@ -327,15 +234,34 @@ const Login: React.FC = () => {
                         style={{marginBottom: 16}}
                     />
                 )}
-                <div style={{textAlign: 'center', marginBottom: 24}}>
+                <div style={{textAlign: 'center', marginBottom: 28}}>
+                    <img
+                        src={logo}
+                        alt="Easy Agent"
+                        style={{
+                            width: 60,
+                            height: 60,
+                            margin: '0 auto 16px',
+                            display: 'block',
+                            objectFit: 'contain',
+                            filter: 'drop-shadow(0 8px 18px rgba(24, 144, 255, 0.28))',
+                        }}
+                    />
                     <div style={{
-                        fontSize: 28,
-                        fontWeight: 700,
-                        color: '#2c3e50',
-                        marginBottom: 8,
-                        letterSpacing: '2px',
+                        fontSize: 26,
+                        fontWeight: 600,
+                        color: '#1f2d3d',
+                        letterSpacing: '0.5px',
                     }}>
                         Easy Agent
+                    </div>
+                    <div style={{
+                        fontSize: 13,
+                        color: 'rgba(60, 90, 130, 0.6)',
+                        marginTop: 6,
+                        letterSpacing: '1px',
+                    }}>
+                        智能体平台 · AI Agent Platform
                     </div>
                 </div>
                 <Form
@@ -366,19 +292,24 @@ const Login: React.FC = () => {
                         />
                     </Form.Item>
 
-                    <Form.Item>
+                    <Form.Item className="login-submit-item">
                         <Button
                             htmlType="submit"
                             loading={loading}
                             block
                             size="large"
                             style={{
-                                background: '#4c76ad',
-                                borderColor: '#8c8c8c',
+                                height: 44,
+                                border: 'none',
+                                borderRadius: 12,
+                                fontWeight: 600,
+                                letterSpacing: '2px',
+                                background: 'linear-gradient(135deg, #1890ff 0%, #5c74a8 100%)',
                                 color: '#fff',
+                                boxShadow: '0 8px 24px rgba(24, 144, 255, 0.35)',
                             }}
                         >
-                            登录
+                            登 录
                         </Button>
                     </Form.Item>
 
@@ -386,6 +317,7 @@ const Login: React.FC = () => {
                         <Button
                             type="link"
                             onClick={() => navigate('/register')}
+                            style={{color: 'rgba(60, 90, 130, 0.75)'}}
                         >
                             还没有账号？立即注册
                         </Button>
