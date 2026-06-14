@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
+ * https://www.toutiao.com/article/7650086007395598882/?wid=1781367898096
  * 基于 Spring AI ChatClient 的 Tool 模式执行器。
  * <p>
  * 使用 ChatClient 的 Fluent API + Advisor 替代直接操作 ChatModel + CommonLlmChatOptions。
@@ -87,7 +88,6 @@ public class ToolAgentExecutor extends BaseAgent {
             if (agentMemoryConfig.isRoundLimitEnabled() && agentMemoryConfig.getRoundLimit() > 0) {
                 advisors.add(MessageChatMemoryAdvisor
                         .builder(SpringContextUtil.getBean(ChatMemory.class))
-                        .conversationId(agentContext.getSessionId())
                         .build());
             }
 
@@ -106,6 +106,9 @@ public class ToolAgentExecutor extends BaseAgent {
                 .defaultSystem(agentContext.getPrompt() != null ? agentContext.getPrompt() : "")
                 .defaultToolCallbacks(toolCallbacks)
                 .defaultAdvisors(advisors);
+        if (agentContext.getSessionId() != null) {
+            builder.defaultAdvisors(a -> a.param(ChatMemory.CONVERSATION_ID, agentContext.getSessionId()));
+        }
         this.chatClient = builder.build();
     }
 

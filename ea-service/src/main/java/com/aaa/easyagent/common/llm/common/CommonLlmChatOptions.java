@@ -9,10 +9,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.springframework.ai.model.ModelOptionsUtils;
+import com.aaa.easyagent.common.util.JacksonUtil;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
-import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
@@ -104,7 +103,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
      * An object specifying the format that the model must output. Setting to { "type":
      * "json_object" } enables JSON mode, which guarantees the message the model generates is valid JSON.
      */
-    private @JsonProperty("response_format") ResponseFormat responseFormat;
+    private @JsonProperty("response_format") Object responseFormat;
     /**
      * Options for streaming response. Included in the API only if streaming-mode completion is requested.
      */
@@ -136,7 +135,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
      * A list of tools the model may call. Currently, only functions are supported as a tool. Use this to
      * provide a list of functions the model may generate JSON inputs for.
      */
-    private @JsonProperty("tools") List<OpenAiApi.FunctionTool> tools;
+    private @JsonProperty("tools") List<CommonLlmApi.FunctionTool> tools;
     /**
      * Controls which (if any) function is called by the model. none means the model will not call a
      * function and instead generates a message. auto means the model can pick between generating a message or calling a
@@ -338,11 +337,11 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         this.presencePenalty = presencePenalty;
     }
 
-    public ResponseFormat getResponseFormat() {
+    public Object getResponseFormat() {
         return this.responseFormat;
     }
 
-    public void setResponseFormat(ResponseFormat responseFormat) {
+    public void setResponseFormat(Object responseFormat) {
         this.responseFormat = responseFormat;
     }
 
@@ -399,11 +398,11 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         this.topP = topP;
     }
 
-    public List<OpenAiApi.FunctionTool> getTools() {
+    public List<CommonLlmApi.FunctionTool> getTools() {
         return this.tools;
     }
 
-    public void setTools(List<OpenAiApi.FunctionTool> tools) {
+    public void setTools(List<CommonLlmApi.FunctionTool> tools) {
         this.tools = tools;
     }
 
@@ -456,13 +455,11 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         this.toolCallbacks = toolCallbacks;
     }
 
-    @Override
     @JsonIgnore
     public Set<String> getToolNames() {
         return this.toolNames;
     }
 
-    @Override
     @JsonIgnore
     public void setToolNames(Set<String> toolNames) {
         Assert.notNull(toolNames, "toolNames cannot be null");
@@ -471,9 +468,8 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         this.toolNames = toolNames;
     }
 
-    @Override
     public Boolean getInternalToolExecutionEnabled() {
-        return null;
+        return this.internalToolExecutionEnabled;
     }
 
     @Nullable
@@ -482,7 +478,6 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         return internalToolExecutionEnabled;
     }
 
-    @Override
     @JsonIgnore
     public void setInternalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
         this.internalToolExecutionEnabled = internalToolExecutionEnabled;
@@ -532,7 +527,6 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         return this.toolContext;
     }
 
-    @Override
     @JsonIgnore
     public void setToolContext(Map<String, Object> toolContext) {
         this.toolContext = toolContext;
@@ -562,9 +556,13 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         this.reasoningEffort = reasoningEffort;
     }
 
-    @Override
     public CommonLlmChatOptions copy() {
         return CommonLlmChatOptions.fromOptions(this);
+    }
+
+    @Override
+    public CommonLlmChatOptions.Builder mutate() {
+        return new CommonLlmChatOptions.Builder(this.copy());
     }
 
     @Override
@@ -611,10 +609,10 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
 
     @Override
     public String toString() {
-        return "CommonLlmChatOptions: " + ModelOptionsUtils.toJsonString(this);
+        return "CommonLlmChatOptions: " + JacksonUtil.beanToStr(this);
     }
 
-    public static class Builder {
+    public static class Builder implements ToolCallingChatOptions.Builder<Builder> {
 
         protected CommonLlmChatOptions options;
 
@@ -628,11 +626,6 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
 
         public CommonLlmChatOptions.Builder model(String model) {
             this.options.model = model;
-            return this;
-        }
-
-        public CommonLlmChatOptions.Builder model(OpenAiApi.ChatModel openAiChatModel) {
-            this.options.model = openAiChatModel.getName();
             return this;
         }
 
@@ -686,7 +679,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
             return this;
         }
 
-        public CommonLlmChatOptions.Builder responseFormat(ResponseFormat responseFormat) {
+        public CommonLlmChatOptions.Builder responseFormat(Object responseFormat) {
             this.options.responseFormat = responseFormat;
             return this;
         }
@@ -716,7 +709,7 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
             return this;
         }
 
-        public CommonLlmChatOptions.Builder tools(List<OpenAiApi.FunctionTool> tools) {
+        public CommonLlmChatOptions.Builder tools(List<CommonLlmApi.FunctionTool> tools) {
             this.options.tools = tools;
             return this;
         }
@@ -814,6 +807,33 @@ public class CommonLlmChatOptions implements ToolCallingChatOptions {
         public CommonLlmChatOptions.Builder reasoningEffort(String reasoningEffort) {
             this.options.reasoningEffort = reasoningEffort;
             return this;
+        }
+
+        public CommonLlmChatOptions.Builder stopSequences(List<String> stopSequences) {
+            this.options.stop = stopSequences;
+            return this;
+        }
+
+        public CommonLlmChatOptions.Builder topK(Integer topK) {
+            return this;
+        }
+
+        public CommonLlmChatOptions.Builder toolContext(String key, Object value) {
+            if (this.options.toolContext == null) {
+                this.options.toolContext = new HashMap<>();
+            }
+            this.options.toolContext.put(key, value);
+            return this;
+        }
+
+        @Override
+        public CommonLlmChatOptions.Builder combineWith(ChatOptions.Builder<?> other) {
+            return this;
+        }
+
+        @Override
+        public CommonLlmChatOptions.Builder clone() {
+            return new CommonLlmChatOptions.Builder(this.options.copy());
         }
 
         public CommonLlmChatOptions build() {

@@ -13,8 +13,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.model.ModelOptionsUtils;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -547,7 +545,7 @@ public class CommonLlmApi {
              * @param jsonSchema  tool function schema as json.
              */
             public Function(String description, String name, String jsonSchema) {
-                this(description, name, ModelOptionsUtils.jsonToMap(jsonSchema), null);
+                this(description, name, JacksonUtil.jsonToMap(jsonSchema), null);
             }
 
 
@@ -558,7 +556,7 @@ public class CommonLlmApi {
             public void setJsonSchema(String jsonSchema) {
                 this.jsonSchema = jsonSchema;
                 if (jsonSchema != null) {
-                    this.parameters = ModelOptionsUtils.jsonToMap(jsonSchema);
+                    this.parameters = JacksonUtil.jsonToMap(jsonSchema);
                 }
             }
 
@@ -636,19 +634,19 @@ public class CommonLlmApi {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static record WebSearchOptions(
-            OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize searchContextSize, OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation userLocation) {
-        public WebSearchOptions(@JsonProperty("search_context_size") OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize searchContextSize, @JsonProperty("user_location") OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation userLocation) {
+            SearchContextSize searchContextSize, UserLocation userLocation) {
+        public WebSearchOptions(@JsonProperty("search_context_size") SearchContextSize searchContextSize, @JsonProperty("user_location") UserLocation userLocation) {
             this.searchContextSize = searchContextSize;
             this.userLocation = userLocation;
         }
 
         @JsonProperty("search_context_size")
-        public OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize searchContextSize() {
+        public SearchContextSize searchContextSize() {
             return this.searchContextSize;
         }
 
         @JsonProperty("user_location")
-        public OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation userLocation() {
+        public UserLocation userLocation() {
             return this.userLocation;
         }
 
@@ -662,8 +660,8 @@ public class CommonLlmApi {
         }
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
-        public static record UserLocation(String type, OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation.Approximate approximate) {
-            public UserLocation(@JsonProperty("type") String type, @JsonProperty("approximate") OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation.Approximate approximate) {
+        public static record UserLocation(String type, UserLocation.Approximate approximate) {
+            public UserLocation(@JsonProperty("type") String type, @JsonProperty("approximate") UserLocation.Approximate approximate) {
                 this.type = type;
                 this.approximate = approximate;
             }
@@ -674,7 +672,7 @@ public class CommonLlmApi {
             }
 
             @JsonProperty("approximate")
-            public OpenAiApi.ChatCompletionRequest.WebSearchOptions.UserLocation.Approximate approximate() {
+            public UserLocation.Approximate approximate() {
                 return this.approximate;
             }
 
@@ -720,8 +718,8 @@ public class CommonLlmApi {
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record LogProbs(
-            @JsonProperty("content") List<OpenAiApi.LogProbs.Content> content,
-            @JsonProperty("refusal") List<OpenAiApi.LogProbs.Content> refusal) {
+            @JsonProperty("content") List<Content> content,
+            @JsonProperty("refusal") List<Content> refusal) {
 
         /**
          * Message content tokens with log probability information.
@@ -742,7 +740,7 @@ public class CommonLlmApi {
                               @JsonProperty("token") String token,
                               @JsonProperty("logprob") Float logprob,
                               @JsonProperty("bytes") List<Integer> probBytes,
-                              @JsonProperty("top_logprobs") List<OpenAiApi.LogProbs.Content.TopLogProbs> topLogprobs) { // @formatter:on
+                              @JsonProperty("top_logprobs") List<Content.TopLogProbs> topLogprobs) { // @formatter:on
 
             /**
              * The most likely tokens and their log probability, at this token position.

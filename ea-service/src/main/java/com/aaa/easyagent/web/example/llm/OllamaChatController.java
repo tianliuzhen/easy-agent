@@ -105,7 +105,11 @@ public class OllamaChatController {
         ChatResponse response = this.chatModel.call(
                 new Prompt(userMessage,
                         OpenAiChatOptions.builder()
-                                .toolNames("currentWeather")
+                                .toolCallbacks(FunctionToolCallback
+                                        .builder("currentWeather", new com.aaa.easyagent.biz.tool.example.MockWeatherService())
+                                        .description("Get the weather in location")
+                                        .inputType(com.aaa.easyagent.biz.tool.example.MockWeatherService.Request.class)
+                                        .build())
                                 .build()
                 )
         ); // Enable the function

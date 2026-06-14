@@ -1,6 +1,5 @@
 package com.aaa.easyagent.common.llm.common;
 
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
@@ -27,7 +26,7 @@ public class CommonLlmApiHelper {
         if (choice == null || choice.getDelta() == null) {
             return false;
         }
-        return OpenAiApi.ChatCompletionFinishReason.TOOL_CALLS.name().equalsIgnoreCase(choice.getFinishReason());
+        return "tool_calls".equalsIgnoreCase(choice.getFinishReason());
     }
 
     public static boolean isStreamingToolFunctionCall(CommonLlmApi.ChatCompletion chatCompletion) {

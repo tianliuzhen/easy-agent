@@ -31,7 +31,6 @@ import org.springframework.ai.content.Media;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.model.tool.ToolExecutionResult;
-import org.springframework.ai.openai.api.common.OpenAiApiConstants;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.Assert;
@@ -69,6 +68,14 @@ public class CommonLlmChatModel implements ChatModel {
         this.toolCallingManager = toolCallingManager;
     }
 
+    private static boolean isInternalToolExecutionEnabled(org.springframework.ai.chat.prompt.ChatOptions options) {
+        if (options instanceof CommonLlmChatOptions commonOptions) {
+            Boolean enabled = commonOptions.getInternalToolExecutionEnabled();
+            return enabled == null || enabled;
+        }
+        return true;
+    }
+
     @Override
     public ChatResponse call(Prompt prompt) {
         return internalCall(prompt, null);
@@ -104,7 +111,7 @@ public class CommonLlmChatModel implements ChatModel {
         ChatResponse response = new ChatResponse(generations, from(chatCompletion, accumulatedUsage));
 
         // 4. functionCall递归调用
-        if (prompt.getOptions() != null && ToolCallingChatOptions.isInternalToolExecutionEnabled(prompt.getOptions()) && response.hasToolCalls()) {
+        if (prompt.getOptions() != null && isInternalToolExecutionEnabled(prompt.getOptions()) && response.hasToolCalls()) {
             var toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, response);
             if (toolExecutionResult.returnDirect()) {
                 // Return tool execution result directly to the client.
@@ -176,7 +183,7 @@ public class CommonLlmChatModel implements ChatModel {
 
             final ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
                     .prompt(prompt)
-                    .provider(OpenAiApiConstants.PROVIDER_NAME)
+                    .provider("openai")
                     .build();
 
             Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION
@@ -210,7 +217,7 @@ public class CommonLlmChatModel implements ChatModel {
             // @formatter:off
             Flux<ChatResponse> flux = chatResponse.flatMap(response -> {
                         if (prompt.getOptions() != null &&
-                                ToolCallingChatOptions.isInternalToolExecutionEnabled(prompt.getOptions()) &&
+                                isInternalToolExecutionEnabled(prompt.getOptions()) &&
                                 response.hasToolCalls()) {
 
                             String s = JacksonUtil.beanToStr(response.getResults());

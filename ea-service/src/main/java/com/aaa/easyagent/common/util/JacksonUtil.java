@@ -3,6 +3,9 @@ package com.aaa.easyagent.common.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * @author liuzhen.tian
  * @version 1.0 JacksonUtil.java  2025/4/19 22:14
@@ -43,6 +46,18 @@ public class JacksonUtil {
             return objectMapper.readValue(json, clazz);
         } catch (JsonProcessingException e) {
             throw e;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> jsonToMap(String json) {
+        if (json == null || json.isBlank()) {
+            return new HashMap<>();
+        }
+        try {
+            return objectMapper.readValue(json, Map.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Failed to parse JSON to Map: " + json, e);
         }
     }
 
