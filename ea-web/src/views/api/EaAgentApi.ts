@@ -68,4 +68,30 @@ export const eaAgentApi = {
     });
     return response.json();
   },
+
+  // 查询 Agent 的浮选提示词
+  listQuickPrompt: async (agentId: number) => {
+    const response = await fetch(`${API_BASE_URL}/eaAgent/ai/listQuickPrompt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ agentId }),
+    });
+    return response.json();
+  },
+
+  // 全量保存 Agent 的浮选提示词
+  saveQuickPrompt: async (req: { agentId: number; prompts: any[] }) => {
+    const response = await fetch(`${API_BASE_URL}/eaAgent/ai/saveQuickPrompt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(req),
+    });
+    return response.json();
+  },
 };

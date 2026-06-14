@@ -293,6 +293,7 @@ export interface AgentDetail {
     createdAt: string;
     updatedAt: string;
     modelIcon?: string;
+    welcomeMessage?: string;
 }
 
 /**

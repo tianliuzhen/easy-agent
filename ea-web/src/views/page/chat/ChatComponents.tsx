@@ -10,6 +10,9 @@ import {
     EditOutlined,
     PictureOutlined,
     CloseOutlined,
+    BulbOutlined,
+    DownOutlined,
+    EnterOutlined,
 } from '@ant-design/icons';
 import type {ThoughtChainProps} from '@ant-design/x';
 import {ThoughtChain, Think} from '@ant-design/x';
@@ -36,6 +39,13 @@ export interface ChatMessage {
     timestamp: number;
     /** 图片数据（Base64 Data URL），仅用户消息可能有 */
     imageBase64?: string;
+}
+
+/** 浮选提示词分组：一个按钮 + 该按钮下的推荐问题 */
+export interface QuickPromptGroup {
+    id?: number;
+    label: string;
+    questions: string[];
 }
 
 // ==================== 类型配置 ====================
@@ -564,6 +574,10 @@ export interface ChatInputAreaProps {
     selectedImage?: string;
     /** 图片变化回调 */
     onImageChange?: (imageBase64: string | undefined) => void;
+    /** 浮选提示词分组 */
+    quickPrompts?: QuickPromptGroup[];
+    /** 点击推荐问题回调（填充到输入框） */
+    onQuickQuestion?: (question: string) => void;
 }
 
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
@@ -575,11 +589,14 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                                                                 placeholder = "输入您的问题…",
                                                                 selectedImage,
                                                                 onImageChange,
+                                                                quickPrompts,
+                                                                onQuickQuestion,
                                                             }) => {
     const {TextArea} = Input;
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [previewUrl, setPreviewUrl] = useState<string | undefined>(selectedImage);
     const [focused, setFocused] = useState(false);
+    const [activeGroup, setActiveGroup] = useState<number | null>(null);
 
     // 同步外部 selectedImage 变化
     useEffect(() => {
@@ -652,6 +669,150 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                     if (e.target) e.target.value = '';
                 }}
             />
+
+            {/* 浮选提示词 */}
+            {quickPrompts && quickPrompts.length > 0 && (
+                <div style={{maxWidth: '860px', margin: '0 auto 10px'}}>
+                    <style>{`
+                        .ea-quick-cat {
+                            display: inline-flex;
+                            align-items: center;
+                            padding: 5px 12px;
+                            border-radius: 16px;
+                            border: 1px solid #e1e7f5;
+                            background: #fff;
+                            color: #5b6478;
+                            font-size: 13px;
+                            font-weight: 500;
+                            line-height: 1.5;
+                            cursor: pointer;
+                            transition: all 0.18s ease;
+                        }
+                        .ea-quick-cat:hover {
+                            border-color: #5c74a8;
+                            color: #3f568c;
+                            box-shadow: 0 3px 10px rgba(92, 116, 168, 0.16);
+                            transform: translateY(-1px);
+                        }
+                        .ea-quick-cat--active {
+                            border-color: transparent;
+                            color: #fff;
+                            background: linear-gradient(135deg, #5c74a8 0%, #7d8fc0 100%);
+                            box-shadow: 0 4px 12px rgba(92, 116, 168, 0.32);
+                        }
+                        .ea-quick-cat--active:hover {
+                            color: #fff;
+                            transform: translateY(-1px);
+                        }
+                        .ea-quick-cat__caret {
+                            opacity: 0.55;
+                            transition: transform 0.18s ease;
+                        }
+                        .ea-quick-question {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 7px;
+                            max-width: 100%;
+                            padding: 6px 14px;
+                            border-radius: 16px;
+                            border: 1px solid #d4ddf2;
+                            background: #f4f7fd;
+                            color: #4b5563;
+                            font-size: 12px;
+                            line-height: 1.5;
+                            cursor: pointer;
+                            text-align: left;
+                            transition: all 0.18s ease;
+                        }
+                        .ea-quick-question:hover {
+                            border-color: #5c74a8;
+                            background: #eaf0fb;
+                            color: #3f568c;
+                            box-shadow: 0 3px 10px rgba(92, 116, 168, 0.18);
+                            transform: translateY(-1px);
+                        }
+                        .ea-quick-question__text {
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                        }
+                        .ea-quick-question__icon {
+                            font-size: 11px;
+                            color: #9aa6c2;
+                            flex-shrink: 0;
+                            transition: color 0.18s ease;
+                        }
+                        .ea-quick-question:hover .ea-quick-question__icon {
+                            color: #5c74a8;
+                        }
+                    `}</style>
+                    {/* 分类按钮行 */}
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px'}}>
+                        {quickPrompts.map((group, gi) => (
+                            <button
+                                key={group.id ?? gi}
+                                type="button"
+                                className={`ea-quick-cat${activeGroup === gi ? ' ea-quick-cat--active' : ''}`}
+                                onClick={() => setActiveGroup(activeGroup === gi ? null : gi)}
+                            >
+                                {group.label}
+                                <DownOutlined
+                                    className="ea-quick-cat__caret"
+                                    style={{
+                                        fontSize: '9px',
+                                        marginLeft: '5px',
+                                        transform: activeGroup === gi ? 'rotate(180deg)' : 'none',
+                                    }}
+                                />
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* 选中分类下的推荐问题 */}
+                    {activeGroup !== null && quickPrompts[activeGroup] && (
+                        <div style={{
+                            marginTop: '8px',
+                            padding: '12px 14px',
+                            background: '#fff',
+                            borderRadius: '14px',
+                            border: '1px solid #eef0f5',
+                            boxShadow: '0 2px 10px rgba(17, 24, 39, 0.05)',
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                marginBottom: '10px',
+                                fontSize: '12px',
+                                color: '#8a93a6',
+                                fontWeight: 500,
+                            }}>
+                                <BulbOutlined style={{color: '#5c74a8'}}/>
+                                <span>试试这样问 · {quickPrompts[activeGroup].label}</span>
+                            </div>
+
+                            {quickPrompts[activeGroup].questions.length === 0 ? (
+                                <Text type="secondary" style={{fontSize: '12px'}}>暂无推荐问题</Text>
+                            ) : (
+                                <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px'}}>
+                                    {quickPrompts[activeGroup].questions.map((q, qi) => (
+                                        <button
+                                            key={qi}
+                                            type="button"
+                                            className="ea-quick-question"
+                                            onClick={() => onQuickQuestion?.(q)}
+                                            title={`点击填入：${q}`}
+                                        >
+                                            <span className="ea-quick-question__text">{q}</span>
+                                            <EnterOutlined className="ea-quick-question__icon"/>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* 统一输入容器 */}
             <div style={{
@@ -799,13 +960,20 @@ export interface ChatEmptyStateProps {
     agentName?: string;
     title?: string;
     subtitle?: string;
+    welcomeMessage?: string;
+    avatar?: string;
 }
 
 export const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({
                                                                   agentName = 'EasyAgent',
                                                                   title = '开始新的对话',
                                                                   subtitle = '在下方输入您的消息，智能助手将为您解答',
-                                                              }) => (
+                                                                  welcomeMessage,
+                                                                  avatar,
+                                                              }) => {
+    const isImageAvatar = !!avatar && /^(https?:\/\/|data:image\/|\/)/.test(avatar);
+    const isEmojiAvatar = !!avatar && !isImageAvatar;
+    return (
     <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -818,19 +986,34 @@ export const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({
             width: '80px',
             height: '80px',
             borderRadius: '20px',
-            background: 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)',
+            background: isImageAvatar ? 'transparent' : 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: '24px',
             boxShadow: '0 8px 24px rgba(92, 116, 168, 0.3)',
+            overflow: 'hidden',
         }}>
-            <RobotOutlined style={{color: 'white', fontSize: '32px'}}/>
+            {isImageAvatar
+                ? <img src={avatar} alt={agentName} style={{width: '100%', height: '100%', objectFit: 'cover'}}/>
+                : isEmojiAvatar
+                    ? <span style={{fontSize: '40px', lineHeight: 1}}>{avatar}</span>
+                    : <RobotOutlined style={{color: 'white', fontSize: '32px'}}/>}
         </div>
         <div style={{fontSize: '18px', marginBottom: '8px', color: '#333'}}>{title}</div>
-        <div style={{fontSize: '14px', color: '#666'}}>{subtitle}</div>
+        <div style={{
+            fontSize: '14px',
+            color: '#666',
+            maxWidth: '520px',
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            textAlign: 'center',
+        }}>
+            {welcomeMessage || subtitle}
+        </div>
     </div>
-);
+    );
+};
 
 // ==================== 完整的右侧聊天面板 ====================
 export interface ChatRightPanelProps {
@@ -848,10 +1031,18 @@ export interface ChatRightPanelProps {
     error?: string | null;
     emptyTitle?: string;
     emptySubtitle?: string;
+    /** 欢迎语：对话开始时展示给用户的开场白 */
+    welcomeMessage?: string;
+    /** Agent 头像 */
+    avatar?: string;
     /** 选中的图片（Base64 Data URL） */
     selectedImage?: string;
     /** 图片变化回调 */
     onImageChange?: (imageBase64: string | undefined) => void;
+    /** 浮选提示词分组 */
+    quickPrompts?: QuickPromptGroup[];
+    /** 点击推荐问题回调（填充到输入框） */
+    onQuickQuestion?: (question: string) => void;
 }
 
 export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
@@ -869,8 +1060,12 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                                                                   error,
                                                                   emptyTitle = '开始新的对话',
                                                                   emptySubtitle = '在下方输入您的消息，智能助手将为您解答',
+                                                                  welcomeMessage,
+                                                                  avatar,
                                                                   selectedImage,
                                                                   onImageChange,
+                                                                  quickPrompts,
+                                                                  onQuickQuestion,
                                                               }) => {
     const chatMessagesEndRef = useRef<HTMLDivElement>(null);
     const thinkingContentRef = useRef<HTMLDivElement>(null);
@@ -930,7 +1125,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                 )}
 
                 {messages.length === 0 ? (
-                    <ChatEmptyState agentName={agentName} title={emptyTitle} subtitle={emptySubtitle}/>
+                    <ChatEmptyState agentName={agentName} title={emptyTitle} subtitle={emptySubtitle} welcomeMessage={welcomeMessage} avatar={avatar}/>
                 ) : (
                     <>
                         {messages.map((msg) => (
@@ -981,6 +1176,8 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                 disabled={isThinking}
                 selectedImage={selectedImage}
                 onImageChange={onImageChange}
+                quickPrompts={quickPrompts}
+                onQuickQuestion={onQuickQuestion}
             />
         </div>
     );

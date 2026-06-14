@@ -2,7 +2,6 @@ import React, {useState, useEffect, useImperativeHandle, forwardRef, useRef} fro
 import {Card, Typography, Divider, Switch, message, InputNumber, Tooltip} from 'antd';
 import {SettingOutlined, ThunderboltOutlined, QuestionCircleOutlined} from '@ant-design/icons';
 import {eaAgentApi} from '../../../api/EaAgentApi';
-import {useAgentConfig} from '../AgentConfigContext';
 
 const {Text} = Typography;
 

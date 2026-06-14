@@ -4,8 +4,10 @@ import com.aaa.easyagent.biz.agent.context.SseHelper;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.EaAgentReq;
+import com.aaa.easyagent.core.domain.request.QuickPromptReq;
 import com.aaa.easyagent.core.domain.request.StreamChatPostRequest;
 import com.aaa.easyagent.core.service.AgentManagerService;
+import com.aaa.easyagent.core.service.QuickPromptService;
 import com.aaa.easyagent.web.example.sse.SseEmitterUTF8;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ public class EaAgentController {
     private final AgentManagerService agentManagerService;
     private final AgentChatService agentChatService;
     private final ModelPlatformController modelPlatformController;
+    private final QuickPromptService quickPromptService;
 
     @PostMapping("/ai/saveAgent")
     public BaseResult saveAgent(@RequestBody EaAgentReq req) {
@@ -48,6 +51,23 @@ public class EaAgentController {
     @PostMapping("/ai/delAgent")
     public BaseResult delAgent(@RequestBody EaAgentReq req) {
         return BaseResult.buildSuc(agentManagerService.delAgent(req));
+    }
+
+    /**
+     * 查询指定 Agent 的浮选提示词
+     */
+    @PostMapping("/ai/listQuickPrompt")
+    public BaseResult listQuickPrompt(@RequestBody QuickPromptReq req) {
+        return BaseResult.buildSuc(quickPromptService.listByAgentId(req.getAgentId()));
+    }
+
+    /**
+     * 全量替换保存指定 Agent 的浮选提示词
+     */
+    @PostMapping("/ai/saveQuickPrompt")
+    public BaseResult saveQuickPrompt(@RequestBody QuickPromptReq req) {
+        quickPromptService.save(req);
+        return BaseResult.buildSuc(true);
     }
 
     /**
@@ -92,7 +112,9 @@ public class EaAgentController {
             try {
                 // 在子线程中设置 SecurityContext
                 org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
-                agentChatService.streamChatWith(sessionId, msg, agentId, sseEmitter, null);
+                StreamChatPostRequest req = new StreamChatPostRequest()
+                        .setSessionId(sessionId).setMsg(msg).setAgentId(agentId);
+                agentChatService.streamChatWith(req, sseEmitter);
             } catch (Throwable e) {
                 log.error("streamChatWith:{}", e.getMessage(), e);
             } finally {
@@ -111,8 +133,25 @@ public class EaAgentController {
      * @return SSE Emitter
      */
     @PostMapping("/ai/chat")
-    public SseEmitter chat(@RequestBody StreamChatPostRequest request) {
-        // 默认设置 5 分钟
+    public Object chat(@RequestBody StreamChatPostRequest request) {
+        log.info("chat POST: sessionId={}, msg={}, agentId={}, streamEnabled={}, imageBase64={}",
+                request.getSessionId(), request.getMsg(), request.getAgentId(), request.getStreamEnabled(),
+                request.getImageBase64() != null ? "长度=" + request.getImageBase64().length() : "null");
+
+        boolean stream = request.getStreamEnabled() == null || request.getStreamEnabled();
+
+        // 同步模式：在请求线程内直接执行（SecurityContext 已就位），返回 BaseResult JSON
+        if (!stream) {
+            try {
+                String result = agentChatService.streamChatWith(request, null);
+                return BaseResult.buildSuc(result);
+            } catch (Throwable e) {
+                log.error("chat sync error:{}", e.getMessage(), e);
+                return BaseResult.buildFail("系统异常：" + e.getMessage());
+            }
+        }
+
+        // 流式模式：SSE，默认超时 5 分钟
         SseEmitter sseEmitter = new SseEmitterUTF8(1000 * 60L * 5);
 
         // 保存当前的 SecurityContext
@@ -123,10 +162,7 @@ public class EaAgentController {
             try {
                 // 在子线程中设置 SecurityContext
                 org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
-                log.info("chat POST: sessionId={}, msg={}, agentId={}, imageBase64={}",
-                        request.getSessionId(), request.getMsg(), request.getAgentId(),
-                        request.getImageBase64() != null ? "长度=" + request.getImageBase64().length() : "null");
-                agentChatService.streamChatWith(request.getSessionId(), request.getMsg(), request.getAgentId(), sseEmitter, request.getImageBase64());
+                agentChatService.streamChatWith(request, sseEmitter);
             } catch (Throwable e) {
                 log.error("streamChatWithPost:{}", e.getMessage(), e);
                 SseHelper.sendError(sseEmitter, "系统异常：" + e.getMessage());

@@ -65,6 +65,7 @@ public class ToolMangerServiceImpl implements ToolMangerService {
     @Override
     public int saveTool(EaToolConfigReq eaToolConfigReq) {
         if (eaToolConfigReq.getId() == null) {
+            eaToolConfigReq.setUserId(Long.parseLong(UserContextHolder.getUserId()));
             return eaToolConfigDAO.insertSelective(eaToolConfigReq);
         }
 

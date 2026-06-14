@@ -1,6 +1,6 @@
 // src/pages/EaAgentPage.tsx
 import React, {useEffect, useState, useRef} from 'react';
-import {Button, Table, Modal, Form, Input, Space, Popconfirm, Select, Card, List, Row, Col, Divider, Tag, AutoComplete} from 'antd';
+import {Button, Table, Modal, Form, Input, Space, Select, Card, List, Row, Col, Divider, Tag, AutoComplete} from 'antd';
 import {App} from 'antd';
 import {Link, useNavigate} from 'react-router-dom';
 
@@ -49,7 +49,7 @@ const styles = `
 `;
 
 const EaAgentPage: React.FC = () => {
-    const {message, modal} = App.useApp();
+    const {message} = App.useApp();
     const navigate = useNavigate();
 
     const [data, setData] = useState<any[]>([]);
@@ -65,6 +65,10 @@ const EaAgentPage: React.FC = () => {
     // 添加模型版本映射
     const [modelVersions, setModelVersions] = useState<Map<string, string[]>>(new Map());
     const [searchText, setSearchText] = useState('');
+    // 删除确认：需手动输入 AgentName 防止误删
+    const [deleteTarget, setDeleteTarget] = useState<any>(null);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [deleting, setDeleting] = useState(false);
     // 添加 modelConfigFields 状态用于管理字段数据
     const [modelConfigFields, setModelConfigFields] = useState<any[]>([
         {fieldName: 'apiKey', fieldValue: '', fieldLabel: 'API密钥'},
@@ -369,21 +373,29 @@ const EaAgentPage: React.FC = () => {
         window.open(`/pageTool/AgentConfig?agentId=${record.id}`, '_blank');
     };
 
-    // 删除记录
-    const handleDelete = async (record: any) => {
-        modal.confirm({
-            title: '确认删除',
-            content: '确定要删除这条记录吗？',
-            onOk: async () => {
-                try {
-                    await eaAgentApi.delAgent(record);
-                    message.success('删除成功');
-                    loadData();
-                } catch (error) {
-                    message.error('删除失败');
-                }
-            },
-        });
+    // 打开删除确认弹窗
+    const handleDelete = (record: any) => {
+        setDeleteTarget(record);
+        setDeleteConfirmText('');
+    };
+
+    // 确认删除：需输入的 AgentName 与目标一致
+    const handleConfirmDelete = async () => {
+        if (!deleteTarget || deleteConfirmText !== deleteTarget.agentName) {
+            return;
+        }
+        setDeleting(true);
+        try {
+            await eaAgentApi.delAgent(deleteTarget);
+            message.success('删除成功');
+            setDeleteTarget(null);
+            setDeleteConfirmText('');
+            loadData();
+        } catch (error) {
+            message.error('删除失败');
+        } finally {
+            setDeleting(false);
+        }
     };
 
     // 处理模型配置字段的变更
@@ -567,26 +579,18 @@ const EaAgentPage: React.FC = () => {
                                         >
                                             <SettingOutlined style={{fontSize: '16px'}}/>
                                         </Button>
-                                        <Popconfirm
-                                            title="确认删除"
-                                            description="确定要删除这条记录吗？"
-                                            onConfirm={(e) => {
-                                                e?.stopPropagation(); // 阻止事件冒泡
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            title="删除"
+                                            style={{color: '#ff4d4f', padding: '2px 4px'}}
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // 防止点击删除按钮也触发卡片跳转
                                                 handleDelete(item);
                                             }}
-                                            okText="确定"
-                                            cancelText="取消"
                                         >
-                                            <Button
-                                                type="text"
-                                                size="small"
-                                                title="删除"
-                                                style={{color: '#ff4d4f', padding: '2px 4px'}}
-                                                onClick={(e) => e.stopPropagation()} // 防止点击删除按钮也触发卡片跳转
-                                            >
-                                                <DeleteOutlined style={{fontSize: '16px'}}/>
-                                            </Button>
-                                        </Popconfirm>
+                                            <DeleteOutlined style={{fontSize: '16px'}}/>
+                                        </Button>
                                     </Space>
                                 }
                                 style={{
@@ -947,6 +951,38 @@ const EaAgentPage: React.FC = () => {
                             <Input.TextArea placeholder="请输入备注信息" rows={4}/>
                         </Form.Item>
                     </Form>
+                </Modal>
+
+                <Modal
+                    title="确认删除 Agent"
+                    open={!!deleteTarget}
+                    onOk={handleConfirmDelete}
+                    onCancel={() => {
+                        setDeleteTarget(null);
+                        setDeleteConfirmText('');
+                    }}
+                    okText="确定删除"
+                    cancelText="取消"
+                    okButtonProps={{
+                        danger: true,
+                        loading: deleting,
+                        disabled: deleteConfirmText !== deleteTarget?.agentName,
+                    }}
+                    destroyOnClose
+                >
+                    <p style={{marginBottom: 12}}>
+                        删除后不可恢复。请输入 Agent 名称
+                        <strong style={{margin: '0 4px', color: '#ff4d4f'}}>
+                            {deleteTarget?.agentName}
+                        </strong>
+                        以确认删除：
+                    </p>
+                    <Input
+                        placeholder="请输入 Agent 名称确认"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        onPressEnter={handleConfirmDelete}
+                    />
                 </Modal>
             </div>
         </>

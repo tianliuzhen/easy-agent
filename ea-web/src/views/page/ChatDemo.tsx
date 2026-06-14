@@ -20,8 +20,10 @@ import {
 import {Button, Input, Spin, Card, Tooltip, message} from 'antd';
 
 import {
-    ChatRightPanel
+    ChatRightPanel,
+    type QuickPromptGroup
 } from './chat/ChatComponents';
+import {eaAgentApi} from '../api/EaAgentApi';
 
 const {TextArea} = Input;
 
@@ -84,6 +86,8 @@ const ChatDemo: React.FC = () => {
     const [conversationId, setConversationId] = useState<number | null>(null);
     // 新增：选中的图片（Base64 Data URL）
     const [selectedImage, setSelectedImage] = useState<string | undefined>(undefined);
+    // 浮选提示词
+    const [quickPrompts, setQuickPrompts] = useState<QuickPromptGroup[]>([]);
 
     useEffect(() => {
         const newUuid = crypto.randomUUID();
@@ -96,7 +100,26 @@ const ChatDemo: React.FC = () => {
     // 监听agentId变化，重新加载Agent详情
     useEffect(() => {
         loadAgentDetail();
+        loadQuickPrompts();
     }, [location.search]);
+
+    // 加载浮选提示词
+    const loadQuickPrompts = async (): Promise<void> => {
+        try {
+            const urlParams = new URLSearchParams(location.search);
+            const agentId = urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : 1;
+            const result = await eaAgentApi.listQuickPrompt(agentId);
+            if (result && Array.isArray(result.data)) {
+                setQuickPrompts(result.data.map((p: any) => ({
+                    id: p.id,
+                    label: p.label || '',
+                    questions: Array.isArray(p.questions) ? p.questions : []
+                })));
+            }
+        } catch (error) {
+            console.error('加载浮选提示词失败:', error);
+        }
+    };
 
     // 加载会话列表
     const loadConversations = async (): Promise<ChatConversation[]> => {
@@ -822,8 +845,12 @@ const ChatDemo: React.FC = () => {
                     modelVersion={null}
                     conversationId={conversationId}
                     error={error}
+                    welcomeMessage={agentDetail?.welcomeMessage}
+                    avatar={agentDetail?.avatar}
                     selectedImage={selectedImage}
                     onImageChange={setSelectedImage}
+                    quickPrompts={quickPrompts}
+                    onQuickQuestion={setInput}
                 />
             </div>
         </div>

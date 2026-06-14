@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { App, Card, Form, Input, Button, Space, Divider, Collapse, Select, Row, Col, Tabs, Alert, Table, ConfigProvider, Descriptions, Typography } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { App, Card, Form, Input, Button, Space, Divider, Collapse, Select, Row, Col, Tabs, Alert, Table, ConfigProvider, Descriptions, Typography, Modal } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ImportOutlined } from '@ant-design/icons';
 import { eaToolApi } from '../../../api/EaToolApi';
 import CommonTemplateConfig from './common/CommonTemplateConfig';
 import DebugResult from './common/DebugResult';
+import { parseCurl } from './common/curlParser';
 
 const { Panel } = Collapse;
 const { TabPane } = Tabs;
@@ -27,6 +28,49 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
   const [paramsList, setParamsList] = useState<{ key: string; value: string; description?: string }[]>([]);
   const [headersList, setHeadersList] = useState<{ key: string; value: string; description?: string }[]>([]);
   const [editingParam, setEditingParam] = useState<{ type: 'param' | 'header'; index: number } | null>(null);
+  const [curlModalOpen, setCurlModalOpen] = useState(false);
+  const [curlText, setCurlText] = useState('');
+
+  // 解析并应用 cURL 命令
+  const applyCurl = () => {
+    if (!curlText.trim()) {
+      app.message.warning('请粘贴 cURL 命令');
+      return;
+    }
+    try {
+      const parsed = parseCurl(curlText);
+      if (!parsed.url) {
+        app.message.error('未解析到请求 URL，请检查 cURL 命令');
+        return;
+      }
+      form.setFieldsValue({
+        method: parsed.method,
+        url: parsed.url,
+        bodyType: parsed.bodyType,
+        rawDataType: parsed.rawDataType,
+        rawData: parsed.rawData,
+        bodyData: parsed.bodyData,
+        authType: parsed.authType,
+        bearerToken: parsed.bearerToken,
+        username: parsed.username,
+        password: parsed.password,
+      });
+      setParamsList(parsed.params);
+      setHeadersList(parsed.headers);
+      // 切换到含内容的 Tab，触发字段挂载并便于用户核对
+      if (parsed.bodyType !== 'none') {
+        setActiveTab('body');
+      } else if (parsed.params.length > 0) {
+        setActiveTab('params');
+      }
+      setCurlModalOpen(false);
+      setCurlText('');
+      app.message.success('cURL 解析完成，已填充配置');
+    } catch (e: any) {
+      console.error('解析 cURL 失败:', e);
+      app.message.error('解析失败：' + (e?.message || '无效的 cURL 命令'));
+    }
+  };
 
   // 添加参数
   const addParam = () => {
@@ -265,30 +309,71 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
     },
   ];
 
+  // 根据 bodyType 构建后端需要的 requestBody
+  // raw(json) -> 解析为对象；raw(其它) -> 原始文本；form 类型 -> 键值文本；none -> undefined
+  const buildRequestBody = (values: any): any => {
+    if (values.bodyType === 'raw') {
+      const raw = values.rawData;
+      if (!raw) return undefined;
+      if (values.rawDataType === 'json') {
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return raw;
+        }
+      }
+      return raw;
+    }
+    if (values.bodyType === 'x-www-form-urlencoded' || values.bodyType === 'form-data') {
+      return values.bodyData || undefined;
+    }
+    return undefined;
+  };
+
+  // 保存：显式校验并提交，校验失败时定位到对应 Tab 并给出提示（避免静默无反应）
+  const handleSave = async () => {
+    try {
+      await form.validateFields();
+    } catch (err: any) {
+      const firstField = err?.errorFields?.[0]?.name?.[0];
+      const tabOf: Record<string, string> = {
+        authType: 'auth', bearerToken: 'auth', username: 'auth', password: 'auth',
+        apiKeyName: 'auth', apiKeyValue: 'auth',
+        bodyType: 'body', rawDataType: 'body', rawData: 'body', bodyData: 'body',
+      };
+      if (firstField && tabOf[firstField]) {
+        setActiveTab(tabOf[firstField]);
+      }
+      app.message.error('请完善必填项后再保存');
+      return;
+    }
+    handleSubmit(null);
+  };
+
   // 表单提交处理
-  const handleSubmit = (values: any) => {
+  const handleSubmit = (_values: any) => {
     if (!agentId) {
       console.error('Agent ID is required to save HTTP config');
       return;
     }
+
+    // 使用 getFieldsValue(true) 获取全部字段值（含未挂载 Tab 内的 Body/Auth 字段）
+    const values = form.getFieldsValue(true);
 
     // 将HTTP请求参数保存到toolValue
     const httpConfig: any = {};
     // 将与HTTP请求相关的所有参数放入httpConfig对象中，paramsList和headersList除外
     Object.keys(values).forEach(key => {
       if (key !== 'toolInstanceName' && key !== 'paramsList' && key !== 'headersList') { // toolInstanceName应该在根级别
-        // 将bodyData字段重命名为requestBody以存储到toolValue中
-        if (key === 'bodyData') {
-          httpConfig.requestBody = values[key];
-        } else {
-          httpConfig[key] = values[key];
-        }
+        httpConfig[key] = values[key];
       }
     });
 
     // 将表格格式的params和headers转换为JSON格式
     httpConfig.requestParams = paramsList;
     httpConfig.headers = headersList;
+    // 按 bodyType 构建 requestBody（后端读取该字段）
+    httpConfig.requestBody = buildRequestBody(values);
 
     // 构建工具配置对象
     const toolConfig = {
@@ -343,7 +428,9 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
   const handleDebug = async () => {
     try {
       setDebugging(true);
-      const values = await form.validateFields();
+      await form.validateFields();
+      // 使用 getFieldsValue(true) 获取全部字段值（含未挂载 Tab 内的 Body/Auth 字段）
+      const values = form.getFieldsValue(true);
 
       // 将HTTP请求参数保存到toolValue
       const httpConfig: any = {};
@@ -357,6 +444,8 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
       // 将表格格式的params和headers转换为JSON格式
       httpConfig.requestParams = paramsList;
       httpConfig.headers = headersList;
+      // 按 bodyType 构建 requestBody（后端读取该字段）
+      httpConfig.requestBody = buildRequestBody(values);
 
       // 构建用于调试的工具配置对象
       const toolConfig = {
@@ -490,10 +579,21 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
         const formValues = { ...httpParams };
         delete formValues.requestParams;
         delete formValues.headers;
-        // 处理requestBody字段
-        if (httpParams.requestBody !== undefined) {
-          formValues.bodyData = httpParams.requestBody;
+        // 回显 requestBody：优先使用已持久化的 rawData/bodyData；
+        // 仅当两者为空时（旧数据），再按 bodyType 从 requestBody 回填，保证向后兼容
+        const hasRawData = formValues.rawData !== undefined && formValues.rawData !== '';
+        const hasBodyData = formValues.bodyData !== undefined && formValues.bodyData !== '';
+        if (!hasRawData && !hasBodyData && httpParams.requestBody !== undefined && httpParams.requestBody !== null) {
+          const bodyStr = typeof httpParams.requestBody === 'string'
+              ? httpParams.requestBody
+              : JSON.stringify(httpParams.requestBody, null, 2);
+          if (httpParams.bodyType === 'raw') {
+            formValues.rawData = bodyStr;
+          } else {
+            formValues.bodyData = bodyStr;
+          }
         }
+        delete formValues.requestBody;
         formValues.toolInstanceName = httpConfig.toolInstanceName || 'HTTP请求';
         formValues.toolInstanceDesc = httpConfig.toolInstanceDesc || 'HTTP请求工具描述';
 
@@ -554,7 +654,38 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
 
 
   return (
-      <Card title="HTTP请求配置" size="small">
+      <Card
+          title="HTTP请求配置"
+          size="small"
+          extra={
+            <Button type="primary" ghost icon={<ImportOutlined />} onClick={() => setCurlModalOpen(true)}>
+              导入 cURL
+            </Button>
+          }
+      >
+          <Modal
+              title="导入 cURL"
+              open={curlModalOpen}
+              onOk={applyCurl}
+              onCancel={() => setCurlModalOpen(false)}
+              okText="解析并填充"
+              cancelText="取消"
+              width={680}
+              destroyOnClose
+          >
+            <Alert
+                type="info"
+                showIcon
+                message="粘贴完整的 cURL 命令，自动解析请求方法、URL、Headers、Query 参数与 Body。"
+                style={{ marginBottom: 12 }}
+            />
+            <Input.TextArea
+                value={curlText}
+                onChange={(e) => setCurlText(e.target.value)}
+                rows={10}
+                placeholder={`例如:\ncurl -X POST 'https://api.example.com/users?page=1' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Authorization: Bearer xxx' \\\n  -d '{"name":"tom"}'`}
+            />
+          </Modal>
           <Tabs defaultActiveKey="params">
             <TabPane tab="参数配置" key="params">
               <Collapse defaultActiveKey={['1']} ghost>
@@ -618,7 +749,6 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
 
                   <Tabs defaultActiveKey="auth" activeKey={activeTab} onChange={setActiveTab}>
                     <TabPane tab="认证配置" key="auth">
-                      <Form form={form} layout="vertical">
                         <Form.Item
                             name="authType"
                             label="认证方法"
@@ -696,7 +826,6 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
                             return null;
                           }}
                         </Form.Item>
-                      </Form>
                     </TabPane>
                     <TabPane tab="Params" key="params">
                       <Table
@@ -835,7 +964,7 @@ key2=value2'
         <Divider dashed />
         <Form.Item>
           <Space>
-            <Button type="primary" onClick={() => form.submit()}>
+            <Button type="primary" onClick={handleSave}>
               配置保存
             </Button>
             <Button htmlType="button" onClick={() => form.resetFields()}>

@@ -1,5 +1,6 @@
 package com.aaa.easyagent.biz.agent.service;
 
+import com.aaa.easyagent.core.domain.request.StreamChatPostRequest;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
@@ -10,11 +11,11 @@ public interface AgentChatService {
 
 
     /**
-     * 智能体聊天
+     * 智能体聊天。流式与同步共用：sseEmitter 不为 null 走流式输出；传 null 即同步模式。
      *
-     * @param sessionId   会话 ID
-     * @param question    问题
-     * @param imageBase64 图片数据（Base64 Data URL 格式，可为 null）
+     * @param request    聊天请求参数（sessionId / msg / agentId / imageBase64）
+     * @param sseEmitter SSE 发射器，传 null 表示同步模式
+     * @return Agent 最终答案
      */
-    void streamChatWith(String sessionId, String question, String agentId, SseEmitter sseEmitter, String imageBase64);
+    String streamChatWith(StreamChatPostRequest request, SseEmitter sseEmitter);
 }

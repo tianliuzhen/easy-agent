@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useCallback, useRef} from 'react';
 import type {CollapseProps} from 'antd';
 import {Collapse, Button, message, Tabs} from 'antd';
-import {PlusCircleFilled, AppstoreOutlined, ToolOutlined, DatabaseOutlined, HistoryOutlined, SettingOutlined} from '@ant-design/icons';
+import {PlusCircleFilled, AppstoreOutlined, ToolOutlined, DatabaseOutlined, HistoryOutlined, SettingOutlined, HighlightOutlined} from '@ant-design/icons';
 import AgentKnowledgeBinding from './knowledge/AgentKnowledgeBinding';
 import AgentToolBinding from './tool/AgentToolBinding';
 import MCPSkillList from './mcp/MCPSkillList';
@@ -10,6 +10,7 @@ import SkillSelector from './skill/SkillSelector';
 import AddResourceModal from './common/AddResourceModal';
 import MemoryConfig, {type MemoryConfigRef} from './memory/MemoryConfig';
 import AgentSettings, {type AgentSettingsRef} from './settings/AgentSettings';
+import AgentPersonalization from './personalization/AgentPersonalization';
 import {eaToolApi} from '../../api/EaToolApi';
 import {mcpApi} from '../../api/McpApi';
 import {skillApi} from '../../api/SkillApi';
@@ -297,6 +298,20 @@ const ResourceBindingPanel = React.forwardRef<ResourceBindingPanelRef, ResourceB
             children: (
                 <div style={{padding: '16px 0'}}>
                     <AgentSettings agentId={agentId} ref={settingsConfigRef}/>
+                </div>
+            )
+        },
+        {
+            key: 'personalization',
+            label: (
+                <span>
+                    <HighlightOutlined style={{marginRight: 6}}/>
+                    个性化
+                </span>
+            ),
+            children: (
+                <div style={{padding: '16px 0'}}>
+                    <AgentPersonalization agentId={agentId}/>
                 </div>
             )
         }

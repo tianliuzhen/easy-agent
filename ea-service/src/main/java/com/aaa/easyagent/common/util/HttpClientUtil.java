@@ -5,6 +5,8 @@ package com.aaa.easyagent.common.util;
  * @version 1.0 HttpClientUtil.java  2026/4/14 23:36
  */
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
@@ -425,12 +427,18 @@ public class HttpClientUtil {
 
         private static String toJson(Object obj) {
             // 实际使用时替换为：new ObjectMapper().writeValueAsString(obj)
-            throw new UnsupportedOperationException("请替换为实际的JSON序列化实现");
+            return JacksonUtil.beanToStr(obj);
+            // throw new UnsupportedOperationException("请替换为实际的JSON序列化实现");
         }
 
         private static <T> T fromJson(String json, Class<T> clazz) {
             // 实际使用时替换为：new ObjectMapper().readValue(json, clazz)
-            throw new UnsupportedOperationException("请替换为实际的JSON反序列化实现");
+            try {
+                return new ObjectMapper().readValue(json, clazz);
+            } catch (JsonProcessingException e) {
+                throw new UnsupportedOperationException(json+"：解析失败");
+            }
+            // throw new UnsupportedOperationException("请替换为实际的JSON反序列化实现");
         }
     }
 }

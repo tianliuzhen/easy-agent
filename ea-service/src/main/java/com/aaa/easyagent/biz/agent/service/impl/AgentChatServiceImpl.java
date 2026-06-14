@@ -10,6 +10,7 @@ import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
 import com.aaa.easyagent.core.domain.DO.EaChatConversationDO;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
+import com.aaa.easyagent.core.domain.request.StreamChatPostRequest;
 import com.aaa.easyagent.core.domain.result.EaAgentResult;
 import com.aaa.easyagent.core.domain.result.EaToolConfigResult;
 import com.aaa.easyagent.core.service.AgentManagerService;
@@ -102,28 +103,36 @@ public class AgentChatServiceImpl implements AgentChatService {
 
 
     /**
-     * 流式对话
+     * 智能体聊天。流式与同步共用：sseEmitter 不为 null 走流式输出；传 null 即同步模式。
      *
-     * @param sessionId   会话 ID
-     * @param question    问题
-     * @param agentId     Agent ID
-     * @param sseEmitter  SSE 发射器
-     * @param imageBase64 图片数据（Base64 Data URL 格式，可为 null）
+     * @param request    聊天请求参数（sessionId / msg / agentId / imageBase64）
+     * @param sseEmitter SSE 发射器，传 null 表示同步模式
+     * @return Agent 最终答案
      */
     @Override
-    public void streamChatWith(String sessionId, String question, String agentId, SseEmitter sseEmitter, String imageBase64) {
+    public String streamChatWith(StreamChatPostRequest request, SseEmitter sseEmitter) {
+        String sessionId = request.getSessionId();
+        String question = request.getMsg();
+        String agentId = request.getAgentId();
+        String imageBase64 = request.getImageBase64();
+
         EaAgentResult agent = agentManagerService.getAgent(Long.valueOf(agentId));
         if (agent == null) {
-            sseEmitter.complete();
-            return;
+            if (sseEmitter != null) {
+                sseEmitter.complete();
+            }
+            return null;
         }
+
+        // 同步模式（无 SSE）：关闭流式订阅，走 chatModel.call
+        boolean syncMode = sseEmitter == null;
 
         // 根据 modelConfig 中的 streamEnabled 决定是否使用非流式模式
         AgentModelConfig modelConfig = agent.getAgentModelConfig();
         boolean streamEnabled = modelConfig == null || modelConfig.isStreamEnabled();
 
-        // 如果关闭了流式输出，使用缓冲型 SseEmitter
-        SseEmitter effectiveEmitter = streamEnabled ? sseEmitter : new NonStreamingSseEmitter(sseEmitter);
+        // 如果关闭了流式输出，使用缓冲型 SseEmitter；同步模式下不创建 emitter
+        SseEmitter effectiveEmitter = syncMode ? null : (streamEnabled ? sseEmitter : new NonStreamingSseEmitter(sseEmitter));
 
 
         // agent 基础信息
@@ -133,6 +142,9 @@ public class AgentChatServiceImpl implements AgentChatService {
         agentContext.setPrompt(agent.getPrompt());
         agentContext.setAgentMemoryConfig(agent.getAgentMemoryConfig());
         agentContext.setImageBase64(imageBase64);
+        if (syncMode) {
+            agentContext.setWithStream(false);
+        }
 
         // Agent来源
         agentContext.setModelType(ModelTypeEnum.getByModel(agent.getModelPlatform()));
@@ -179,5 +191,6 @@ public class AgentChatServiceImpl implements AgentChatService {
         // 保存聊天记录（注意：这里需要从Agent执行过程中获取思考过程和工具调用信息）
         // 实际的保存逻辑在ChatRecordSaverService中通过ThreadLocal收集
         log.info("Agent执行完成，结果长度: {}", result != null ? result.length() : 0);
+        return result;
     }
 }
