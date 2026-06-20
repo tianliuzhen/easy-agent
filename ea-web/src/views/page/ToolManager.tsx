@@ -6,7 +6,6 @@ import {
     Typography,
     Button,
     Space,
-    Tag,
     Popconfirm,
     ConfigProvider,
     Input,
@@ -148,7 +147,7 @@ const ToolManager: React.FC<ToolManagerProps> = ({
                                     marginRight: '8px'
                                 }}>
                                     {toolDisplayName}
-                                    <Tag color="blue" style={{marginLeft: '8px'}}>{config.id}</Tag>
+                                    <span style={{marginLeft: '6px', fontSize: '12px', color: '#bfbfbf'}}>#{config.id}</span>
                                 </div>
                             </Tooltip>
                             <div style={{display: 'flex', alignItems: 'center', flexShrink: 0}}>

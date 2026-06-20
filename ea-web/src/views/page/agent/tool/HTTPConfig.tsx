@@ -785,6 +785,7 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
                           name="method"
                           label="请求方法"
                           initialValue="GET"
+                          style={{ marginBottom: 12 }}
                       >
                         <Select>
                           <Select.Option value="GET">GET</Select.Option>
@@ -802,12 +803,13 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
                           name="url"
                           label="请求URL"
                           rules={[{ required: true, message: '请输入请求URL' }]}
+                          style={{ marginBottom: 12 }}
                       >
                         <Input placeholder="例如: https://api.example.com/users" />
                       </Form.Item>
                     </Col>
                     <Col span={3}>
-                      <Form.Item label="&nbsp;">
+                      <Form.Item label="&nbsp;" style={{ marginBottom: 12 }}>
                         <Button
                             type="primary"
                             onClick={handleDebug}

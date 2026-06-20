@@ -3,6 +3,8 @@ package com.aaa.easyagent.common.util;
 /**
  * @author liuzhen.tian
  * @version 1.0 JsonSchemaGenerator.java  2025/7/22 22:35
+ *
+ * {@link org.springframework.ai.util.json.schema.JsonSchemaGenerator}
  */
 
 import com.aaa.easyagent.core.domain.template.InputTypeSchema;
@@ -38,7 +40,14 @@ public class JsonSchemaGenerator {
         required.putArray("required");
 
         // 处理每个字段定义
+        int validFieldCount = 0;
         for (InputTypeSchema field : schemaDefinitions) {
+            // 跳过空占位字段（无参工具会保留一行空定义），否则会生成非法的 "": {"type": ""}
+            if (field.getName() == null || field.getName().isBlank()
+                    || field.getType() == null || field.getType().isBlank()) {
+                continue;
+            }
+
             ObjectNode property = objectMapper.createObjectNode();
             property.put("type", field.getType());
 
@@ -53,11 +62,12 @@ public class JsonSchemaGenerator {
 
             properties.set(field.getName(), property);
             required.withArray("required").add(field.getName());
+            validFieldCount++;
         }
 
         // 添加 properties 和 required 到 schema
         schema.set("properties", properties);
-        if (schemaDefinitions.size() > 0) {
+        if (validFieldCount > 0) {
             schema.set("required", required.get("required"));
         }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { App, Input, Button, Space, Table, Collapse, message, Tooltip } from 'antd';
+import { App, Input, Select, Button, Space, Table, Collapse, message, Tooltip } from 'antd';
 import { PlusOutlined, DeleteOutlined, CopyOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 
 const { Panel } = Collapse;
@@ -144,9 +144,10 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
       title: '参数名',
       dataIndex: 'name',
       key: 'name',
+      width: 130,
       render: (_: any, __: any, index: number) => (
         <Input
-          variant="borderless"
+          variant="filled"
           value={params[index].name}
           onChange={(e) => updateValue(index, 'name', e.target.value)}
           placeholder="参数名"
@@ -157,17 +158,16 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
       title: '类型',
       dataIndex: 'type',
       key: 'type',
+      width: 100,
       render: (_: any, __: any, index: number) => (
-        <select
-          value={params[index].type}
-          onChange={(e) => updateValue(index, 'type', e.target.value)}
-          style={{ width: '100%', height: 28, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer' }}
-        >
-          <option value="">请选择</option>
-          {typeOptions.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
+        <Select
+          variant="filled"
+          style={{ width: '100%' }}
+          value={params[index].type || undefined}
+          onChange={(value) => updateValue(index, 'type', value)}
+          placeholder="类型"
+          options={typeOptions.map((t) => ({ label: t, value: t }))}
+        />
       ),
     },
     {
@@ -176,7 +176,7 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
       key: 'description',
       render: (_: any, __: any, index: number) => (
         <Input
-          variant="borderless"
+          variant="filled"
           value={params[index].description}
           onChange={(e) => updateValue(index, 'description', e.target.value)}
           placeholder="描述"
@@ -187,15 +187,18 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
       title: '必需',
       dataIndex: 'required',
       key: 'required',
+      width: 90,
       render: (_: any, __: any, index: number) => (
-        <select
+        <Select
+          variant="filled"
+          style={{ width: '100%' }}
           value={params[index].required ? 'true' : 'false'}
-          onChange={(e) => updateValue(index, 'required', e.target.value === 'true')}
-          style={{ width: '100%', height: 28, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer' }}
-        >
-          <option value="true">是</option>
-          <option value="false">否</option>
-        </select>
+          onChange={(value) => updateValue(index, 'required', value === 'true')}
+          options={[
+            { label: '是', value: 'true' },
+            { label: '否', value: 'false' },
+          ]}
+        />
       ),
     },
     {
@@ -204,7 +207,7 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
       key: 'defaultValue',
       render: (_: any, __: any, index: number) => (
         <Input
-          variant="borderless"
+          variant="filled"
           value={params[index].defaultValue || ''}
           onChange={(e) => updateValue(index, 'defaultValue', e.target.value)}
           placeholder="默认值"
@@ -217,7 +220,7 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
       key: 'referenceValue',
       render: (_: any, __: any, index: number) => (
         <Input
-          variant="borderless"
+          variant="filled"
           value={params[index].referenceValue || ''}
           onChange={(e) => updateValue(index, 'referenceValue', e.target.value)}
           placeholder="引用值"

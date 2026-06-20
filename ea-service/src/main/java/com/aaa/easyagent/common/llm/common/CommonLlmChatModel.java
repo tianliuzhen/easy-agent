@@ -26,6 +26,7 @@ import org.springframework.ai.chat.observation.ChatModelObservationContext;
 import org.springframework.ai.chat.observation.ChatModelObservationConvention;
 import org.springframework.ai.chat.observation.ChatModelObservationDocumentation;
 import org.springframework.ai.chat.observation.DefaultChatModelObservationConvention;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
@@ -80,6 +81,11 @@ public class CommonLlmChatModel implements ChatModel {
     public ChatResponse call(Prompt prompt) {
         return internalCall(prompt, null);
 
+    }
+
+    @Override
+    public ChatOptions getOptions() {
+        return this.properties.getChat().getOptions().copy();
     }
 
     private ChatResponse internalCall(Prompt prompt, ChatResponse previousChatResponse) {

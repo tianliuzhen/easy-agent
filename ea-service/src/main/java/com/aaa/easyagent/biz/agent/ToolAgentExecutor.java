@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
  * </pre>
  *
  * 4.1.0-m4 版本会自动创建 org.springframework.ai.model.tool.DefaultToolCallingChatOptions
- * org.springframework.ai.chat.client.DefaultChatClientUtils#toChatClientRequest(org.springframework.ai.chat.client.DefaultChatClient.DefaultChatClientRequestSpec)
+ * {@link org.springframework.ai.chat.client.DefaultChatClientUtils#toChatClientRequest(org.springframework.ai.chat.client.DefaultChatClient.DefaultChatClientRequestSpec)}
  * 4.1.0 需要手动处理
  *
  *
@@ -111,7 +111,7 @@ public class ToolAgentExecutor extends BaseAgent {
         ChatClient.Builder builder = ChatClient.builder(chatModel)
                 .defaultSystem(agentContext.getPrompt() != null ? agentContext.getPrompt() : "")
                 .defaultToolCallbacks(toolCallbacks)
-                .defaultOptions(DefaultToolCallingChatOptions.builder())
+                // .defaultOptions(DefaultToolCallingChatOptions.builder().build())
                 .defaultAdvisors(advisors);
         if (agentContext.getSessionId() != null) {
             builder.defaultAdvisors(a -> a.param(ChatMemory.CONVERSATION_ID, agentContext.getSessionId()));
