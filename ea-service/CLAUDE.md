@@ -54,15 +54,16 @@ common/     - 工具类、配置和共享组件
 
 ### 关键架构组件
 
-**ReAct 智能体系统** (`biz/agent/`)
-- `BaseAgent` - 所有智能体的基类
+**智能体执行引擎** (`biz/agent/`) — 两套执行路径：
+1. **ReActAgentExecutor** — 基于 XML 格式的传统 ReAct 实现，使用 `<Thought>`、`<Action>`、`<ActionInput>`、`<Observation>`、`<FinalAnswer>` 标签进行推理循环
+2. **ToolAgentExecutor** — 基于 Spring AI `ChatClient` + Advisor 模式的新实现，`ToolExecutionAdvisor` 拦截 tool_call 自动执行工具，`SlidingWindowAdvisor` 控制上下文窗口
+- `BaseAgent` - 所有智能体的基类，`doExec()` 控制外部执行循环
 - `BaseReActAgent` - ReAct 模式智能体的抽象基类，包含 `think()` 和 `act()` 方法
-- `ReActAgentExecutor` - 基于 XML 的 ReAct 执行器，使用结构化提示，包含 `<Thought>`、`<Action>`、`<ActionInput>`、`<Observation>`、`<FinalAnswer>` 标签
 - `ReActAgentOldExecutor` - 遗留的基于文本的 ReAct 实现
 
 **工具系统** (`biz/tool/`、`biz/function/`)
-- 工具由智能体动态加载和执行
-- 工具类型：HTTP 工具、SQL 工具、MCP（模型上下文协议）工具
+- 工具由智能体通过 `FunctionCallbackAdapter` 动态加载和执行
+- 工具类型：HTTP、SQL、MCP、GRPC、Skill
 - `FunctionCallback` 接口用于工具执行回调
 
 **知识库** (`common/document/`)
@@ -117,8 +118,8 @@ MySQL 数据库 `easy-agent` 包含以下表：
 
 ## 关键技术
 
-- Spring Boot 4.1.0-M4（里程碑版本）
-- Spring AI 2.0.0-M4
+- Spring Boot 4.1.0
+- Spring AI 2.0.0-RC2
 - Java 17
 - MyBatis 4.0.1 with MyBatis Generator
 - MySQL 8.0

@@ -1,8 +1,40 @@
-import React, { useState } from 'react';
-import { App, Card, Form, Input, Button, Space, Divider, Row, Col, Table, Collapse, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
+import React from 'react';
+import { App, Input, Button, Space, Table, Collapse, message, Tooltip } from 'antd';
+import { PlusOutlined, DeleteOutlined, CopyOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 
 const { Panel } = Collapse;
+
+// 引用值（JSONPath）说明与示例：后端据此把入参值动态注入到 HTTP 请求的对应位置
+const referenceValueHelp = (
+  <div style={{ fontSize: 12, lineHeight: 1.7 }}>
+    <div>引用值用 JSONPath 指定该参数注入到请求的哪个位置，后端按前缀动态赋值：</div>
+    <div style={{ marginTop: 6 }}>
+      <code>$.requestParams.xxx</code> → URL Query 参数
+    </div>
+    <div>
+      <code>$.headers.xxx</code> → 请求头
+    </div>
+    <div>
+      <code>$.requestBody.xxx</code> → JSON Body 字段
+    </div>
+    <div>
+      <code>$.requestBody.items[0].trackingNo</code> → Body 数组元素字段
+    </div>
+    <div style={{ marginTop: 6, color: '#ffd591' }}>
+      示例：参数 <code>accountId</code> 引用值填 <code>$.requestBody.accountId</code>，
+      调用时会把 accountId 的值写入请求体的 accountId 字段。
+    </div>
+  </div>
+);
+
+const ReferenceValueTitle = (
+  <span>
+    引用值
+    <Tooltip title={referenceValueHelp} overlayStyle={{ maxWidth: 420 }}>
+      <QuestionCircleOutlined style={{ marginLeft: 4, color: '#999', cursor: 'help' }} />
+    </Tooltip>
+  </span>
+);
 
 interface TemplateParam {
   name: string;
@@ -20,6 +52,8 @@ interface CommonTemplateConfigProps {
   onOutputParamsChange?: (params: TemplateParam[]) => void;
 }
 
+const typeOptions = ['string', 'number', 'boolean', 'object', 'array', 'int', 'float', 'date', 'datetime', 'bigint', 'text'];
+
 const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
   inputParams = [],
   outputParams = [],
@@ -27,94 +61,32 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
   onOutputParamsChange
 }) => {
   const app = App.useApp();
-  const [editingInputIndex, setEditingInputIndex] = useState<number | null>(null);
-  const [editingOutputIndex, setEditingOutputIndex] = useState<number | null>(null);
-  
+
   // 添加输入参数
   const addInputParam = () => {
-    const newParam = {
-      name: '',
-      type: '',
-      description: '',
-      required: false,
-      defaultValue: '',
-      referenceValue: '', // 新增引用值字段
-    };
-    const newIndex = inputParams.length;
-    onInputParamsChange?.([...inputParams, newParam]);
-    setEditingInputIndex(newIndex);
+    onInputParamsChange?.([...inputParams, {
+      name: '', type: '', description: '', required: false, defaultValue: '', referenceValue: '',
+    }]);
   };
 
   // 添加输出参数
   const addOutputParam = () => {
-    const newParam = {
-      name: '',
-      type: '',
-      description: '',
-      required: false,
-      defaultValue: '',
-      referenceValue: '', // 新增引用值字段
-    };
-    const newIndex = outputParams.length;
-    onOutputParamsChange?.([...outputParams, newParam]);
-    setEditingOutputIndex(newIndex);
-  };
-
-  // 开始编辑输入参数
-  const startEditingInputParam = (index: number) => {
-    setEditingInputIndex(index);
-  };
-
-  // 开始编辑输出参数
-  const startEditingOutputParam = (index: number) => {
-    setEditingOutputIndex(index);
-  };
-
-  // 保存编辑的输入参数
-  const saveEditedInputParam = (index: number) => {
-    const param = inputParams[index];
-    if (!param.name || !param.type) {
-      message.error('参数名和类型不能为空');
-      return;
-    }
-    setEditingInputIndex(null);
-  };
-
-  // 保存编辑的输出参数
-  const saveEditedOutputParam = (index: number) => {
-    const param = outputParams[index];
-    if (!param.name || !param.type) {
-      message.error('参数名和类型不能为空');
-      return;
-    }
-    setEditingOutputIndex(null);
-  };
-
-  // 取消编辑
-  const cancelEditing = () => {
-    setEditingInputIndex(null);
-    setEditingOutputIndex(null);
+    onOutputParamsChange?.([...outputParams, {
+      name: '', type: '', description: '', required: false, defaultValue: '', referenceValue: '',
+    }]);
   };
 
   // 复制输入参数
   const copyInputParam = (index: number) => {
     const paramToCopy = inputParams[index];
-    const newParam = {
-      ...paramToCopy,
-      name: paramToCopy.name + '_copy', // 为复制的参数名添加后缀
-    };
-    onInputParamsChange?.([...inputParams, newParam]);
+    onInputParamsChange?.([...inputParams, { ...paramToCopy, name: paramToCopy.name + '_copy' }]);
     message.success('输入参数复制成功');
   };
 
   // 复制输出参数
   const copyOutputParam = (index: number) => {
     const paramToCopy = outputParams[index];
-    const newParam = {
-      ...paramToCopy,
-      name: paramToCopy.name + '_copy', // 为复制的参数名添加后缀
-    };
-    onOutputParamsChange?.([...outputParams, newParam]);
+    onOutputParamsChange?.([...outputParams, { ...paramToCopy, name: paramToCopy.name + '_copy' }]);
     message.success('输出参数复制成功');
   };
 
@@ -126,8 +98,7 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
       okText: '确定',
       cancelText: '取消',
       onOk: () => {
-        const updatedParams = inputParams.filter((_, i) => i !== index);
-        onInputParamsChange?.(updatedParams);
+        onInputParamsChange?.(inputParams.filter((_, i) => i !== index));
         message.success('输入参数删除成功');
       }
     });
@@ -141,8 +112,7 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
       okText: '确定',
       cancelText: '取消',
       onOk: () => {
-        const updatedParams = outputParams.filter((_, i) => i !== index);
-        onOutputParamsChange?.(updatedParams);
+        onOutputParamsChange?.(outputParams.filter((_, i) => i !== index));
         message.success('输出参数删除成功');
       }
     });
@@ -162,291 +132,117 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
     onOutputParamsChange?.(updatedParams);
   };
 
-  // 输入参数列定义
-  const inputColumns = [
+  // 通用：构建可直接点击编辑的列（单元格本身即输入控件，类似表格内联编辑）
+  const buildColumns = (
+    params: TemplateParam[],
+    updateValue: (index: number, field: keyof TemplateParam, value: any) => void,
+    copyParam: (index: number) => void,
+    deleteParam: (index: number) => void,
+    referenceTitle: React.ReactNode
+  ) => [
     {
       title: '参数名',
       dataIndex: 'name',
       key: 'name',
-      render: (text, record, index) => {
-        if (editingInputIndex === index) {
-          return (
-            <Input
-              value={inputParams[index].name}
-              onChange={(e) => updateInputParamValue(index, 'name', e.target.value)}
-              placeholder="输入参数名"
-              autoFocus
-            />
-          );
-        }
-        return text;
-      },
+      render: (_: any, __: any, index: number) => (
+        <Input
+          variant="borderless"
+          value={params[index].name}
+          onChange={(e) => updateValue(index, 'name', e.target.value)}
+          placeholder="参数名"
+        />
+      ),
     },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (text, record, index) => {
-        if (editingInputIndex === index) {
-          return (
-            <select
-              value={inputParams[index].type}
-              onChange={(e) => updateInputParamValue(index, 'type', e.target.value)}
-              style={{ width: '100%', height: 24, borderRadius: 4, border: '1px solid #d9d9d9' }}
-            >
-              <option value="">请选择类型</option>
-              <option value="string">string</option>
-              <option value="number">number</option>
-              <option value="boolean">boolean</option>
-              <option value="object">object</option>
-              <option value="array">array</option>
-              <option value="int">int</option>
-              <option value="float">float</option>
-              <option value="date">date</option>
-              <option value="datetime">datetime</option>
-              <option value="bigint">bigint</option>
-              <option value="text">text</option>
-            </select>
-          );
-        }
-        return text;
-      },
+      render: (_: any, __: any, index: number) => (
+        <select
+          value={params[index].type}
+          onChange={(e) => updateValue(index, 'type', e.target.value)}
+          style={{ width: '100%', height: 28, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer' }}
+        >
+          <option value="">请选择</option>
+          {typeOptions.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      ),
     },
     {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
-      render: (text, record, index) => {
-        if (editingInputIndex === index) {
-          return (
-            <Input
-              value={inputParams[index].description}
-              onChange={(e) => updateInputParamValue(index, 'description', e.target.value)}
-              placeholder="输入描述"
-            />
-          );
-        }
-        return text;
-      },
+      render: (_: any, __: any, index: number) => (
+        <Input
+          variant="borderless"
+          value={params[index].description}
+          onChange={(e) => updateValue(index, 'description', e.target.value)}
+          placeholder="描述"
+        />
+      ),
     },
     {
       title: '必需',
       dataIndex: 'required',
       key: 'required',
-      render: (required, record, index) => {
-        if (editingInputIndex === index) {
-          return (
-            <select
-              value={inputParams[index].required ? 'true' : 'false'}
-              onChange={(e) => updateInputParamValue(index, 'required', e.target.value === 'true')}
-              style={{ width: '100%', height: 24, borderRadius: 4, border: '1px solid #d9d9d9' }}
-            >
-              <option value="true">是</option>
-              <option value="false">否</option>
-            </select>
-          );
-        }
-        return required ? '是' : '否';
-      },
+      render: (_: any, __: any, index: number) => (
+        <select
+          value={params[index].required ? 'true' : 'false'}
+          onChange={(e) => updateValue(index, 'required', e.target.value === 'true')}
+          style={{ width: '100%', height: 28, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer' }}
+        >
+          <option value="true">是</option>
+          <option value="false">否</option>
+        </select>
+      ),
     },
     {
       title: '默认值',
       dataIndex: 'defaultValue',
       key: 'defaultValue',
-      render: (text, record, index) => {
-        if (editingInputIndex === index) {
-          return (
-            <Input
-              value={inputParams[index].defaultValue || ''}
-              onChange={(e) => updateInputParamValue(index, 'defaultValue', e.target.value)}
-              placeholder="输入默认值"
-            />
-          );
-        }
-        return text;
-      },
+      render: (_: any, __: any, index: number) => (
+        <Input
+          variant="borderless"
+          value={params[index].defaultValue || ''}
+          onChange={(e) => updateValue(index, 'defaultValue', e.target.value)}
+          placeholder="默认值"
+        />
+      ),
     },
     {
-      title: '引用值',
+      title: referenceTitle,
       dataIndex: 'referenceValue',
       key: 'referenceValue',
-      render: (text, record, index) => {
-        if (editingInputIndex === index) {
-          return (
-            <Input
-              value={inputParams[index].referenceValue || ''}
-              onChange={(e) => updateInputParamValue(index, 'referenceValue', e.target.value)}
-              placeholder="输入引用值"
-            />
-          );
-        }
-        return text;
-      },
+      render: (_: any, __: any, index: number) => (
+        <Input
+          variant="borderless"
+          value={params[index].referenceValue || ''}
+          onChange={(e) => updateValue(index, 'referenceValue', e.target.value)}
+          placeholder="引用值"
+        />
+      ),
     },
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record, index) => (
+      width: 90,
+      render: (_: any, __: any, index: number) => (
         <Space>
-          {editingInputIndex === index ? (
-            <>
-              <Button type="link" size="small" onClick={() => saveEditedInputParam(index)}>保存</Button>
-              <Button type="link" danger size="small" onClick={cancelEditing}>取消</Button>
-            </>
-          ) : (
-            <>
-              <Button type="link" size="small" onClick={() => startEditingInputParam(index)} icon={<EditOutlined />}>编辑</Button>
-              <Button type="link" size="small" onClick={() => copyInputParam(index)} icon={<CopyOutlined />}>复制</Button>
-              <Button type="link" danger size="small" onClick={() => deleteInputParam(index)} icon={<DeleteOutlined />}>删除</Button>
-            </>
-          )}
+          <Tooltip title="复制">
+            <Button type="link" size="small" onClick={() => copyParam(index)} icon={<CopyOutlined />} />
+          </Tooltip>
+          <Tooltip title="删除">
+            <Button type="link" danger size="small" onClick={() => deleteParam(index)} icon={<DeleteOutlined />} />
+          </Tooltip>
         </Space>
       ),
     },
   ];
 
-  // 输出参数列定义
-  const outputColumns = [
-    {
-      title: '参数名',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text, record, index) => {
-        if (editingOutputIndex === index) {
-          return (
-            <Input
-              value={outputParams[index].name}
-              onChange={(e) => updateOutputParamValue(index, 'name', e.target.value)}
-              placeholder="输入参数名"
-              autoFocus
-            />
-          );
-        }
-        return text;
-      },
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      render: (text, record, index) => {
-        if (editingOutputIndex === index) {
-          return (
-            <select
-              value={outputParams[index].type}
-              onChange={(e) => updateOutputParamValue(index, 'type', e.target.value)}
-              style={{ width: '100%', height: 24, borderRadius: 4, border: '1px solid #d9d9d9' }}
-            >
-              <option value="">请选择类型</option>
-              <option value="string">string</option>
-              <option value="number">number</option>
-              <option value="boolean">boolean</option>
-              <option value="object">object</option>
-              <option value="array">array</option>
-              <option value="int">int</option>
-              <option value="float">float</option>
-              <option value="date">date</option>
-              <option value="datetime">datetime</option>
-              <option value="bigint">bigint</option>
-              <option value="text">text</option>
-            </select>
-          );
-        }
-        return text;
-      },
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      render: (text, record, index) => {
-        if (editingOutputIndex === index) {
-          return (
-            <Input
-              value={outputParams[index].description}
-              onChange={(e) => updateOutputParamValue(index, 'description', e.target.value)}
-              placeholder="输入描述"
-            />
-          );
-        }
-        return text;
-      },
-    },
-    {
-      title: '必需',
-      dataIndex: 'required',
-      key: 'required',
-      render: (required, record, index) => {
-        if (editingOutputIndex === index) {
-          return (
-            <select
-              value={outputParams[index].required ? 'true' : 'false'}
-              onChange={(e) => updateOutputParamValue(index, 'required', e.target.value === 'true')}
-              style={{ width: '100%', height: 24, borderRadius: 4, border: '1px solid #d9d9d9' }}
-            >
-              <option value="true">是</option>
-              <option value="false">否</option>
-            </select>
-          );
-        }
-        return required ? '是' : '否';
-      },
-    },
-    {
-      title: '默认值',
-      dataIndex: 'defaultValue',
-      key: 'defaultValue',
-      render: (text, record, index) => {
-        if (editingOutputIndex === index) {
-          return (
-            <Input
-              value={outputParams[index].defaultValue || ''}
-              onChange={(e) => updateOutputParamValue(index, 'defaultValue', e.target.value)}
-              placeholder="输入默认值"
-            />
-          );
-        }
-        return text;
-      },
-    },
-    {
-      title: '引用值',
-      dataIndex: 'referenceValue',
-      key: 'referenceValue',
-      render: (text, record, index) => {
-        if (editingOutputIndex === index) {
-          return (
-            <Input
-              value={outputParams[index].referenceValue || ''}
-              onChange={(e) => updateOutputParamValue(index, 'referenceValue', e.target.value)}
-              placeholder="输入引用值"
-            />
-          );
-        }
-        return text;
-      },
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: any, record, index) => (
-        <Space>
-          {editingOutputIndex === index ? (
-            <>
-              <Button type="link" size="small" onClick={() => saveEditedOutputParam(index)}>保存</Button>
-              <Button type="link" danger size="small" onClick={cancelEditing}>取消</Button>
-            </>
-          ) : (
-            <>
-              <Button type="link" size="small" onClick={() => startEditingOutputParam(index)} icon={<EditOutlined />}>编辑</Button>
-              <Button type="link" size="small" onClick={() => copyOutputParam(index)} icon={<CopyOutlined />}>复制</Button>
-              <Button type="link" danger size="small" onClick={() => deleteOutputParam(index)} icon={<DeleteOutlined />}>删除</Button>
-            </>
-          )}
-        </Space>
-      ),
-    },
-  ];
+  const inputColumns = buildColumns(inputParams, updateInputParamValue, copyInputParam, deleteInputParam, ReferenceValueTitle);
+  const outputColumns = buildColumns(outputParams, updateOutputParamValue, copyOutputParam, deleteOutputParam, '引用值');
 
   return (
     <Collapse defaultActiveKey={['input', 'output']}>
@@ -454,7 +250,7 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
         <Table
           dataSource={inputParams}
           columns={inputColumns}
-          rowKey={(record, index) => `input-${index}`}
+          rowKey={(_, index) => `input-${index}`}
           pagination={false}
           size="small"
         />
@@ -462,12 +258,12 @@ const CommonTemplateConfig: React.FC<CommonTemplateConfigProps> = ({
           添加输入参数
         </Button>
       </Panel>
-      
+
       <Panel header="通用模板出参配置" key="output">
         <Table
           dataSource={outputParams}
           columns={outputColumns}
-          rowKey={(record, index) => `output-${index}`}
+          rowKey={(_, index) => `output-${index}`}
           pagination={false}
           size="small"
         />

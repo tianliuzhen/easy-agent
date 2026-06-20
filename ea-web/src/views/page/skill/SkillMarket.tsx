@@ -67,8 +67,15 @@ const SkillMarket: React.FC = () => {
       // 调用 API 获取官方 Skill
       const response = await skillApi.getOfficialSkills();
       if (response.success) {
+        const items = response.data || [];
+        // 并行检查每个 Skill 的安装状态
+        const installedChecks = await Promise.all(
+          items.map((item: any) =>
+            skillApi.isSkillInstalled(item.skillName).then((r: any) => r.success && r.data === true)
+          )
+        );
         // 转换后端数据为前端格式
-        const marketData: MarketSkillItem[] = (response.data || []).map((item: any) => ({
+        const marketData: MarketSkillItem[] = items.map((item: any, idx: number) => ({
           id: item.id?.toString() || '',
           skillName: item.skillName,
           skillDisplayName: item.skillDisplayName || item.skillName,
@@ -81,7 +88,7 @@ const SkillMarket: React.FC = () => {
           installCount: item.installCount || 0,
           rating: item.rating || 4.5,
           isOfficial: item.userId === 0,
-          isInstalled: false,
+          isInstalled: installedChecks[idx] || false,
           skillType: item.skillType || 'INTERNAL',
           executionMode: item.executionMode || 'sync',
           documentation: item.documentation

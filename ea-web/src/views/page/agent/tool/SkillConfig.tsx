@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Input, Button, Space, Divider, Row, Col, Alert, Switch, InputNumber, Tabs, Select, message } from 'antd';
 import { eaToolApi } from '../../../api/EaToolApi';
+import { skillApi } from '../../../api/SkillApi';
 import CommonTemplateConfig from './common/CommonTemplateConfig';
 import DebugResult from './common/DebugResult';
 
@@ -26,48 +27,59 @@ const SkillConfig: React.FC<SkillConfigProps> = ({ toolConfigs = [], agentId, on
   const [skillConfigData, setSkillConfigData] = useState<any>(null);
 
   // 表单提交处理 - 保存配置
-  const handleSubmit = (values: any) => {
+  const handleSubmit = async (values: any) => {
     if (!agentId) {
       console.error('Agent ID is required to save Skill config');
       return;
     }
 
-    // 构建工具配置对象
-    const toolConfig = {
-      agentId: Number(agentId),
-      toolType: 'SKILL',
-      toolInstanceName: values.skillDisplayName || values.skillName || 'Skill技能',
-      inputTemplate: JSON.stringify(inputParams),
-      outTemplate: JSON.stringify(outputParams),
-      isRequired: false,
-      isActive: true,
-      ...values,
-    };
+    try {
+      // 构建 Skill 配置对象
+      const skillConfig: any = {
+        skillName: values.skillName,
+        skillDisplayName: values.skillDisplayName || values.skillName || 'Skill技能',
+        skillDescription: values.skillDescription,
+        skillType: values.skillType || 'INTERNAL',
+        skillCategory: values.skillCategory || 'general',
+        skillIcon: values.skillIcon,
+        skillVersion: values.skillVersion || '1.0.0',
+        skillProvider: values.skillProvider || 'System',
+        executionMode: values.executionMode || 'sync',
+        timeout: values.timeout || 30,
+        maxRetries: values.maxRetries || 3,
+        skillConfig: values.skillConfig,
+        skillCapabilities: values.skillCapabilities || [],
+        inputSchema: JSON.stringify({ type: 'object', properties: inputParams.reduce((acc: any, p: any) => ({ ...acc, [p.name]: { type: p.type, description: p.description } }), {}) }),
+        outputSchema: outputParams.length > 0 ? JSON.stringify(outputParams) : null
+      };
 
-    // 调用API保存配置
-    eaToolApi.addTool(toolConfig)
-      .then((result) => {
-        if (result.code === 200 || result.success === true) {
-          message.success('Skill 配置已保存');
-          console.log('Skill config saved successfully:', result);
-          // 检查API返回结果中是否包含新创建工具的ID
-          if (result.data && result.data.id) {
-            console.log('新创建的工具ID:', result.data.id);
-          }
-          // 调用父组件传递的刷新函数来更新工具列表
-          if (onRefresh) {
-            onRefresh();
-          }
-        } else {
-          const errorMessage = result.message || result.msg || 'Unknown error';
-          message.error('保存 Skill 配置失败: ' + errorMessage);
-          console.error('Failed to save Skill config:', result);
+      let result;
+      if (skillConfigData?.id) {
+        // 更新已有 Skill
+        result = await skillApi.updateConfig(skillConfigData.id, skillConfig);
+      } else {
+        // 创建新的 Skill（保存到 ea_skill_config）
+        result = await skillApi.createUserConfig(skillConfig);
+        // 自动绑定到当前 Agent
+        if (result.success && result.data) {
+          const skillConfigId = typeof result.data === 'number' ? result.data : result.data;
+          await skillApi.bindSkill({
+            agentId: agentId.toString(),
+            skillConfigId: skillConfigId
+          });
         }
-      })
-      .catch((error) => {
-        message.error('保存 Skill 配置出错');
-        console.error('Error saving Skill config:', error);
-      });
+      }
+
+      if (result.success) {
+        message.success('Skill 配置已保存');
+        if (onRefresh) onRefresh();
+      } else {
+        message.error('保存 Skill 配置失败: ' + (result.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error saving Skill config:', error);
+      message.error('保存 Skill 配置出错');
+    }
   };
 
   // 测试技能

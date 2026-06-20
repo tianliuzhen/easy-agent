@@ -95,7 +95,7 @@ public class EaAgentDO {
     private String memoryConfig;
 
     /**
-     * 欢迎语：对话开始时展示给用户的开场白
+     * 欢迎语
      */
     @Column(name = "welcome_message")
     private String welcomeMessage;

@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(jar tf *)",
+      "Bash(javap -classpath mapper-5.0.1.jar tk.mybatis.mapper.common.Mapper)",
+      "Skill(update-config)",
+      "Edit",
+      "Write",
+      "Bash(./ea-service/mvnw *)",
+      "Bash(chmod +x *)",
+      "Bash(mvn compile *)",
+      "Bash(npx tsc *)",
+      "Bash(./ea-web/node_modules/.bin/tsc --noEmit -p /Users/tlz/Documents/workspace/my/easy-agent/ea-web/tsconfig.app.json)"
     ]
   }
 }

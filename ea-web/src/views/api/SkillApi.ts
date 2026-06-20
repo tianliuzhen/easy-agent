@@ -76,6 +76,22 @@ export const skillApi = {
   },
 
   /**
+   * 用户创建个人 Skill 配置（"我的 Skill" → 新增）
+   * @param config 配置对象
+   * @returns 配置 ID
+   */
+  createUserConfig: async (config: SkillConfig): Promise<BaseResult> => {
+    const response = await fetch(`${API_BASE_URL}/eaAgent/skill/server/user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(config),
+    });
+    return response.json();
+  },
+
+  /**
    * 更新 Skill 配置
    * @param id 配置 ID
    * @param config 配置对象

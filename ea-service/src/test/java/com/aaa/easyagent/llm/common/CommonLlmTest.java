@@ -31,10 +31,10 @@ import java.util.concurrent.TimeUnit;
  */
 public class CommonLlmTest {
 
-    // 配置信息（请替换成你的真实 API Key）
-    private static final String API_KEY = "sk-0cc836096581452b86b34e2f604d3a90";
-    private static final String BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/";
-    private static final String MODEL = "qwen3.5-35b-a3b";
+    // 密钥从项目根目录的 llm-secrets.properties 读取（该文件已被 .gitignore 忽略，不会提交）
+    private static final String API_KEY = com.aaa.easyagent.agent.LlmSecrets.get("llm.api-key");
+    private static final String BASE_URL = com.aaa.easyagent.agent.LlmSecrets.get("llm.common.base-url");
+    private static final String MODEL = com.aaa.easyagent.agent.LlmSecrets.get("llm.model");
 
     /**
      * 手动创建 CommonLlmChatModel

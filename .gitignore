@@ -37,3 +37,6 @@ build/
 ### vite ###
 /.vite/deps/
 /.vite/
+
+### secrets ###
+llm-secrets.properties

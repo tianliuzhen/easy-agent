@@ -8,6 +8,10 @@ import { message } from 'antd';
 // 存储原始 fetch 函数
 const originalFetch = window.fetch;
 
+// 防止 401 重复提示
+let last401MessageTime = 0;
+const AUTH_MESSAGE_KEY = 'auth_401_error';
+
 // 重定向到登录页（保留此函数，但不再自动调用）
 const redirectToLogin = () => {
   // 清除可能的认证信息（包括 cookie 和 localStorage）
@@ -51,15 +55,18 @@ const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promis
     
     // 检查响应状态
     if (response.status === 401) {
-      // 尝试解析错误信息
-      try {
-        const errorData = await response.json();
-        if (errorData.code === '401') {
-          message.error(errorData.message || '登录已过期，请重新登录');
+      // 防重复：3 秒内只提示一次
+      const now = Date.now();
+      if (now - last401MessageTime > 3000) {
+        last401MessageTime = now;
+        try {
+          const errorData = await response.clone().json();
+          if (errorData.code === '401') {
+            message.error({ content: errorData.message || '登录已过期，请重新登录', key: AUTH_MESSAGE_KEY });
+          }
+        } catch {
+          message.error({ content: '登录已过期，请重新登录', key: AUTH_MESSAGE_KEY });
         }
-      } catch {
-        // 如果无法解析 JSON，使用默认消息
-        message.error('登录已过期，请重新登录');
       }
 
       // 只清除本地存储，不立即重定向

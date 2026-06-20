@@ -4,6 +4,7 @@ import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.biz.function.ToolTypeChooser;
 import com.aaa.easyagent.biz.tool.ToolExecutor;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
+import com.aaa.easyagent.common.util.HttpClientUtil;
 import com.aaa.easyagent.core.domain.DO.EaSkillConfigDO;
 import com.aaa.easyagent.core.domain.enums.ToolTypeEnum;
 import com.aaa.easyagent.core.domain.template.SkillParamsTemplate;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import tk.mybatis.mapper.entity.Example;
 
 import java.util.*;
 
@@ -120,11 +122,10 @@ public class SkillExecutor implements ToolExecutor<SkillParamsTemplate> {
      */
     private EaSkillConfigDO getSkillConfig(SkillParamsTemplate paramsTemplate) {
         if (StringUtils.isNotBlank(paramsTemplate.getSkillName())) {
-            // 通过 skillName 查询
-            return eaSkillConfigDAO.selectAll().stream()
-                    .filter(config -> paramsTemplate.getSkillName().equals(config.getSkillName()))
-                    .findFirst()
-                    .orElse(null);
+            Example example = new Example(EaSkillConfigDO.class);
+            example.createCriteria().andEqualTo("skillName", paramsTemplate.getSkillName());
+            List<EaSkillConfigDO> results = eaSkillConfigDAO.selectByExample(example);
+            return results.isEmpty() ? null : results.get(0);
         }
         return null;
     }
@@ -153,15 +154,72 @@ public class SkillExecutor implements ToolExecutor<SkillParamsTemplate> {
      * 执行外部技能
      */
     private String executeExternalSkill(EaSkillConfigDO skillConfig, Map<String, Object> arguments) {
-        // 外部技能执行逻辑（可以调用远程API等）
         log.info("执行外部技能: skillName={}", skillConfig.getSkillName());
 
-        JSONObject result = new JSONObject();
-        result.put("skill", skillConfig.getSkillName());
-        result.put("status", "executed");
-        result.put("message", "外部技能执行成功");
-        result.put("input", arguments);
-        return result.toJSONString();
+        String configJson = skillConfig.getSkillConfig();
+        if (StringUtils.isBlank(configJson)) {
+            JSONObject errorResult = new JSONObject();
+            errorResult.put("skill", skillConfig.getSkillName());
+            errorResult.put("status", "error");
+            errorResult.put("message", "外部技能未配置 url，请在 skillConfig 中设置 {\"url\":\"...\", \"method\":\"POST\"}");
+            return errorResult.toJSONString();
+        }
+
+        try {
+            JSONObject config = JSON.parseObject(configJson);
+            String url = config.getString("url");
+            if (StringUtils.isBlank(url)) {
+                JSONObject errorResult = new JSONObject();
+                errorResult.put("skill", skillConfig.getSkillName());
+                errorResult.put("status", "error");
+                errorResult.put("message", "外部技能缺少 url 配置");
+                return errorResult.toJSONString();
+            }
+
+            String method = config.getString("method");
+            if (StringUtils.isBlank(method)) {
+                method = "POST";
+            }
+
+            Map<String, String> headers = new HashMap<>();
+            JSONObject headersJson = config.getJSONObject("headers");
+            if (headersJson != null) {
+                for (String key : headersJson.keySet()) {
+                    headers.put(key, headersJson.getString(key));
+                }
+            }
+
+            // 合并 arguments 到请求体
+            JSONObject requestBody = config.getJSONObject("requestBody");
+            if (requestBody == null) {
+                requestBody = new JSONObject();
+            }
+            if (arguments != null && !arguments.isEmpty()) {
+                requestBody.putAll(arguments);
+            }
+
+            HttpClientUtil.HttpMethod httpMethod = HttpClientUtil.HttpMethod.valueOf(method.toUpperCase());
+            String result;
+            if (httpMethod == HttpClientUtil.HttpMethod.GET) {
+                result = HttpClientUtil.get(url, headers, String.class);
+            } else if (httpMethod == HttpClientUtil.HttpMethod.POST) {
+                result = HttpClientUtil.post(url, headers, requestBody.toJSONString(), String.class);
+            } else if (httpMethod == HttpClientUtil.HttpMethod.PUT) {
+                result = HttpClientUtil.put(url, headers, requestBody.toJSONString(), String.class);
+            } else if (httpMethod == HttpClientUtil.HttpMethod.DELETE) {
+                result = HttpClientUtil.delete(url, headers, String.class);
+            } else {
+                result = HttpClientUtil.post(url, headers, requestBody.toJSONString(), String.class);
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("外部技能执行失败: skillName={}", skillConfig.getSkillName(), e);
+            JSONObject errorResult = new JSONObject();
+            errorResult.put("skill", skillConfig.getSkillName());
+            errorResult.put("status", "error");
+            errorResult.put("message", "外部技能执行失败: " + e.getMessage());
+            return errorResult.toJSONString();
+        }
     }
 
     /**

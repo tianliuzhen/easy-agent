@@ -10,7 +10,8 @@ import {
     Popconfirm,
     ConfigProvider,
     Input,
-    Tooltip
+    Tooltip,
+    Dropdown
 } from 'antd';
 import {
     DatabaseOutlined,
@@ -20,6 +21,7 @@ import {
     EditOutlined,
     DeleteOutlined,
     CopyOutlined,
+    MoreOutlined,
 } from '@ant-design/icons';
 import {useNavigate, useLocation} from 'react-router-dom';
 import {eaToolApi} from '../api/EaToolApi';
@@ -31,81 +33,22 @@ import GRPCConfig from './agent/tool/GRPCConfig';
 const {Sider, Content} = Layout;
 const {Title} = Typography;
 
-// 自定义带动画效果的图标组件
-const AnimatedDatabaseIcon = ({isActive}: { isActive: boolean }) => (
-    <DatabaseOutlined
-        style={{
-            color: '#4CAF50',
-            fontSize: isActive ? '16px' : '14px',
-            transition: 'all 0.3s ease',
-            animation: !isActive ? 'swing 2.8s ease-in-out infinite' : 'none',
-            transformOrigin: 'center center'
-        }}
-    />
+const AnimatedDatabaseIcon = () => (
+    <DatabaseOutlined style={{color: '#4CAF50', fontSize: '16px'}}/>
 );
 
-const AnimatedApiIcon = ({isActive}: { isActive: boolean }) => (
-    <ApiOutlined
-        style={{
-            color: '#2196F3',
-            fontSize: isActive ? '16px' : '14px',
-            transition: 'all 0.3s ease',
-            animation: !isActive ? 'swing 3s ease-in-out infinite' : 'none',
-            transformOrigin: 'center center'
-        }}
-    />
+const AnimatedApiIcon = () => (
+    <ApiOutlined style={{color: '#2196F3', fontSize: '16px'}}/>
 );
 
-const AnimatedCloudServerIcon = ({isActive}: { isActive: boolean }) => (
-    <CloudServerOutlined
-        style={{
-            color: '#FF9800',
-            fontSize: isActive ? '16px' : '14px',
-            transition: 'all 0.3s ease',
-            animation: !isActive ? 'swing 2s ease-in-out infinite' : 'none',
-            transformOrigin: 'center center'
-        }}
-    />
+const AnimatedCloudServerIcon = () => (
+    <CloudServerOutlined style={{color: '#FF9800', fontSize: '16px'}}/>
 );
 
-const AnimatedSyncIcon = ({isActive}: { isActive: boolean }) => (
-    <SyncOutlined
-        style={{
-            color: '#9C27B0',
-            fontSize: isActive ? '16px' : '14px',
-            transition: 'all 0.3s ease',
-            animation: !isActive ? 'spin 2.5s linear infinite' : 'none',
-        }}
-    />
+const AnimatedSyncIcon = () => (
+    <SyncOutlined style={{color: '#9C27B0', fontSize: '16px'}}/>
 );
 
-// 添加全局 CSS 动画关键帧
-const GlobalStyles = () => (
-    <style>
-        {`
-      @keyframes swing {
-        0% {
-          transform: rotate(-60deg);
-        }
-        50% {
-          transform: rotate(60deg);
-        }
-        100% {
-          transform: rotate(-60deg);
-        }
-      }
-      
-      @keyframes spin {
-        from {
-          transform: rotate(0deg);
-        }
-        to {
-          transform: rotate(360deg);
-        }
-      }
-    `}
-    </style>
-);
 
 interface ToolManagerProps {
     mode?: 'default' | 'my';
@@ -187,7 +130,7 @@ const ToolManager: React.FC<ToolManagerProps> = ({
                 // 构建左侧菜单
                 const toolsList = configs.map((config: any) => {
                     const isDisabled = config.toolType === 'MCP' || config.toolType === 'GRPC';
-                    let toolDisplayName = config.toolInstanceName || getToolTypeName(config.toolType);
+                    let toolDisplayName = config.displayName || config.toolInstanceName || getToolTypeName(config.toolType);
 
                     const displayLabel = (
                         <div style={{
@@ -208,79 +151,103 @@ const ToolManager: React.FC<ToolManagerProps> = ({
                                     <Tag color="blue" style={{marginLeft: '8px'}}>{config.id}</Tag>
                                 </div>
                             </Tooltip>
-                            <div style={{display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0}}>
-                                <Button
-                                    type="text"
-                                    size="small"
-                                    icon={<EditOutlined style={{color: '#1890ff'}}/>}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditTool(config);
-                                    }}
-                                    style={{padding: '0 4px'}}
-                                />
-                                <Button
-                                    type="text"
-                                    size="small"
-                                    icon={<CopyOutlined/>}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        showCopyConfirm(config);
-                                    }}
-                                    style={{padding: '0 4px'}}
-                                />
-                                <Popconfirm
-                                    title="确认删除工具？"
-                                    description="此操作将永久删除该工具配置，是否继续？"
-                                    onConfirm={(e) => {
-                                        e?.stopPropagation();
-                                        handleDeleteTool(config);
-                                    }}
-                                    okText="确认"
-                                    cancelText="取消"
+                            <div style={{display: 'flex', alignItems: 'center', flexShrink: 0}}>
+                                <Dropdown
+                                    trigger={['click']}
+                                    placement="bottomRight"
+                                    popupRender={() => (
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                gap: '4px',
+                                                padding: '4px',
+                                                background: '#fff',
+                                                borderRadius: '6px',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                icon={<EditOutlined style={{color: '#1890ff'}}/>}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleEditTool(config);
+                                                }}
+                                                style={{padding: '0 4px'}}
+                                            />
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                icon={<CopyOutlined/>}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    showCopyConfirm(config);
+                                                }}
+                                                style={{padding: '0 4px'}}
+                                            />
+                                            <Popconfirm
+                                                title="确认删除工具？"
+                                                description="此操作将永久删除该工具配置，是否继续？"
+                                                onConfirm={(e) => {
+                                                    e?.stopPropagation();
+                                                    handleDeleteTool(config);
+                                                }}
+                                                okText="确认"
+                                                cancelText="取消"
+                                            >
+                                                <Button
+                                                    type="text"
+                                                    size="small"
+                                                    danger
+                                                    icon={<DeleteOutlined/>}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    style={{padding: '0 4px'}}
+                                                />
+                                            </Popconfirm>
+                                        </div>
+                                    )}
                                 >
                                     <Button
                                         type="text"
                                         size="small"
-                                        danger
-                                        icon={<DeleteOutlined/>}
+                                        icon={<MoreOutlined/>}
                                         onClick={(e) => e.stopPropagation()}
                                         style={{padding: '0 4px'}}
                                     />
-                                </Popconfirm>
+                                </Dropdown>
                             </div>
                         </div>
                     );
-
-                    const baseIconProps = {isActive: selectedTool === `${config.toolType}_${config.id}`};
 
                     switch (config.toolType) {
                         case 'SQL':
                             return {
                                 key: `${config.toolType}_${config.id}`,
                                 label: displayLabel,
-                                icon: <AnimatedDatabaseIcon {...baseIconProps} />,
+                                icon: <AnimatedDatabaseIcon/>,
                                 disabled: false
                             };
                         case 'HTTP':
                             return {
                                 key: `${config.toolType}_${config.id}`,
                                 label: displayLabel,
-                                icon: <AnimatedApiIcon {...baseIconProps} />,
+                                icon: <AnimatedApiIcon/>,
                                 disabled: false
                             };
                         case 'MCP':
                             return {
                                 key: `${config.toolType}_${config.id}`,
                                 label: displayLabel,
-                                icon: <AnimatedCloudServerIcon {...baseIconProps} />,
+                                icon: <AnimatedCloudServerIcon/>,
                                 disabled: true
                             };
                         case 'GRPC':
                             return {
                                 key: `${config.toolType}_${config.id}`,
                                 label: displayLabel,
-                                icon: <AnimatedSyncIcon {...baseIconProps} />,
+                                icon: <AnimatedSyncIcon/>,
                                 disabled: true
                             };
                         default:
@@ -506,7 +473,6 @@ const ToolManager: React.FC<ToolManagerProps> = ({
         <ConfigProvider getPopupContainer={() => document.body}>
             <App>
                 <Layout style={{minHeight: '100vh', padding: '0'}}>
-                    <GlobalStyles/>
                     <div style={{background: '#fff', borderRadius: '0', padding: '10px'}}>
                         <Layout style={{background: '#fff', borderRadius: '0', padding: '0'}}>
                             <Sider width={300} theme="light" style={{
@@ -540,25 +506,25 @@ const ToolManager: React.FC<ToolManagerProps> = ({
                                 <div style={{marginBottom: '16px'}}>
                                     <Space size="middle">
                                         <Button
-                                            icon={<AnimatedDatabaseIcon isActive={false}/>}
+                                            icon={<AnimatedDatabaseIcon/>}
                                             onClick={() => handleAddTool('SQL')}
                                         >
                                             添加 SQL 执行器
                                         </Button>
                                         <Button
-                                            icon={<AnimatedApiIcon isActive={false}/>}
+                                            icon={<AnimatedApiIcon/>}
                                             onClick={() => handleAddTool('HTTP')}
                                         >
                                             添加 HTTP 请求
                                         </Button>
                                         <Button
-                                            icon={<AnimatedCloudServerIcon isActive={false}/>}
+                                            icon={<AnimatedCloudServerIcon/>}
                                             onClick={() => handleAddTool('MCP')}
                                         >
                                             添加 MCP 服务器
                                         </Button>
                                         <Button
-                                            icon={<AnimatedSyncIcon isActive={false}/>}
+                                            icon={<AnimatedSyncIcon/>}
                                             onClick={() => handleAddTool('GRPC')}
                                         >
                                             添加 gRPC 工具

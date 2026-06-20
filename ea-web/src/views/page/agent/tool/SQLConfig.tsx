@@ -104,6 +104,7 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
     const toolConfig = {
       agentId: Number(agentId),
       toolType: 'SQL',
+      displayName: currentFormValues.displayName || '',
       toolInstanceName: currentFormValues.toolInstanceName || 'SQL执行器',
       toolInstanceDesc: currentFormValues.toolInstanceDesc || '',
       inputTemplate: JSON.stringify(inputParams),
@@ -330,6 +331,7 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
         
         // 构建新的初始值
         const newInitialValues = {
+          displayName: sqlConfig.displayName || '',
           toolInstanceName: sqlConfig.toolInstanceName || 'SQL执行器',
           toolInstanceDesc: sqlConfig.toolInstanceDesc || '',
           dialect: 'mysql',
@@ -470,32 +472,61 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
   };
 
   return (
-    <Card title="SQL执行器" size="small">
+    <Card
+      title="SQL执行器"
+      size="small"
+      extra={
+        <Space>
+          <Button type="primary" size="small" onClick={() => form.submit()}>
+            保存配置
+          </Button>
+        </Space>
+      }
+    >
       <Tabs defaultActiveKey="connection">
         <TabPane tab="连接配置与SQL执行" key="connection">
-          <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={formInitialValues} onValuesChange={onFormValuesChange}>
-            <Form.Item
-              name="toolInstanceName"
-              label="工具实例名称"
-              rules={[{ required: true, message: '请输入工具实例名称' }]}
-            >
-              <Input placeholder="例如: SQL执行器" />
-            </Form.Item>
-            <Form.Item
-              name="toolInstanceDesc"
-              label="工具实例描述"
-              rules={[{ required: true, message: '请输入工具实例描述' }]}
-            >
-              <Input.TextArea placeholder="请输入工具实例描述" />
-            </Form.Item>
-            
-            <Row gutter={16}>
-              <Col span={12}>
+          <Form form={form} layout="vertical" size="small" onFinish={handleSubmit} initialValues={formInitialValues} onValuesChange={onFormValuesChange}>
+            <Row gutter={12}>
+              <Col span={8}>
+                <Form.Item
+                  name="displayName"
+                  label="工具名称"
+                  tooltip="仅用于左侧工具列表展示，不参与工具调用"
+                  style={{ marginBottom: 12 }}
+                >
+                  <Input placeholder="例如: 用户库查询" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item
+                  name="toolInstanceName"
+                  label="工具实例名称"
+                  rules={[{ required: true, message: '请输入工具实例名称' }]}
+                  style={{ marginBottom: 12 }}
+                >
+                  <Input placeholder="例如: SQL执行器" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item
+                  name="toolInstanceDesc"
+                  label="工具实例描述"
+                  rules={[{ required: true, message: '请输入工具实例描述' }]}
+                  style={{ marginBottom: 12 }}
+                >
+                  <Input placeholder="请输入工具实例描述" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={12}>
+              <Col span={8}>
                 <Form.Item
                   name="dialect"
                   label="数据库类型"
                   rules={[{ required: true, message: '请选择数据库类型' }]}
                   initialValue="mysql"
+                  style={{ marginBottom: 12 }}
                 >
                   <Select placeholder="选择数据库类型">
                     <Select.Option value="mysql">MySQL</Select.Option>
@@ -505,65 +536,67 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
                   </Select>
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col span={10}>
                 <Form.Item
                   name="host"
                   label="主机地址"
                   rules={[{ required: true, message: '请输入主机地址' }]}
                   initialValue="localhost"
+                  style={{ marginBottom: 12 }}
                 >
                   <Input placeholder="例如: localhost" />
                 </Form.Item>
               </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col span={12}>
+              <Col span={6}>
                 <Form.Item
                   name="port"
                   label="端口"
                   rules={[{ required: true, message: '请输入端口号' }]}
                   initialValue="3306"
+                  style={{ marginBottom: 12 }}
                 >
                   <Input placeholder="例如: 3306" />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+            </Row>
+
+            <Row gutter={12}>
+              <Col span={8}>
                 <Form.Item
                   name="database"
                   label="数据库名"
                   rules={[{ required: true, message: '请输入数据库名' }]}
                   initialValue="test"
+                  style={{ marginBottom: 12 }}
                 >
                   <Input placeholder="例如: myapp_db" />
                 </Form.Item>
               </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col span={12}>
+              <Col span={8}>
                 <Form.Item
                   name="username"
                   label="用户名"
                   rules={[{ required: true, message: '请输入用户名' }]}
                   initialValue="root"
+                  style={{ marginBottom: 12 }}
                 >
                   <Input placeholder="数据库用户名" />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col span={8}>
                 <Form.Item
                   name="password"
                   label="密码"
                   rules={[{ required: true, message: '请输入密码' }]}
                   initialValue="password"
+                  style={{ marginBottom: 12 }}
                 >
                   <Input.Password placeholder="数据库密码" />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Form.Item>
+            <Form.Item style={{ marginBottom: 12 }}>
               <Space>
                 <Button 
                   type="primary" 
@@ -579,15 +612,16 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
               </Space>
             </Form.Item>
 
-            <Divider dashed />
+            <Divider dashed style={{ margin: '12px 0' }} />
 
-            <Row gutter={16}>
+            <Row gutter={12}>
               <Col span={12}>
                 <Form.Item
                   name="maxRows"
                   label="最大返回行数"
                   rules={[{ required: true, message: '请输入最大返回行数' }]}
                   initialValue={1000}
+                  style={{ marginBottom: 12 }}
                 >
                   <Input type="number" placeholder="例如: 1000" />
                 </Form.Item>
@@ -598,24 +632,26 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
                   label="查询超时(秒)"
                   rules={[{ required: true, message: '请输入查询超时时间' }]}
                   initialValue={30}
+                  style={{ marginBottom: 12 }}
                 >
                   <Input type="number" placeholder="例如: 30" />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Divider dashed />
+            <Divider dashed style={{ margin: '12px 0' }} />
 
             <Form.Item
               name="sql"
               label="SQL语句"
               rules={[{ required: true, message: '请输入SQL语句' }]}
               initialValue="SELECT * FROM users WHERE id = ${id};"
+              style={{ marginBottom: 12 }}
             >
-              <Input.TextArea rows={6} placeholder="输入SQL语句，例如: SELECT * FROM users;" />
+              <Input.TextArea rows={5} placeholder="输入SQL语句，例如: SELECT * FROM users;" />
             </Form.Item>
-            
-            <Form.Item>
+
+            <Form.Item style={{ marginBottom: 0 }}>
               <Space>
                 <Button 
                   type="primary" 
@@ -643,18 +679,6 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
           />
         </TabPane>
       </Tabs>
-
-      <Divider dashed />
-      <Form.Item>
-        <Space>
-          <Button type="primary" onClick={() => form.submit()}>
-            保存配置
-          </Button>
-          <Button htmlType="button" onClick={() => form.resetFields()}>
-            重置
-          </Button>
-        </Space>
-      </Form.Item>
     </Card>
   );
 };

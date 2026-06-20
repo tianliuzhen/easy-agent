@@ -10,7 +10,7 @@ import lombok.experimental.Accessors;
 /**
  * 表名：ea_agent_quick_prompt
  * 表注释：Agent浮选提示词配置表
- */
+*/
 @Getter
 @Setter
 @ToString
@@ -38,12 +38,6 @@ public class EaAgentQuickPromptDO {
     private String label;
 
     /**
-     * 推荐问题列表（JSON数组）
-     */
-    @Column(name = "questions")
-    private String questions;
-
-    /**
      * 排序顺序
      */
     @Column(name = "sort_order")
@@ -66,4 +60,10 @@ public class EaAgentQuickPromptDO {
      */
     @Column(name = "updated_at")
     private Date updatedAt;
+
+    /**
+     * 推荐问题列表（JSON数组）
+     */
+    @Column(name = "questions")
+    private String questions;
 }

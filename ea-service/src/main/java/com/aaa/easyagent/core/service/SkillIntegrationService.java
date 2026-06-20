@@ -271,6 +271,25 @@ public class SkillIntegrationService {
     }
 
     /**
+     * 用户创建个人 Skill 配置（"我的 Skill" → 新增）
+     *
+     * @param userId  用户ID
+     * @param request 配置请求
+     * @return 配置 ID
+     */
+    public Long createUserSkillConfig(Long userId, com.aaa.easyagent.core.domain.request.SkillConfigRequest request) {
+        EaSkillConfigDO config = new EaSkillConfigDO();
+        BeanUtils.copyProperties(request, config);
+        config.setUserId(userId);
+        config.setStatus("active");
+        config.setCreatedAt(new Date());
+        config.setUpdatedAt(new Date());
+
+        eaSkillConfigDAO.insertSelective(config);
+        return config.getId();
+    }
+
+    /**
      * 更新 Skill 配置
      *
      * @param id      配置 ID

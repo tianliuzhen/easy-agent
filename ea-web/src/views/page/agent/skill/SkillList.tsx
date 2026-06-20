@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { List, Card, Tag, Button, Empty, Spin, Tooltip, message, Popconfirm } from 'antd';
+import { List, Card, Tag, Button, Empty, Spin, Tooltip, message, Popconfirm, Modal } from 'antd';
 import { ThunderboltOutlined, SettingOutlined, DisconnectOutlined, StarOutlined, ToolOutlined } from '@ant-design/icons';
 import { skillApi } from '../../../api/SkillApi';
+import { eaToolApi } from '../../../api/EaToolApi';
 
 interface SkillItem {
     id: number;
@@ -35,6 +36,10 @@ const SkillList: React.FC<SkillListProps> = ({
 }) => {
     const [skills, setSkills] = useState<SkillItem[]>([]);
     const [loading, setLoading] = useState(false);
+    const [testModalVisible, setTestModalVisible] = useState(false);
+    const [testLoading, setTestLoading] = useState(false);
+    const [testResult, setTestResult] = useState<any>(null);
+    const [testingItem, setTestingItem] = useState<SkillItem | null>(null);
     const isFirstLoad = useRef(true);
     const prevAgentId = useRef(agentId);
 
@@ -177,8 +182,7 @@ const SkillList: React.FC<SkillListProps> = ({
 
     // 配置技能
     const handleConfigure = useCallback((item: SkillItem) => {
-        message.info(`配置技能: ${item.skillDisplayName}`);
-        // 这里可以打开配置模态框
+        message.info(`配置技能: ${item.skillDisplayName}（可在"我的 Skill"页面编辑）`);
     }, []);
 
     // 解绑 Skill
@@ -213,9 +217,40 @@ const SkillList: React.FC<SkillListProps> = ({
 
     // 测试技能
     const handleTest = useCallback((item: SkillItem) => {
-        message.info(`测试技能: ${item.skillDisplayName}`);
-        // 这里可以打开测试模态框
+        setTestingItem(item);
+        setTestResult(null);
+        setTestModalVisible(true);
     }, []);
+
+    // 执行测试
+    const handleExecuteTest = async () => {
+        if (!testingItem) return;
+        setTestLoading(true);
+        try {
+            const toolConfig: any = {
+                toolType: 'SKILL',
+                toolInstanceName: testingItem.skillDisplayName || testingItem.skillName,
+                toolValue: JSON.stringify({
+                    skillName: testingItem.skillName,
+                    skillType: testingItem.skillType || 'INTERNAL'
+                })
+            };
+            const response = await eaToolApi.debug(toolConfig);
+            setTestResult({
+                success: response.success || response.code === 200,
+                result: response.data || response,
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            setTestResult({
+                success: false,
+                result: '测试请求失败: ' + (error instanceof Error ? error.message : '未知错误'),
+                timestamp: new Date().toISOString()
+            });
+        } finally {
+            setTestLoading(false);
+        }
+    };
 
     // 渲染能力标签
     const renderCapabilities = (capabilities: string[]) => {
@@ -254,7 +289,8 @@ const SkillList: React.FC<SkillListProps> = ({
     }
 
     return (
-        <List
+        <>
+            <List
             dataSource={skills}
             renderItem={(item) => (
                 <List.Item>
@@ -350,6 +386,30 @@ const SkillList: React.FC<SkillListProps> = ({
             )}
             style={{ marginTop: '8px' }}
         />
+
+        {/* 测试结果弹窗 */}
+        <Modal
+            title={`测试 Skill: ${testingItem?.skillDisplayName || ''}`}
+            open={testModalVisible}
+            onCancel={() => setTestModalVisible(false)}
+            footer={[
+                <Button key="close" onClick={() => setTestModalVisible(false)}>关闭</Button>,
+                <Button key="test" type="primary" icon={<ThunderboltOutlined />} loading={testLoading} onClick={handleExecuteTest}>
+                    执行测试
+                </Button>
+            ]}
+            width={600}
+        >
+            <p>技能：{testingItem?.skillDisplayName} ({testingItem?.skillName})</p>
+            {testResult && (
+                <div style={{ background: testResult.success ? '#f6ffed' : '#fff2f0', padding: 16, borderRadius: 8, marginTop: 12 }}>
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {typeof testResult.result === 'string' ? testResult.result : JSON.stringify(testResult.result, null, 2)}
+                    </pre>
+                </div>
+            )}
+        </Modal>
+        </>
     );
 };
 

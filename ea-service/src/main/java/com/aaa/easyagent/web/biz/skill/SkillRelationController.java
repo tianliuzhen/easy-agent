@@ -1,5 +1,6 @@
 package com.aaa.easyagent.web.biz.skill;
 
+import com.aaa.easyagent.common.context.UserContextHolder;
 import com.aaa.easyagent.core.domain.base.BaseResult;
 import com.aaa.easyagent.core.domain.request.SkillBindRequest;
 import com.aaa.easyagent.core.domain.request.SkillConfigRequest;
@@ -36,8 +37,7 @@ public class SkillRelationController {
     @GetMapping("getSkillConfigByUserId/")
     public BaseResult getSkillConfigByUserId() {
         try {
-            // TODO: 从上下文获取当前用户ID，暂时使用默认值 1
-            Long userId = 1L;
+            Long userId = Long.parseLong(UserContextHolder.getUserId());
             List<SkillConfigResult> userSkills = skillIntegrationService.getUserInstalledSkills(userId);
             return BaseResult.buildSuc(userSkills);
         } catch (Exception e) {
@@ -149,8 +149,7 @@ public class SkillRelationController {
     @PostMapping("install")
     public BaseResult installSkill(@RequestBody SkillInstallRequest request) {
         try {
-            // TODO: 从上下文获取当前用户ID，暂时使用默认值 1
-            Long userId = 1L;
+            Long userId = Long.parseLong(UserContextHolder.getUserId());
             Long newSkillId = skillIntegrationService.installSkill(userId, request.getSkillConfigId(), request.getCustomConfig());
             return BaseResult.buildSuc(newSkillId);
         } catch (Exception e) {
@@ -168,8 +167,7 @@ public class SkillRelationController {
     @PostMapping("uninstall/{skillConfigId}")
     public BaseResult uninstallSkill(@PathVariable Long skillConfigId) {
         try {
-            // TODO: 从上下文获取当前用户ID，暂时使用默认值 1
-            Long userId = 1L;
+            Long userId = Long.parseLong(UserContextHolder.getUserId());
             boolean success = skillIntegrationService.uninstallSkill(userId, skillConfigId);
             return BaseResult.buildSuc(success);
         } catch (Exception e) {
@@ -187,8 +185,7 @@ public class SkillRelationController {
     @GetMapping("isInstalled/{skillName}")
     public BaseResult isSkillInstalled(@PathVariable String skillName) {
         try {
-            // TODO: 从上下文获取当前用户ID，暂时使用默认值 1
-            Long userId = 1L;
+            Long userId = Long.parseLong(UserContextHolder.getUserId());
             boolean installed = skillIntegrationService.isSkillInstalled(userId, skillName);
             return BaseResult.buildSuc(installed);
         } catch (Exception e) {
@@ -245,6 +242,24 @@ public class SkillRelationController {
             return BaseResult.buildSuc(id);
         } catch (Exception e) {
             log.error("创建 Skill 配置失败", e);
+            return BaseResult.buildFail(e.getMessage());
+        }
+    }
+
+    /**
+     * 用户创建个人 Skill 配置（"我的 Skill" → 新增）
+     *
+     * @param request 配置请求
+     * @return 配置 ID
+     */
+    @PostMapping("server/user")
+    public BaseResult createUserConfig(@RequestBody SkillConfigRequest request) {
+        try {
+            Long userId = Long.parseLong(UserContextHolder.getUserId());
+            Long id = skillIntegrationService.createUserSkillConfig(userId, request);
+            return BaseResult.buildSuc(id);
+        } catch (Exception e) {
+            log.error("用户创建 Skill 配置失败", e);
             return BaseResult.buildFail(e.getMessage());
         }
     }

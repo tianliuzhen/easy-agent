@@ -44,6 +44,12 @@ public class EaToolConfigDO {
     private String toolInstanceId;
 
     /**
+     * 列表展示名称
+     */
+    @Column(name = "display_name")
+    private String displayName;
+
+    /**
      * 工具实例名称
      */
     @Column(name = "tool_instance_name")

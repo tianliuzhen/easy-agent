@@ -219,11 +219,14 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
-                                <Form.Item label="基础 URL">
+                                <Form.Item
+                                    label="基础 URL"
+                                    extra="服务域名根地址，不含补全路径。例如：https://api.deepseek.com"
+                                >
                                     <Input
                                         value={modelConfigFields.find(f => f.fieldName === 'baseUrl')?.fieldValue}
                                         onChange={(e) => handleModelConfigFieldChange('baseUrl', e.target.value)}
-                                        placeholder="请输入基础 URL"
+                                        placeholder="https://api.deepseek.com"
                                     />
                                 </Form.Item>
                             </Col>
@@ -250,11 +253,14 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
-                                <Form.Item label="补全路径">
+                                <Form.Item
+                                    label="补全路径"
+                                    extra="拼接在基础 URL 之后，需以 / 开头。例如：/v1/chat/completions"
+                                >
                                     <Input
                                         value={modelConfigFields.find(f => f.fieldName === 'completionsPath')?.fieldValue}
                                         onChange={(e) => handleModelConfigFieldChange('completionsPath', e.target.value)}
-                                        placeholder="请输入补全路径"
+                                        placeholder="/v1/chat/completions"
                                     />
                                 </Form.Item>
                             </Col>

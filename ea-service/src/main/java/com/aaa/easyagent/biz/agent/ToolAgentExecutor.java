@@ -18,6 +18,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.EmptyUsage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.model.tool.DefaultToolCallingChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.util.MimeType;
@@ -46,6 +47,11 @@ import java.util.stream.Collectors;
  *   4. {@link ToolExecutionAdvisor} 拦截 tool_call → 自动执行工具 → 结果存入 this.messages
  *   5. doExec() 下一轮 → run() 从 this.messages 构建包含历史的消息列表
  * </pre>
+ *
+ * 4.1.0-m4 版本会自动创建 org.springframework.ai.model.tool.DefaultToolCallingChatOptions
+ * org.springframework.ai.chat.client.DefaultChatClientUtils#toChatClientRequest(org.springframework.ai.chat.client.DefaultChatClient.DefaultChatClientRequestSpec)
+ * 4.1.0 需要手动处理
+ *
  *
  * @author liuzhen.tian
  * @version 1.0 ToolAgentExecutor.java  2025/2/23 20:45
@@ -105,6 +111,7 @@ public class ToolAgentExecutor extends BaseAgent {
         ChatClient.Builder builder = ChatClient.builder(chatModel)
                 .defaultSystem(agentContext.getPrompt() != null ? agentContext.getPrompt() : "")
                 .defaultToolCallbacks(toolCallbacks)
+                .defaultOptions(DefaultToolCallingChatOptions.builder())
                 .defaultAdvisors(advisors);
         if (agentContext.getSessionId() != null) {
             builder.defaultAdvisors(a -> a.param(ChatMemory.CONVERSATION_ID, agentContext.getSessionId()));

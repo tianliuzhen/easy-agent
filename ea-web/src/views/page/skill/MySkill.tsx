@@ -33,6 +33,7 @@ import {
   ToolOutlined
 } from '@ant-design/icons';
 import { skillApi } from '../../api/SkillApi';
+import { eaToolApi } from '../../api/EaToolApi';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -154,21 +155,38 @@ const MySkill: React.FC = () => {
 
   // 执行测试
   const handleExecuteTest = async () => {
+    if (!viewingRecord) return;
     try {
       setTestLoading(true);
-      // 模拟测试结果
-      setTimeout(() => {
-        setTestResult({
-          success: true,
-          skill: viewingRecord?.skillName,
-          result: '技能执行成功',
-          timestamp: new Date().toISOString()
-        });
-        setTestLoading(false);
-      }, 1000);
+      setTestResult(null);
+
+      const toolConfig: any = {
+        toolType: 'SKILL',
+        toolInstanceName: viewingRecord.skillDisplayName || viewingRecord.skillName,
+        toolValue: JSON.stringify({
+          skillName: viewingRecord.skillName,
+          skillType: viewingRecord.skillType || 'INTERNAL',
+          executionMode: viewingRecord.executionMode || 'sync',
+          timeout: viewingRecord.timeout || 30,
+          maxRetries: viewingRecord.maxRetries || 3,
+          skillConfig: viewingRecord.skillConfig
+        })
+      };
+
+      const response = await eaToolApi.debug(toolConfig);
+      setTestResult({
+        success: response.success || response.code === 200,
+        result: response.data || response,
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       console.error('测试失败:', error);
-      message.error('测试失败');
+      setTestResult({
+        success: false,
+        result: '测试请求失败: ' + (error instanceof Error ? error.message : '未知错误'),
+        timestamp: new Date().toISOString()
+      });
+    } finally {
       setTestLoading(false);
     }
   };
@@ -186,7 +204,7 @@ const MySkill: React.FC = () => {
       if (editingRecord?.id) {
         response = await skillApi.updateConfig(editingRecord.id, values);
       } else {
-        response = await skillApi.createConfig(values);
+        response = await skillApi.createUserConfig(values);
       }
 
       if (response.success) {

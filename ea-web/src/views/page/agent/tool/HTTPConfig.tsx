@@ -57,6 +57,44 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
       });
       setParamsList(parsed.params);
       setHeadersList(parsed.headers);
+
+      // 同步初始化通用模板入参：query 参数映射到 $.requestParams.<key>，
+      // raw JSON body 顶层字段映射到 $.requestBody.<key>，供后端 JSONPath 动态赋值
+      const generatedInputParams: any[] = [];
+      parsed.params.forEach((p) => {
+        if (!p.key) return;
+        generatedInputParams.push({
+          name: p.key,
+          type: 'string',
+          description: p.description || '',
+          required: true,
+          defaultValue: p.value || '',
+          referenceValue: `$.requestParams.${p.key}`,
+        });
+      });
+      if (parsed.bodyType === 'raw' && parsed.rawDataType === 'json' && parsed.rawData) {
+        try {
+          const bodyObj = JSON.parse(parsed.rawData);
+          if (bodyObj && typeof bodyObj === 'object' && !Array.isArray(bodyObj)) {
+            Object.keys(bodyObj).forEach((key) => {
+              const v = bodyObj[key];
+              const t = typeof v;
+              generatedInputParams.push({
+                name: key,
+                type: t === 'number' ? 'number' : t === 'boolean' ? 'boolean' : t === 'object' ? 'object' : 'string',
+                description: '',
+                required: true,
+                defaultValue: v != null && t === 'object' ? JSON.stringify(v) : String(v ?? ''),
+                referenceValue: `$.requestBody.${key}`,
+              });
+            });
+          }
+        } catch { /* body 非合法 JSON，忽略入参生成 */ }
+      }
+      if (generatedInputParams.length > 0) {
+        setInputParams(generatedInputParams);
+      }
+
       // 切换到含内容的 Tab，触发字段挂载并便于用户核对
       if (parsed.bodyType !== 'none') {
         setActiveTab('body');
@@ -364,7 +402,7 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
     const httpConfig: any = {};
     // 将与HTTP请求相关的所有参数放入httpConfig对象中，paramsList和headersList除外
     Object.keys(values).forEach(key => {
-      if (key !== 'toolInstanceName' && key !== 'paramsList' && key !== 'headersList') { // toolInstanceName应该在根级别
+      if (key !== 'toolInstanceName' && key !== 'displayName' && key !== 'paramsList' && key !== 'headersList') { // toolInstanceName/displayName应该在根级别
         httpConfig[key] = values[key];
       }
     });
@@ -379,6 +417,7 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
     const toolConfig = {
       agentId: Number(agentId),
       toolType: 'HTTP',
+      displayName: values.displayName || '',
       toolInstanceName: values.toolInstanceName || 'HTTP请求',
       toolInstanceDesc: values.toolInstanceDesc || '',
       inputTemplate: JSON.stringify(inputParams),
@@ -428,7 +467,8 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
   const handleDebug = async () => {
     try {
       setDebugging(true);
-      await form.validateFields();
+      // 调试只校验请求本身必需的字段，不强制要求工具名称/实例名等元信息
+      await form.validateFields(['url', 'method']);
       // 使用 getFieldsValue(true) 获取全部字段值（含未挂载 Tab 内的 Body/Auth 字段）
       const values = form.getFieldsValue(true);
 
@@ -436,7 +476,7 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
       const httpConfig: any = {};
       // 将与HTTP请求相关的所有参数放入httpConfig对象中，paramsList和headersList除外
       Object.keys(values).forEach(key => {
-        if (key !== 'toolInstanceName' && key !== 'paramsList' && key !== 'headersList') { // toolInstanceName应该在根级别
+        if (key !== 'toolInstanceName' && key !== 'displayName' && key !== 'paramsList' && key !== 'headersList') { // toolInstanceName/displayName应该在根级别
           httpConfig[key] = values[key];
         }
       });
@@ -500,7 +540,9 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
           });
     } catch (error) {
       setLoading(false);
+      setDebugging(false);
       console.error('Validation failed:', error);
+      app.message.error('请填写请求方法和请求 URL 后再发送');
     }
   };
 
@@ -594,6 +636,7 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
           }
         }
         delete formValues.requestBody;
+        formValues.displayName = httpConfig.displayName || '';
         formValues.toolInstanceName = httpConfig.toolInstanceName || 'HTTP请求';
         formValues.toolInstanceDesc = httpConfig.toolInstanceDesc || 'HTTP请求工具描述';
 
@@ -619,6 +662,7 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
     } else {
       // 如果没有工具配置，则设置默认值
       form.setFieldsValue({
+        displayName: '',
         toolInstanceName: 'HTTP请求',
         toolInstanceDesc: 'HTTP请求工具描述',
         method: 'GET',
@@ -658,9 +702,14 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
           title="HTTP请求配置"
           size="small"
           extra={
-            <Button type="primary" ghost icon={<ImportOutlined />} onClick={() => setCurlModalOpen(true)}>
-              导入 cURL
-            </Button>
+            <Space>
+              <Button type="primary" ghost size="small" icon={<ImportOutlined />} onClick={() => setCurlModalOpen(true)}>
+                导入 cURL
+              </Button>
+              <Button type="primary" size="small" onClick={handleSave}>
+                保存
+              </Button>
+            </Space>
           }
       >
           <Modal
@@ -688,22 +737,46 @@ const HTTPConfig: React.FC<HTTPConfigProps> = ({ toolConfigs = [], agentId, onRe
           </Modal>
           <Tabs defaultActiveKey="params">
             <TabPane tab="参数配置" key="params">
-              <Collapse defaultActiveKey={['1']} ghost>
-                <Panel header="基本配置" key="1">
-                  <Form form={form} layout="vertical" onFinish={handleSubmit}>
-                    <Form.Item
-                        name="toolInstanceName"
-                        label="工具实例名称"
-                        rules={[{ required: true, message: '请输入工具实例名称' }]}
-                    >
-                      <Input placeholder="例如: HTTP请求" />
-                    </Form.Item>
+                  <Form form={form} layout="vertical" size="small" onFinish={handleSubmit}>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                            name="displayName"
+                            label="工具名称"
+                            tooltip="仅用于左侧工具列表展示，不参与工具调用"
+                            rules={[{ required: true, message: '请输入工具名称' }]}
+                            style={{ marginBottom: 12 }}
+                        >
+                          <Input placeholder="例如: 贵金属价格查询" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                            name="toolInstanceName"
+                            label="工具实例名称"
+                            rules={[
+                              { required: true, message: '请输入工具实例名称' },
+                              { pattern: /^[A-Za-z0-9_-]+$/, message: '只能输入英文字母、数字、下划线或连字符' },
+                            ]}
+                            style={{ marginBottom: 12 }}
+                        >
+                          <Input
+                            placeholder="例如: queryPreciousMetalsPriceByDate"
+                            onChange={(e) => {
+                              const filtered = e.target.value.replace(/[^A-Za-z0-9_-]/g, '');
+                              form.setFieldValue('toolInstanceName', filtered);
+                            }}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
                     <Form.Item
                         name="toolInstanceDesc"
                         label="工具实例描述"
                         rules={[{ required: true, message: '请输入工具实例描述' }]}
+                        style={{ marginBottom: 12 }}
                     >
-                      <Input.TextArea placeholder="请输入工具实例描述" />
+                      <Input.TextArea placeholder="请输入工具实例描述" autoSize={{ minRows: 1, maxRows: 3 }} />
                     </Form.Item>
 
                   <Row gutter={16}>
@@ -944,8 +1017,6 @@ key2=value2'
 
 
                 </Form>
-              </Panel>
-            </Collapse>
 
             {/* 调试结果展示区域 */}
             <DebugResult debugResult={debugResult} loading={debugging} title="HTTP调试结果" />
@@ -960,18 +1031,6 @@ key2=value2'
             />
           </TabPane>
         </Tabs>
-
-        <Divider dashed />
-        <Form.Item>
-          <Space>
-            <Button type="primary" onClick={handleSave}>
-              配置保存
-            </Button>
-            <Button htmlType="button" onClick={() => form.resetFields()}>
-              重置
-            </Button>
-          </Space>
-        </Form.Item>
       </Card>
   );
 
