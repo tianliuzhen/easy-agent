@@ -29,6 +29,11 @@ public class StreamChatPostRequest {
     private String agentId;
 
     /**
+     * 多 Agent 编排 ID（可选）。不为空时走编排路径，与 agentId 二选一。
+     */
+    private Long flowId;
+
+    /**
      * 是否启用流式输出，默认 true
      */
     private Boolean streamEnabled;

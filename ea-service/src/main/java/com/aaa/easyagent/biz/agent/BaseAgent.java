@@ -56,6 +56,38 @@ public abstract class BaseAgent {
     protected SseEmitter sse;
 
     /**
+     * 是否由本执行器负责关闭 SSE。
+     * 单 Agent 直跑时为 true；被 FlowExecutor 调度的子 Agent 为 false，
+     * 由编排器在所有节点执行完成后统一收尾，避免第一个子 Agent 跑完就关闭整条流。
+     */
+    protected boolean ownSse = true;
+
+    public void setOwnSse(boolean ownSse) {
+        this.ownSse = ownSse;
+    }
+
+    /**
+     * 是否在执行结束时保存聊天记录。
+     * 单 Agent 直跑时为 true；被 FlowExecutor 调度的子 Agent 为 false，
+     * 由编排器在全部节点完成后统一保存一条会话记录（复用首节点 agent_id）。
+     * 原因：{@code ChatRecordSaver.saveAgentFinish} 内部会 clearThreadLocal 清掉 conversationId，
+     * 多个子 Agent 各自保存会相互冲突。
+     */
+    protected boolean saveRecord = true;
+
+    public void setSaveRecord(boolean saveRecord) {
+        this.saveRecord = saveRecord;
+    }
+
+    public long getAccumulateInputTokenCount() {
+        return accumulateInputTokenCount;
+    }
+
+    public long getAccumulateOutputTokenCount() {
+        return accumulateOutputTokenCount;
+    }
+
+    /**
      * ChatClient.Builder，子类可以通过它构建 ChatClient 实现 fluent API 调用。
      * 仅在 ToolAgentExecutor 等子类中使用，ReAct 模式仍使用传统的 chatModel 方式。
      */
@@ -180,17 +212,21 @@ public abstract class BaseAgent {
                     SseHelper.sendLog(sse, "第{}次大模型决策结果...：", decisionCnt, llmResponse);
 
                     // SseHelper.sendFinalAnswer(sse, agentFinish.getResult());
-                    // ChatRecordSaver.addFinalAnswer(agentFinish.getResult());
+                    // 持久化最终答案到 messageContext，供历史回放渲染 AI 气泡（Tool 模式不会调用 addData）
+                    ChatRecordSaver.addFinalAnswer(agentFinish.getResult());
                     stopWatch.stop();
 
                     // 保存 Agent 执行结果，并传入本轮累计的输入/输出 Token 数
-                    ChatRecordSaver.saveAgentFinish(
-                            agentFinish, agentContext.getAgentModelConfig().getModelVersion(),
-                            this.accumulateInputTokenCount,
-                           this.accumulateOutputTokenCount,
-                            BigDecimal.valueOf(stopWatch.getTotalTimeSeconds()));
+                    // 被编排器调度的子 Agent（saveRecord=false）不在此保存，由编排器统一收口
+                    if (saveRecord) {
+                        ChatRecordSaver.saveAgentFinish(
+                                agentFinish, agentContext.getAgentModelConfig().getModelVersion(),
+                                this.accumulateInputTokenCount,
+                                this.accumulateOutputTokenCount,
+                                BigDecimal.valueOf(stopWatch.getTotalTimeSeconds()));
+                    }
 
-                    if (sse != null) {
+                    if (ownSse && sse != null) {
                         sse.complete();
                     }
                     return llmResponse;
@@ -198,7 +234,7 @@ public abstract class BaseAgent {
             } catch (Exception e) {
                 log.error("大模型执行异常:", e);
                 SseHelper.sendError(sse, "第{}次大模型决策异常：{}", decisionCnt, e.getMessage());
-                if (sse != null) {
+                if (ownSse && sse != null) {
                     sse.complete();
                 }
                 return null;

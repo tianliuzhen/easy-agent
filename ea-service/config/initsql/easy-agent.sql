@@ -49,6 +49,7 @@ CREATE TABLE `ea_chat_conversation` (
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '会话标题（取第一次问题的前50个字符）',
   `session_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `agent_id` bigint NOT NULL COMMENT '关联的Agent ID',
+  `flow_id` bigint DEFAULT NULL COMMENT '关联的编排ID（NULL=单Agent会话，非NULL=多Agent编排会话）',
   `user_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '用户ID（预留字段，未来扩展用）',
   `message_count` int NOT NULL DEFAULT '0' COMMENT '消息总数',
   `last_message_time` timestamp NULL DEFAULT NULL COMMENT '最后消息时间',
@@ -59,6 +60,7 @@ CREATE TABLE `ea_chat_conversation` (
   `accumulated_output_tokens` bigint DEFAULT '0' COMMENT '累计输出Token数',
   PRIMARY KEY (`id`) USING BTREE,
   KEY `idx_agent_id_created_at` (`agent_id`,`created_at`) USING BTREE,
+  KEY `idx_flow_id` (`flow_id`) USING BTREE,
   KEY `idx_status_updated_at` (`status`,`updated_at`) USING BTREE,
   KEY `idx_created_at` (`created_at`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=82 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC COMMENT='聊天会话表';
@@ -370,5 +372,40 @@ CREATE TABLE `ea_agent_quick_prompt` (
   PRIMARY KEY (`id`) USING BTREE,
   KEY `idx_agent_id` (`agent_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC COMMENT='Agent浮选提示词配置表';
+
+-- ----------------------------
+-- Table structure for ea_agent_flow
+-- ----------------------------
+DROP TABLE IF EXISTS `ea_agent_flow`;
+CREATE TABLE `ea_agent_flow` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `flow_name` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '多Agent编排名称',
+  `flow_key` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '编排Key',
+  `avatar` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '头像',
+  `flow_desc` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '编排备注',
+  `strategy` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '编排策略：SUPERVISOR/ROUTER/WORKFLOW',
+  `supervisor_agent_id` bigint DEFAULT NULL COMMENT '主管/路由Agent ID：SUPERVISOR、ROUTER 策略使用',
+  `prompt` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '编排级提示词（主管/路由指令）',
+  `welcome_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '欢迎语',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMMENT='多Agent编排表';
+
+-- ----------------------------
+-- Table structure for ea_agent_flow_node
+-- ----------------------------
+DROP TABLE IF EXISTS `ea_agent_flow_node`;
+CREATE TABLE `ea_agent_flow_node` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `flow_id` bigint NOT NULL COMMENT '关联的编排 ID（ea_agent_flow.id）',
+  `agent_id` bigint NOT NULL COMMENT '成员 Agent ID（ea_agent.id）',
+  `node_role` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '节点角色描述：供主管选择工具/路由分类用',
+  `order_index` int NOT NULL DEFAULT '0' COMMENT '执行顺序：WORKFLOW 策略按此串行',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_flow_id` (`flow_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMMENT='多Agent编排成员节点表';
 
 SET FOREIGN_KEY_CHECKS = 1;

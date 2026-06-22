@@ -133,11 +133,19 @@ public class ChatRecordServiceImpl implements ChatRecordService {
     }
 
     @Override
-    public List<ChatConversationResult> listConversationsByUserId(String userId, Long agentId, String status) {
+    public List<ChatConversationResult> listConversationsByUserId(String userId, Long agentId, Long flowId, String status) {
         Example example = new Example(EaChatConversationDO.class);
         Example.Criteria criteria = example.createCriteria();
         criteria.andEqualTo(FunFiledHelper.getFieldName(EaChatConversationDO::getUserId), userId);
-        criteria.andEqualTo(FunFiledHelper.getFieldName(EaChatConversationDO::getAgentId), agentId);
+
+        if (flowId != null) {
+            // 编排会话：仅按 flow_id 过滤
+            criteria.andEqualTo(FunFiledHelper.getFieldName(EaChatConversationDO::getFlowId), flowId);
+        } else {
+            // 单 Agent 会话：按 agent_id 过滤，并排除编排会话
+            criteria.andEqualTo(FunFiledHelper.getFieldName(EaChatConversationDO::getAgentId), agentId);
+            criteria.andIsNull(FunFiledHelper.getFieldName(EaChatConversationDO::getFlowId));
+        }
 
         if (status != null && !status.isEmpty()) {
             criteria.andEqualTo(FunFiledHelper.getFieldName(EaChatConversationDO::getStatus), status);
@@ -265,10 +273,11 @@ public class ChatRecordServiceImpl implements ChatRecordService {
 
     @Override
     @Transactional
-    public StartNewConversationResp startNewConversation(Long agentId, String sessionId, String userId, String firstQuestion) {
+    public StartNewConversationResp startNewConversation(Long agentId, Long flowId, String sessionId, String userId, String firstQuestion) {
         // 创建会话
         ChatConversationReq conversationReq = new ChatConversationReq();
         conversationReq.setAgentId(agentId);
+        conversationReq.setFlowId(flowId);
         conversationReq.setUserId(userId);
         conversationReq.setTitle(conversationReq.generateTitleIfEmpty(firstQuestion));
         conversationReq.setId(Long.valueOf(sessionId));

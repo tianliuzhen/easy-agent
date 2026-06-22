@@ -207,137 +207,58 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
 
             setMessages(prev => [...prev, aiMessage]);
 
-            // 使用正确的函数参数形式调用 sendMessage
-            sendMessage(
-                input,
-                currentConversationId!.toString(),
-                agentId.toString(),
-                currentImage,
-                (logText: string) => {
-                    // onLog
-                    const currentMessageId = messageId;
-                    setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[currentMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentMessageId]: {
-                                ...prev[currentMessageId],
-                                content: [...currentLogs, {
-                                    type: 'log',
-                                    content: logText,
-                                    timestamp: Date.now()
-                                }]
-                            }
-                        };
-                    });
-                },
-                (finalAnswer: string) => {
-                    // onFinalAnswer
-                    const currentMessageId = messageId;
-                    setMessages(prev => prev.map(msg =>
-                        msg.id === currentMessageId
-                            ? {...msg, text: finalAnswer}
-                            : msg
-                    ));
+            // 统一往当前 AI 消息的思考日志追加一条
+            const appendEntry = (entry: ThinkingLogEntry) => {
+                setMessageThinkingLogs(prev => {
+                    const currentLogs = prev[messageId]?.content || [];
+                    return {
+                        ...prev,
+                        [messageId]: {
+                            ...prev[messageId],
+                            content: [...currentLogs, {...entry, timestamp: Date.now()}]
+                        }
+                    };
+                });
+            };
 
-                    setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[currentMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentMessageId]: {
-                                ...prev[currentMessageId],
-                                content: [...currentLogs, {
-                                    type: 'finalAnswer',
-                                    content: finalAnswer,
-                                    timestamp: Date.now()
-                                }]
-                            }
-                        };
-                    });
-                },
-                (thinkingText: string) => {
-                    // onThink
-                    const currentMessageId = messageId;
-                    const content = thinkingText.startsWith('[THINK] ') ? thinkingText.substring(8) : thinkingText;
-                    setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[currentMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentMessageId]: {
-                                ...prev[currentMessageId],
-                                content: [...currentLogs, {
-                                    type: 'think',
-                                    content,
-                                    timestamp: Date.now()
-                                }]
-                            }
-                        };
-                    });
-                },
-                (data: string) => {
-                    // onData
-                    const currentMessageId = messageId;
-                    const content = data.startsWith('[DATA] ') ? data.substring(7) : data;
-                    setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[currentMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentMessageId]: {
-                                ...prev[currentMessageId],
-                                content: [...currentLogs, {
-                                    type: 'data',
-                                    content,
-                                    timestamp: Date.now()
-                                }]
-                            }
-                        };
-                    });
-                },
-                (toolInfo: string) => {
-                    // onTool
-                    const currentMessageId = messageId;
-                    setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[currentMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentMessageId]: {
-                                ...prev[currentMessageId],
-                                content: [...currentLogs, {
-                                    type: 'tool',
-                                    content: toolInfo,
-                                    timestamp: Date.now()
-                                }]
-                            }
-                        };
-                    });
-                },
-                () => {
-                    // onDone
-                    setIsThinking(false);
-                    setCurrentAnsweringMsgId(null);
-                },
-                (errorText: string) => {
-                    // onError
-                    const currentMessageId = messageId;
-                    setMessageThinkingLogs(prev => {
-                        const currentLogs = prev[currentMessageId]?.content || [];
-                        return {
-                            ...prev,
-                            [currentMessageId]: {
-                                ...prev[currentMessageId],
-                                content: [...currentLogs, {
-                                    type: 'error',
-                                    content: `${errorText}`,
-                                    timestamp: Date.now()
-                                }]
-                            }
-                        };
-                    });
-                    setError(errorText);
-                    setIsThinking(false);
-                    setCurrentAnsweringMsgId(null);
+            sendMessage({
+                message: input,
+                sessionId: currentConversationId!.toString(),
+                agentId: agentId.toString(),
+                imageBase64: currentImage,
+                handlers: {
+                    onLog: (logText) => appendEntry({type: 'log', content: logText}),
+                    onStep: (evt) => appendEntry({
+                        type: 'log',
+                        content: `▶ 第 ${evt.index}/${evt.total} 步：${evt.agentName || ''}`
+                    }),
+                    onFinalAnswer: (finalAnswer) => {
+                        setMessages(prev => prev.map(msg =>
+                            msg.id === messageId ? {...msg, text: finalAnswer} : msg
+                        ));
+                        appendEntry({type: 'finalAnswer', content: finalAnswer});
+                    },
+                    onThink: (thinkingText) => appendEntry({
+                        type: 'think',
+                        content: thinkingText.startsWith('[THINK] ') ? thinkingText.substring(8) : thinkingText
+                    }),
+                    onData: (data) => appendEntry({
+                        type: 'data',
+                        content: data.startsWith('[DATA] ') ? data.substring(7) : data
+                    }),
+                    onTool: (toolInfo) => appendEntry({type: 'tool', content: toolInfo}),
+                    onDone: () => {
+                        setIsThinking(false);
+                        setCurrentAnsweringMsgId(null);
+                    },
+                    onError: (errorText) => {
+                        appendEntry({type: 'error', content: `${errorText}`});
+                        setError(errorText);
+                        setIsThinking(false);
+                        setCurrentAnsweringMsgId(null);
+                    }
                 }
-            );
+            });
 
         } catch (error: any) {
             console.error('发送消息失败:', error);

@@ -91,5 +91,13 @@
             <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
         </table>
 
+        <table tableName="ea_agent_flow" mapperName="EaAgentFlowDAO" domainObjectName="EaAgentFlowDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
+        <table tableName="ea_agent_flow_node" mapperName="EaAgentFlowNodeDAO" domainObjectName="EaAgentFlowNodeDO">
+            <generatedKey identity="true" column="id" sqlStatement="JDBC"/>
+        </table>
+
     </context>
 </generatorConfiguration>

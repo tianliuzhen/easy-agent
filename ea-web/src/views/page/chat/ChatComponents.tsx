@@ -262,12 +262,17 @@ const ThinkingContentList: React.FC<{ merged: ThinkingLogEntry[], isRealTime: bo
         };
     });
 
+    const collapsibleKeys = items
+        .filter(item => item.collapsible !== false)
+        .map(item => item.key!);
+
     return (
         <div style={{marginTop: '8px'}}>
             <ThoughtChain
-                defaultExpandedKeys={items
-                    .filter(item => item.collapsible !== false)
-                    .map(item => item.key!)}
+                // defaultExpandedKeys 仅在挂载时生效；流式中后增的「回答/思考」块不会被纳入。
+                // 用可折叠块数量作为 key，新增块时强制重挂载，重新应用「全部展开」。
+                key={`tc-${collapsibleKeys.length}`}
+                defaultExpandedKeys={collapsibleKeys}
                 items={items}
                 line="dashed"
             />

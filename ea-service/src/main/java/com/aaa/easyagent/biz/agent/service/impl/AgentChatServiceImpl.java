@@ -5,6 +5,9 @@ import com.aaa.easyagent.biz.agent.ToolAgentExecutor;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.data.AgentModelConfig;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
+import com.aaa.easyagent.biz.agent.flow.FlowContext;
+import com.aaa.easyagent.biz.agent.flow.FlowExecutorManager;
+import com.aaa.easyagent.biz.agent.flow.FlowManagerService;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
 import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
 import com.aaa.easyagent.core.domain.DO.EaChatConversationDO;
@@ -40,6 +43,8 @@ public class AgentChatServiceImpl implements AgentChatService {
     private final ToolMangerService toolMangerService;
     private final McpToolIntegrationService mcpToolIntegrationService;
     private final ChatRecordService chatRecordService;
+    private final FlowManagerService flowManagerService;
+    private final FlowExecutorManager flowExecutorManager;
 
     /**
      * 非流式 SSE 发射器：缓冲所有 send 调用，在 complete 时一次性发送
@@ -115,6 +120,11 @@ public class AgentChatServiceImpl implements AgentChatService {
         String question = request.getMsg();
         String agentId = request.getAgentId();
         String imageBase64 = request.getImageBase64();
+
+        // 多 Agent 编排路径（向后兼容：flowId 为空时走原单 Agent 路径）
+        if (request.getFlowId() != null) {
+            return execFlow(request, sseEmitter);
+        }
 
         EaAgentResult agent = agentManagerService.getAgent(Long.valueOf(agentId));
         if (agent == null) {
@@ -192,5 +202,45 @@ public class AgentChatServiceImpl implements AgentChatService {
         // 实际的保存逻辑在ChatRecordSaverService中通过ThreadLocal收集
         log.info("Agent执行完成，结果长度: {}", result != null ? result.length() : 0);
         return result;
+    }
+
+    /**
+     * 多 Agent 编排执行。加载编排 + 有序成员，填充运行期上下文后交由 {@link FlowExecutorManager} 分发。
+     * 会话归属记录 flow_id（隔离编排会话），agent_id 取首节点，token 历史累计沿用单 Agent 机制。
+     */
+    private String execFlow(StreamChatPostRequest request, SseEmitter sseEmitter) {
+        String sessionId = request.getSessionId();
+        String question = request.getMsg();
+        String imageBase64 = request.getImageBase64();
+        boolean syncMode = sseEmitter == null;
+
+        FlowContext flowCtx = flowManagerService.loadFlow(request.getFlowId());
+        if (flowCtx.getMembers() == null || flowCtx.getMembers().isEmpty()) {
+            if (sseEmitter != null) {
+                sseEmitter.complete();
+            }
+            return null;
+        }
+        flowCtx.setSse(sseEmitter)
+                .setSessionId(sessionId)
+                .setImageBase64(imageBase64)
+                .setSyncMode(syncMode);
+
+        // 会话归属：复用首节点 agent_id（轻量上下文，仅用于开启会话，避免重复加载工具）
+        EaAgentResult firstMember = flowCtx.getMembers().get(0);
+        AgentContext convCtx = new AgentContext();
+        convCtx.setAgentId(firstMember.getId());
+        convCtx.setFlowId(request.getFlowId());
+        convCtx.setSessionId(sessionId);
+        ChatRecordSaver.startNewConversation(convCtx, question);
+
+        // 历史累计 Token（与单 Agent 一致）
+        EaChatConversationDO conversation = chatRecordService.getBySessionId(sessionId);
+        flowCtx.setInitInputTokens(conversation != null && conversation.getAccumulatedInputTokens() != null
+                ? conversation.getAccumulatedInputTokens() : 0L);
+        flowCtx.setInitOutputTokens(conversation != null && conversation.getAccumulatedOutputTokens() != null
+                ? conversation.getAccumulatedOutputTokens() : 0L);
+
+        return flowExecutorManager.exec(flowCtx, question);
     }
 }

@@ -24,6 +24,7 @@ import {
     type QuickPromptGroup
 } from './chat/ChatComponents';
 import {eaAgentApi} from '../api/EaAgentApi';
+import {flowApi, type Flow} from '../api/FlowApi';
 
 const {TextArea} = Input;
 
@@ -82,6 +83,8 @@ const ChatDemo: React.FC = () => {
     const [loading, setLoading] = useState(false);
     // Agent详情状态
     const [agentDetail, setAgentDetail] = useState<AgentDetail | null>(null);
+    // 编排详情状态（URL 带 flowId 时填充）
+    const [flowDetail, setFlowDetail] = useState<Flow | null>(null);
     // 当前会话 ID（每次新开对话时从后端获取）
     const [conversationId, setConversationId] = useState<number | null>(null);
     // 新增：选中的图片（Base64 Data URL）
@@ -89,19 +92,55 @@ const ChatDemo: React.FC = () => {
     // 浮选提示词
     const [quickPrompts, setQuickPrompts] = useState<QuickPromptGroup[]>([]);
 
-    useEffect(() => {
-        const newUuid = crypto.randomUUID();
-        // 加载用户的会话列表
-        loadConversations();
-        // 加载Agent详情
-        loadAgentDetail();
-    }, []);
+    // 读取 URL 中的 flowId（编排模式）
+    const getFlowId = (): number | undefined => {
+        const urlParams = new URLSearchParams(location.search);
+        return urlParams.get('flowId') ? parseInt(urlParams.get('flowId')!) : undefined;
+    };
 
-    // 监听agentId变化，重新加载Agent详情
+    // 编排模式下，会话归属到首节点 Agent（与后端 execFlow 一致）
+    const getFlowFirstAgentId = (flow: Flow | null): number | undefined => {
+        return flow?.nodes && flow.nodes.length > 0 ? flow.nodes[0].agentId : undefined;
+    };
+
+    // 当前会话归属的 Agent ID：编排模式取首节点，单 Agent 模式取 URL
+    const currentAgentId = (): number => {
+        if (getFlowId()) {
+            return getFlowFirstAgentId(flowDetail) ?? 1;
+        }
+        const urlParams = new URLSearchParams(location.search);
+        return urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : 1;
+    };
+
     useEffect(() => {
-        loadAgentDetail();
-        loadQuickPrompts();
+        init();
     }, [location.search]);
+
+    // 统一初始化：按 flowId / agentId 分别加载头部信息与会话列表
+    const init = async (): Promise<void> => {
+        const flowId = getFlowId();
+        if (flowId) {
+            // 编排模式：加载编排详情，历史按 flowId 过滤
+            try {
+                const result = await flowApi.detail(flowId);
+                const flow: Flow = result?.data || null;
+                setFlowDetail(flow);
+                setAgentDetail(null);
+                setQuickPrompts([]);
+                await loadConversations(undefined, flowId);
+            } catch (error) {
+                console.error('加载编排详情失败:', error);
+            }
+        } else {
+            // 单 Agent 模式
+            setFlowDetail(null);
+            await loadAgentDetail();
+            await loadQuickPrompts();
+            const urlParams = new URLSearchParams(location.search);
+            const agentId = urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : undefined;
+            await loadConversations(agentId);
+        }
+    };
 
     // 加载浮选提示词
     const loadQuickPrompts = async (): Promise<void> => {
@@ -121,14 +160,11 @@ const ChatDemo: React.FC = () => {
         }
     };
 
-    // 加载会话列表
-    const loadConversations = async (): Promise<ChatConversation[]> => {
+    // 加载会话列表（编排模式按 flowId 过滤，单 Agent 模式按 agentId 过滤）
+    const loadConversations = async (agentId?: number, flowId?: number): Promise<ChatConversation[]> => {
         try {
             setLoading(true);
-            const urlParams = new URLSearchParams(location.search);
-            const agentId = urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : undefined;
-
-            const conversationList = await listConversationsByUserId(CURRENT_USER_ID, agentId, 'active');
+            const conversationList = await listConversationsByUserId(CURRENT_USER_ID, agentId, flowId, 'active');
             setConversations(conversationList);
             return conversationList;
         } catch (error) {
@@ -138,6 +174,12 @@ const ChatDemo: React.FC = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // 按当前模式刷新会话列表
+    const reloadConversations = (): Promise<ChatConversation[]> => {
+        const flowId = getFlowId();
+        return flowId ? loadConversations(undefined, flowId) : loadConversations(currentAgentId());
     };
 
     // 加载Agent详情
@@ -346,11 +388,9 @@ const ChatDemo: React.FC = () => {
         let activeConversationId = conversationId;
         if (!activeConversationId) {
             try {
-                const urlParams = new URLSearchParams(location.search);
-                const agentId = urlParams.get('agentId') ? parseInt(urlParams.get('agentId')!) : 1;
-
                 activeConversationId = await createConversation({
-                    agentId,
+                    agentId: currentAgentId(),
+                    flowId: getFlowId(),
                     userId: CURRENT_USER_ID,
                     status: 'active'
                 });
@@ -408,125 +448,74 @@ const ChatDemo: React.FC = () => {
 
         const urlParams = new URLSearchParams(location.search);
         const agentId = urlParams.get('agentId') || '1';
+        const flowId = urlParams.get('flowId') || undefined;
 
-        sendMessage(
-            input,
-            activeConversationId.toString(),
+        // 统一往当前 AI 消息的思考日志追加一条
+        const appendEntry = (entry: ThinkingLogEntry) => {
+            setMessageThinkingLogs(prev => {
+                const currentEntries = prev[aiMessageId]?.content || [];
+                return {
+                    ...prev,
+                    [aiMessageId]: {
+                        content: [...currentEntries, entry],
+                        isVisible: prev[aiMessageId]?.isVisible || true
+                    }
+                };
+            });
+        };
+
+        sendMessage({
+            message: input,
+            sessionId: activeConversationId.toString(),
             agentId,
-            currentImage,
-            (log: string) => {
-                const currentAiMessageId = aiMessageId;
-                setMessageThinkingLogs(prev => {
-                    const currentEntries = prev[currentAiMessageId]?.content || [];
-                    return {
-                        ...prev,
-                        [currentAiMessageId]: {
-                            content: [...currentEntries, {type: 'log' as const, content: log}],
-                            isVisible: prev[currentAiMessageId]?.isVisible || true
+            flowId,
+            imageBase64: currentImage,
+            handlers: {
+                onLog: (log) => appendEntry({type: 'log', content: log}),
+                onStep: (evt) => appendEntry({
+                    type: 'log',
+                    content: `▶ 第 ${evt.index}/${evt.total} 步：${evt.agentName || ''}`
+                }),
+                onFinalAnswer: (finalAnswer) => {
+                    setMessages(prev => {
+                        const existingMsgIndex = prev.findIndex(msg => msg.id === aiMessageId);
+                        if (existingMsgIndex >= 0) {
+                            return prev.map((msg, index) =>
+                                index === existingMsgIndex ? {...msg, text: finalAnswer} : msg
+                            );
                         }
-                    };
-                });
-            },
-            (finalAnswer: string) => {
-                const currentAiMessageId = aiMessageId;
-                setMessages(prev => {
-                    const existingMsgIndex = prev.findIndex(msg => msg.id === currentAiMessageId);
-                    if (existingMsgIndex >= 0) {
-                        return prev.map((msg, index) => {
-                            if (index === existingMsgIndex) {
-                                return {...msg, text: finalAnswer};
-                            }
-                            return msg;
-                        });
-                    } else {
                         return [...prev, {
                             text: finalAnswer,
                             isUser: false,
                             type: 'data',
-                            id: currentAiMessageId,
+                            id: aiMessageId,
                             timestamp: Date.now()
                         }];
-                    }
-                });
-
-                // 添加 finalAnswer 到思考日志中
-                setMessageThinkingLogs(prev => {
-                    const currentEntries = prev[currentAiMessageId]?.content || [];
-                    return {
-                        ...prev,
-                        [currentAiMessageId]: {
-                            content: [...currentEntries, {type: 'finalAnswer' as const, content: finalAnswer}],
-                            isVisible: prev[currentAiMessageId]?.isVisible || true
-                        }
-                    };
-                });
-            },
-            (think: string) => {
-                const currentAiMessageId = aiMessageId;
-                setMessageThinkingLogs(prev => {
-                    const currentEntries = prev[currentAiMessageId]?.content || [];
-                    const content = think.startsWith('[THINK] ') ? think.substring(8) : think;
-                    return {
-                        ...prev,
-                        [currentAiMessageId]: {
-                            content: [...currentEntries, {type: 'think' as const, content}],
-                            isVisible: prev[currentAiMessageId]?.isVisible || true
-                        }
-                    };
-                });
-            },
-            (data: string) => {
-                const currentAiMessageId = aiMessageId;
-                setMessageThinkingLogs(prev => {
-                    const currentEntries = prev[currentAiMessageId]?.content || [];
-                    const content = data.startsWith('[DATA] ') ? data.substring(7) : data;
-                    return {
-                        ...prev,
-                        [currentAiMessageId]: {
-                            content: [...currentEntries, {type: 'data' as const, content}],
-                            isVisible: prev[currentAiMessageId]?.isVisible || true
-                        }
-                    };
-                });
-            },
-            (tool: string) => {
-                const currentAiMessageId = aiMessageId;
-                setMessageThinkingLogs(prev => {
-                    const currentEntries = prev[currentAiMessageId]?.content || [];
-                    return {
-                        ...prev,
-                        [currentAiMessageId]: {
-                            content: [...currentEntries, {type: 'tool' as const, content: tool}],
-                            isVisible: prev[currentAiMessageId]?.isVisible || true
-                        }
-                    };
-                });
-            },
-            () => {
-                setIsThinking(false);
-                setCurrentAnsweringMsgId(null);
-                loadConversations().catch(err => console.error('刷新会话列表失败:', err));
-            },
-            (errorMessage: string) => {
-                const currentAiMessageId = aiMessageId;
-                setMessageThinkingLogs(prev => {
-                    const currentEntries = prev[currentAiMessageId]?.content || [];
-                    return {
-                        ...prev,
-                        [currentAiMessageId]: {
-                            content: [...currentEntries, {
-                                type: 'error' as const,
-                                content: `${errorMessage}`
-                            }],
-                            isVisible: prev[currentAiMessageId]?.isVisible || true
-                        }
-                    };
-                });
-                setError(errorMessage);
-                setIsThinking(false);
-                setCurrentAnsweringMsgId(null);
+                    });
+                    appendEntry({type: 'finalAnswer', content: finalAnswer});
+                },
+                onThink: (think) => appendEntry({
+                    type: 'think',
+                    content: think.startsWith('[THINK] ') ? think.substring(8) : think
+                }),
+                onData: (data) => appendEntry({
+                    type: 'data',
+                    content: data.startsWith('[DATA] ') ? data.substring(7) : data
+                }),
+                onTool: (tool) => appendEntry({type: 'tool', content: tool}),
+                onDone: () => {
+                    setIsThinking(false);
+                    setCurrentAnsweringMsgId(null);
+                    reloadConversations().catch(err => console.error('刷新会话列表失败:', err));
+                },
+                onError: (errorMessage) => {
+                    appendEntry({type: 'error', content: `${errorMessage}`});
+                    setError(errorMessage);
+                    setIsThinking(false);
+                    setCurrentAnsweringMsgId(null);
+                }
             }
-        );
+        });
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -568,7 +557,7 @@ const ChatDemo: React.FC = () => {
         try {
             const conversationToDelete = conversations[index];
             await deleteConversation(conversationToDelete.id);
-            await loadConversations();
+            await reloadConversations();
 
             if (index === selectedChatIndex) {
                 if (conversations.length > 1) {
@@ -600,6 +589,13 @@ const ChatDemo: React.FC = () => {
         const title = conversation.title || '新对话';
         return title.substring(0, 30) + (title.length > 30 ? '...' : '');
     };
+
+    // 头部展示：编排模式取编排信息，单 Agent 模式取 Agent 信息
+    const isFlow = !!getFlowId();
+    const displayName = isFlow ? (flowDetail?.flowName || '多 Agent 编排') : (agentDetail?.agentName || 'EasyAgent');
+    const displayDesc = isFlow ? flowDetail?.flowDesc : agentDetail?.agentDesc;
+    const displayAvatar = isFlow ? flowDetail?.avatar : agentDetail?.avatar;
+    const displayWelcome = isFlow ? flowDetail?.welcomeMessage : agentDetail?.welcomeMessage;
 
     return (
         <div style={{
@@ -647,13 +643,13 @@ const ChatDemo: React.FC = () => {
                                 color: '#333',
                                 marginBottom: '4px'
                             }}>
-                                {agentDetail?.agentName || 'EasyAgent'}
+                                {displayName}
                             </div>
                             <div style={{
                                 fontSize: '12px',
                                 color: '#666'
                             }}>
-                                {agentDetail?.agentDesc}
+                                {displayDesc}
                             </div>
                         </div>
                     </div>
@@ -841,12 +837,12 @@ const ChatDemo: React.FC = () => {
                     onSend={handleSendMessage}
                     onKeyPress={handleKeyPress}
                     onToggleThinkingLog={toggleThinkingLog}
-                    agentName={agentDetail?.agentName}
+                    agentName={displayName}
                     modelVersion={null}
                     conversationId={conversationId}
                     error={error}
-                    welcomeMessage={agentDetail?.welcomeMessage}
-                    avatar={agentDetail?.avatar}
+                    welcomeMessage={displayWelcome}
+                    avatar={displayAvatar}
                     selectedImage={selectedImage}
                     onImageChange={setSelectedImage}
                     quickPrompts={quickPrompts}

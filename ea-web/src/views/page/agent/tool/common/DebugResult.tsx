@@ -20,7 +20,7 @@ const DebugResult: React.FC<DebugResultProps> = ({ debugResult, loading = false,
     const statusText = response.statusText || (isSuccess ? 'OK' : 'Error');
 
     return {
-      data: response.data !== undefined ? response.data : (response.message || 'No data returned'),
+      data: response.data != null ? response.data : (response.message || 'No data returned'),
       status,
       statusText,
       time: response.time || 0,
@@ -69,11 +69,8 @@ const DebugResult: React.FC<DebugResultProps> = ({ debugResult, loading = false,
       <div style={{ padding: '16px', border: '1px solid #d9d9d9', borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
         <Typography.Text strong>响应数据:</Typography.Text>
         <div style={{ marginTop: 8 }}>
-          {typeof processedResult.data === 'string'
-            ? <div style={{ fontFamily: 'monospace', backgroundColor: '#f6f6f6', padding: '12px', borderRadius: '4px', maxHeight: '500px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                {processedResult.data}
-              </div>
-            : <div style={{ maxHeight: '600px', overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: '4px', padding: '12px' }}>
+          {(typeof processedResult.data === 'object' && processedResult.data !== null)
+            ? <div style={{ maxHeight: '600px', overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: '4px', padding: '12px' }}>
                 <JsonView
                   value={processedResult.data}
                   style={{ ...githubLightTheme, fontSize: '13px' }}
@@ -82,6 +79,9 @@ const DebugResult: React.FC<DebugResultProps> = ({ debugResult, loading = false,
                   enableClipboard
                   collapsed={2}
                 />
+              </div>
+            : <div style={{ fontFamily: 'monospace', backgroundColor: '#f6f6f6', padding: '12px', borderRadius: '4px', maxHeight: '500px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {String(processedResult.data)}
               </div>
           }
         </div>

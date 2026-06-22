@@ -58,7 +58,7 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
     database: 'test',
     username: 'root',
     password: 'password',
-    maxRows: 1000,
+    maxRows: 200,
     timeout: 30,
     sql: 'SELECT * FROM users WHERE id = ${id};',
   });
@@ -159,7 +159,7 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
         database: values.database,
         username: values.username,
         password: values.password,
-        maxRows: values.maxRows || 1000,
+        maxRows: values.maxRows || 200,
         timeout: values.timeout || 30,
       };
       
@@ -219,7 +219,7 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
         database: currentFormValues.database,
         username: currentFormValues.username,
         password: currentFormValues.password,
-        maxRows: currentFormValues.maxRows || 1000,
+        maxRows: currentFormValues.maxRows || 200,
         timeout: currentFormValues.timeout || 30,
       };
       
@@ -340,7 +340,7 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
           database: 'test',
           username: 'root',
           password: 'password',
-          maxRows: 1000,
+          maxRows: 200,
           timeout: 30,
           sql: 'SELECT * FROM users WHERE id = ${id};',
         };
@@ -417,7 +417,7 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
           database: 'test',
           username: 'root',
           password: 'password',
-          maxRows: 1000,
+          maxRows: 200,
           timeout: 30,
           sql: 'SELECT * FROM users WHERE id = ${id};',
         };
@@ -444,7 +444,7 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
         database: 'test',
         username: 'root',
         password: 'password',
-        maxRows: 1000,
+        maxRows: 200,
         timeout: 30,
         sql: 'SELECT * FROM users WHERE id = ${id};',
       };
@@ -620,10 +620,10 @@ const SQLConfig: React.FC<SQLConfigProps> = ({ toolConfigs = [], agentId, onRefr
                   name="maxRows"
                   label="最大返回行数"
                   rules={[{ required: true, message: '请输入最大返回行数' }]}
-                  initialValue={1000}
+                  initialValue={200}
                   style={{ marginBottom: 12 }}
                 >
-                  <Input type="number" placeholder="例如: 1000" />
+                  <Input type="number" placeholder="例如: 200" />
                 </Form.Item>
               </Col>
               <Col span={12}>

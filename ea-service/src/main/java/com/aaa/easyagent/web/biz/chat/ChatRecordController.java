@@ -141,9 +141,10 @@ public class ChatRecordController {
     public BaseResult listConversationsByUserId(
             @PathVariable String userId,
             @RequestParam(required = false) Long agentId,
+            @RequestParam(required = false) Long flowId,
             @RequestParam(required = false) String status) {
         try {
-            return BaseResult.buildSuc(chatRecordService.listConversationsByUserId(userId, agentId, status));
+            return BaseResult.buildSuc(chatRecordService.listConversationsByUserId(userId, agentId, flowId, status));
         } catch (Exception e) {
             log.error("查询用户会话列表失败", e);
             return BaseResult.buildFail("查询用户会话列表失败: " + e.getMessage());
@@ -248,11 +249,12 @@ public class ChatRecordController {
     @PostMapping("/business/startNewConversation")
     public BaseResult startNewConversation(
             @RequestParam Long agentId,
+            @RequestParam(required = false) Long flowId,
             @RequestParam String userId,
             @RequestParam String sessionId,
             @RequestParam String firstQuestion) {
         try {
-            StartNewConversationResp resp = chatRecordService.startNewConversation(agentId, sessionId, userId, firstQuestion);
+            StartNewConversationResp resp = chatRecordService.startNewConversation(agentId, flowId, sessionId, userId, firstQuestion);
             return BaseResult.buildSuc(resp);
         } catch (Exception e) {
             log.error("开始新会话失败", e);

@@ -15,6 +15,7 @@ import type {MenuProps} from 'antd';
 import {Breadcrumb, Layout, Menu, theme, Avatar, Dropdown, message, Space, Tooltip} from 'antd';
 import {Link, Routes, Route, useLocation, useNavigate} from 'react-router-dom';
 import AgentManager from './page/AgentManager';
+import FlowManager from './page/FlowManager';
 import ChatModelConfig from './page/ChatModelConfig';
 import User from './page/User';
 import ToolManager from './page/ToolManager';
@@ -52,6 +53,12 @@ const routes = [
                 label: 'agent 市场',
                 path: '/page/AgentManager',
                 component: <AuthGuard><AgentManager/></AuthGuard>
+            },
+            {
+                key: '11',
+                label: '多 Agent 编排',
+                path: '/page/FlowManager',
+                component: <AuthGuard><FlowManager/></AuthGuard>
             },
         ]
     },

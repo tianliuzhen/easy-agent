@@ -19,6 +19,10 @@ public class AgentContext {
      */
     private long agentId;
     /**
+     * 编排ID（多 Agent 编排会话归属用；单 Agent 为 null）
+     */
+    private Long flowId;
+    /**
      * agentName
      */
     private String agentName;

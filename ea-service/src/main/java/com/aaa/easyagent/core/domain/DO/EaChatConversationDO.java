@@ -41,6 +41,12 @@ public class EaChatConversationDO {
     private Long agentId;
 
     /**
+     * 关联的编排ID（NULL=单Agent会话，非NULL=多Agent编排会话）
+     */
+    @Column(name = "flow_id")
+    private Long flowId;
+
+    /**
      * 用户ID（预留字段，未来扩展用）
      */
     @Column(name = "user_id")

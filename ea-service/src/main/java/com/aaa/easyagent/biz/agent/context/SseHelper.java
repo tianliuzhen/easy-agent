@@ -116,34 +116,79 @@ public class SseHelper {
 
         // 如果需要通过 SSE 发送
         if (sseEmitter != null) {
-            ReentrantLock lock = getLock(sseEmitter);
-            lock.lock();
+            // 统一发送 JSON 格式数据，包含事件类型和消息内容
+            String jsonData = String.format("{\"type\":\"%s\",\"content\":\"%s\"}",
+                    eventName, escapeJsonString(formattedMessage));
+            rawSend(sseEmitter, jsonData, eventName);
+        }
+    }
+
+    /**
+     * 发送流水线步骤转场事件（WORKFLOW 策略）。
+     * 用于前端在进入下一个子 Agent 时画分隔/标头。
+     *
+     * @param sseEmitter SSE 连接对象，可为 null
+     * @param agentName  当前进入的子 Agent 名称
+     * @param index      当前步骤序号（从 1 开始）
+     * @param total      总步骤数
+     */
+    public static void sendStep(SseEmitter sseEmitter, String agentName, int index, int total) {
+        if (sseEmitter == null) {
+            return;
+        }
+        String content = String.format("第 %d/%d 步：%s", index, total, agentName == null ? "" : agentName);
+        log.info(content);
+        String jsonData = String.format(
+                "{\"type\":\"step\",\"content\":\"%s\",\"agentName\":\"%s\",\"index\":%d,\"total\":%d}",
+                escapeJsonString(content), escapeJsonString(agentName == null ? "" : agentName), index, total);
+        rawSend(sseEmitter, jsonData, "step");
+    }
+
+    /**
+     * 发送对话转交转场事件（ROUTER 策略）。
+     * 用于前端展示「已转接至 XX」提示条。
+     *
+     * @param sseEmitter SSE 连接对象，可为 null
+     * @param agentName  被转交的成员 Agent 名称
+     * @param reason     转交原因（可为 null）
+     */
+    public static void sendHandoff(SseEmitter sseEmitter, String agentName, String reason) {
+        if (sseEmitter == null) {
+            return;
+        }
+        String safeName = agentName == null ? "" : agentName;
+        String safeReason = reason == null ? "" : reason;
+        String content = String.format("已转接至：%s", safeName);
+        log.info("{}（原因：{}）", content, safeReason);
+        String jsonData = String.format(
+                "{\"type\":\"handoff\",\"content\":\"%s\",\"agentName\":\"%s\",\"reason\":\"%s\"}",
+                escapeJsonString(content), escapeJsonString(safeName), escapeJsonString(safeReason));
+        rawSend(sseEmitter, jsonData, "handoff");
+    }
+
+    /**
+     * 底层加锁发送，统一处理 IO 异常与连接已关闭场景。
+     */
+    private static void rawSend(SseEmitter sseEmitter, String jsonData, String eventName) {
+        ReentrantLock lock = getLock(sseEmitter);
+        lock.lock();
+        try {
+            sseEmitter.send(SseEmitter.event().data(jsonData));
+        } catch (IOException e) {
+            log.error("SSE 发送失败，type={}, data={}", eventName, jsonData, e);
             try {
-                // 统一发送 JSON 格式数据，包含事件类型和消息内容
-                // 使用更安全的JSON构建方式
-                String jsonData = String.format("{\"type\":\"%s\",\"content\":\"%s\"}",
-                        eventName, escapeJsonString(formattedMessage));
-                sseEmitter.send(SseEmitter.event()
-                        .data(jsonData));
-            } catch (IOException e) {
-                log.error("SSE 发送失败，type={}, message={}", eventName, formattedMessage, e);
-                // 可选：通知监听器连接已断开
-                try {
-                    sseEmitter.complete();
-                } catch (Exception ex) {
-                    log.error("SSE 连接关闭失败", ex);
-                }
-            } catch (IllegalStateException e) {
-                // 处理 ResponseBodyEmitter has already completed 错误
-                log.warn("SSE 连接已关闭，无法发送消息，type={}, message={}", eventName, formattedMessage);
-                // 清理锁
-                emitterLocks.remove(sseEmitter);
-            } finally {
-                try {
-                    lock.unlock();
-                } catch (Exception e) {
-                    log.error("解锁失败", e);
-                }
+                sseEmitter.complete();
+            } catch (Exception ex) {
+                log.error("SSE 连接关闭失败", ex);
+            }
+        } catch (IllegalStateException e) {
+            log.warn("SSE 连接已关闭，无法发送消息，type={}, data={}", eventName, jsonData);
+            emitterLocks.remove(sseEmitter);
+        } finally {
+            try {
+                lock.unlock();
+            } catch (Exception e) {
+                log.error("解锁失败", e);
             }
         }
     }

@@ -1,7 +1,9 @@
 package com.aaa.easyagent.common.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,6 +15,15 @@ import java.util.Map;
 public class JacksonUtil {
     // 创建一个静态的 ObjectMapper 实例
     private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    static {
+        // 自动注册 classpath 上的模块（含 jackson-datatype-jsr310），支持 Java 8 日期时间类型
+        objectMapper.findAndRegisterModules();
+        // 日期时间序列化为 ISO 字符串而非时间戳数字
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // 反序列化时忽略未知字段，避免 SQL 结果等动态结构反序列化失败
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    }
 
     /**
      * 将对象转换为 JSON 字符串

@@ -9,6 +9,7 @@ export interface ChatConversation {
     id: number;
     title: string;
     agentId: number;
+    flowId?: number;
     userId: string;
     messageCount: number;
     lastMessageTime: string;
@@ -28,6 +29,7 @@ export interface ChatConversation {
 export const createConversation = async (req: {
     title?: string;
     agentId: number;
+    flowId?: number;
     userId?: string;
     messageCount?: number;
     lastMessageTime?: string;
@@ -196,12 +198,16 @@ export const listConversationsByAgentId = async (
 export const listConversationsByUserId = async (
     userId: string,
     agentId?: number,
+    flowId?: number,
     status?: string
 ): Promise<ChatConversation[]> => {
     try {
         const url = new URL(`${API_BASE_URL}/chatRecord/conversation/listByUser/${userId}`);
         if (agentId) {
             url.searchParams.append('agentId', agentId.toString());
+        }
+        if (flowId) {
+            url.searchParams.append('flowId', flowId.toString());
         }
         if (status) {
             url.searchParams.append('status', status);
