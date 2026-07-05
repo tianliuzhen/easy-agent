@@ -9,7 +9,8 @@ import {
     LogoutOutlined,
     BookOutlined,
     ThunderboltOutlined,
-    QuestionCircleOutlined
+    QuestionCircleOutlined,
+    PictureOutlined
 } from '@ant-design/icons';
 import type {MenuProps} from 'antd';
 import {Breadcrumb, Layout, Menu, theme, Avatar, Dropdown, message, Space, Tooltip} from 'antd';
@@ -24,6 +25,7 @@ import HTTPConfig from './page/agent/tool/HTTPConfig';
 import MCPConfig from './page/agent/tool/MCPConfig';
 import GRPCConfig from './page/agent/tool/GRPCConfig';
 import KnowledgeBaseList from './page/agent/knowledge/KnowledgeBaseList';
+import ImageSearch from './page/image/ImageSearch';
 import MCPMarket from './page/mcp/MCPMarket';
 import MyMCP from './page/mcp/MyMCP';
 import SkillMarket from './page/skill/SkillMarket';
@@ -72,6 +74,19 @@ const routes = [
                 label: '我的知识库',
                 path: '/page/knowledge/KnowledgeBaseList',
                 component: <AuthGuard><KnowledgeBaseList/></AuthGuard>
+            },
+        ]
+    },
+    {
+        key: 'sub8',
+        icon: <PictureOutlined/>,
+        label: '图片搜索',
+        children: [
+            {
+                key: '80',
+                label: '图片搜索',
+                path: '/page/image/ImageSearch',
+                component: <AuthGuard><ImageSearch/></AuthGuard>
             },
         ]
     },

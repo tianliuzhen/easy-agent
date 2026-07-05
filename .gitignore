@@ -42,3 +42,8 @@ build/
 llm-secrets.properties
 .env
 .env.local
+
+### 运行时产生 ###
+uploads/
+.DS_Store
+**/.DS_Store

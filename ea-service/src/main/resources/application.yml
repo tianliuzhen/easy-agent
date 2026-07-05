@@ -15,6 +15,14 @@ easy-agent:
     provider: milvus
   embedding:
     provider: openai
+  # 图片搜索（以图搜图）：百炼 qwen3-vl-embedding 原生多模态接口 + 独立 Milvus 集合
+  image-search:
+    api-key: ${DASHSCOPE_API_KEY:sk-placeholder-set-in-dotenv}
+    model: qwen3-vl-embedding
+    dimension: 1024
+    collection-name: ea_image_search
+    storage: local
+    upload-dir: ./uploads/image-search
 ---
 
 
