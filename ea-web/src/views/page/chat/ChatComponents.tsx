@@ -16,6 +16,7 @@ import {
 } from '@ant-design/icons';
 import type {ThoughtChainProps} from '@ant-design/x';
 import {ThoughtChain, Think} from '@ant-design/x';
+import {XMarkdown} from '@ant-design/x-markdown';
 
 // ==================== 类型定义 ====================
 export interface ThinkingLogEntry {
@@ -253,10 +254,18 @@ const ThinkingContentList: React.FC<{ merged: ThinkingLogEntry[], isRealTime: bo
                     fontSize: '12px',
                     lineHeight: 1.6,
                     color: '#333',
-                    whiteSpace: 'pre-wrap',
                     padding: '8px 0'
                 }}>
-                    {entry.content}
+                    <XMarkdown
+                        content={entry.content}
+                        openLinksInNewTab
+                        escapeRawHtml
+                        streaming={{
+                            hasNextChunk: isRealTime && isLastItem,
+                            enableAnimation: true,
+                            tail: isRealTime && isLastItem,
+                        }}
+                    />
                 </div>
             ),
         };
@@ -419,16 +428,27 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                                     />
                                 </div>
                             )}
-                            <div style={{whiteSpace: 'pre-wrap'}}>
-                                {isThinkingMessage ? (
-                                    <>
-                                        <Spin size="small"/>
-                                        {msg.text}
-                                    </>
-                                ) : (
-                                    msg.text.replace(/^\n+|\n+$/g, '')
-                                )}
-                            </div>
+                            {isThinkingMessage ? (
+                                <div style={{whiteSpace: 'pre-wrap'}}>
+                                    <Spin size="small"/>
+                                    {msg.text}
+                                </div>
+                            ) : msg.isUser ? (
+                                <div style={{whiteSpace: 'pre-wrap'}}>
+                                    {msg.text.replace(/^\n+|\n+$/g, '')}
+                                </div>
+                            ) : (
+                                <XMarkdown
+                                    content={msg.text.replace(/^\n+|\n+$/g, '')}
+                                    openLinksInNewTab
+                                    escapeRawHtml
+                                    streaming={{
+                                        hasNextChunk: currentAnsweringMsgId === msg.id,
+                                        enableAnimation: true,
+                                        tail: currentAnsweringMsgId === msg.id,
+                                    }}
+                                />
+                            )}
                         </div>
                     </div>
 
@@ -503,6 +523,7 @@ export interface ThinkingIndicatorProps {
     onToggleThinkingLog: (messageId: string) => void;
     renderThinkingContentFn: (entries: ThinkingLogEntry[], isRealTime?: boolean) => React.ReactNode;
     thinkingContentRef: React.RefObject<HTMLDivElement>;
+    onThinkingScroll?: React.UIEventHandler<HTMLDivElement>;
 }
 
 export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
@@ -511,6 +532,7 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
                                                                         onToggleThinkingLog,
                                                                         renderThinkingContentFn,
                                                                         thinkingContentRef,
+                                                                        onThinkingScroll,
                                                                     }) => {
     if (!currentAnsweringMsgId || !messageThinkingLogs[currentAnsweringMsgId]) {
         return null;
@@ -549,6 +571,7 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
                         </div>
                         <div
                             ref={thinkingContentRef}
+                            onScroll={onThinkingScroll}
                             style={{
                                 fontSize: '12px',
                                 lineHeight: 1.6,
@@ -1075,9 +1098,29 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
     const chatMessagesEndRef = useRef<HTMLDivElement>(null);
     const thinkingContentRef = useRef<HTMLDivElement>(null);
     const prevThinkingContentLengthRef = useRef<number>(0);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+    // 用户手动上翻后暂停自动滚动，滚回底部再恢复
+    const shouldAutoScrollRef = useRef<boolean>(true);
+    const shouldAutoScrollThinkingRef = useRef<boolean>(true);
+
+    const isNearBottom = (el: HTMLElement, threshold = 40) =>
+        el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+
+    const handleMessagesScroll: React.UIEventHandler<HTMLDivElement> = () => {
+        if (messagesContainerRef.current) {
+            shouldAutoScrollRef.current = isNearBottom(messagesContainerRef.current);
+        }
+    };
+
+    const handleThinkingScroll: React.UIEventHandler<HTMLDivElement> = () => {
+        if (thinkingContentRef.current) {
+            shouldAutoScrollThinkingRef.current = isNearBottom(thinkingContentRef.current);
+        }
+    };
 
     // 自动滚动到底部
     useEffect(() => {
+        if (!shouldAutoScrollRef.current) return;
         chatMessagesEndRef.current?.scrollIntoView({behavior: 'smooth'});
     }, [messages, isThinking]);
 
@@ -1089,6 +1132,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
 
             if (currentLength > prevThinkingContentLengthRef.current) {
                 setTimeout(() => {
+                    if (!shouldAutoScrollThinkingRef.current) return;
                     thinkingContentRef.current?.scrollTo({
                         top: thinkingContentRef.current.scrollHeight,
                         behavior: 'smooth',
@@ -1109,7 +1153,10 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
             background: '#f5f5f5',
             position: 'relative',
         }}>
-            <div style={{
+            <div
+                ref={messagesContainerRef}
+                onScroll={handleMessagesScroll}
+                style={{
                 flex: 1,
                 overflowY: 'auto',
                 padding: '32px',
@@ -1149,6 +1196,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                             onToggleThinkingLog={onToggleThinkingLog}
                             renderThinkingContentFn={renderThinkingContent}
                             thinkingContentRef={thinkingContentRef}
+                            onThinkingScroll={handleThinkingScroll}
                         />
                         <div ref={chatMessagesEndRef}/>
                     </>

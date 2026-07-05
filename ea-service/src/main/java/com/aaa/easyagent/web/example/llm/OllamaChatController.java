@@ -47,7 +47,9 @@ public class OllamaChatController {
     private final OllamaChatModel chatModel;
     // 文档检索
     private final LocalDocumentService localDocumentService;
-    private final EsDocumentService esDocumentService;
+    // provider=milvus 时 EsDocumentService 不会被创建，故设为可选注入
+    @Autowired(required = false)
+    private EsDocumentService esDocumentService;
     @Autowired(required = false)
     private RedisDocumentService redisDocumentService;
 

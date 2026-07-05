@@ -9,13 +9,13 @@ import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.springframework.ai.embedding.BatchingStrategy;
 import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.embedding.TokenCountBatchingStrategy;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStore;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStoreOptions;
 import org.springframework.ai.vectorstore.elasticsearch.autoconfigure.ElasticsearchVectorStoreProperties;
 import org.springframework.ai.vectorstore.observation.VectorStoreObservationConvention;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.elasticsearch.autoconfigure.Rest5ClientBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,22 +34,17 @@ import java.security.NoSuchAlgorithmException;
  * @see org.springframework.ai.autoconfigure.vectorstore.elasticsearch.ElasticsearchVectorStoreAutoConfiguration
  */
 @Configuration
+@EnableConfigurationProperties(ElasticsearchVectorStoreProperties.class)
+@ConditionalOnProperty(name = "easy-agent.vectorstore.provider", havingValue = "es", matchIfMissing = true)
 public class ElasticsearchVectorStoreAutoConfiguration {
 
     public ElasticsearchVectorStoreAutoConfiguration() {
-        System.out.println();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(BatchingStrategy.class)
-    BatchingStrategy batchingStrategy() {
-        return new TokenCountBatchingStrategy();
     }
 
     /**
      * @param properties
      * @param restClient
-     * @param ollamaEmbeddingModel
+     * @param activeEmbeddingModel
      * @param observationRegistry
      * @param customObservationConvention
      * @param batchingStrategy
@@ -61,7 +56,7 @@ public class ElasticsearchVectorStoreAutoConfiguration {
      */
     @Bean
     ElasticsearchVectorStore esVectorStore(ElasticsearchVectorStoreProperties properties, Rest5Client restClient,
-                                           EmbeddingModel ollamaEmbeddingModel, ObjectProvider<ObservationRegistry> observationRegistry,
+                                           EmbeddingModel activeEmbeddingModel, ObjectProvider<ObservationRegistry> observationRegistry,
                                            ObjectProvider<VectorStoreObservationConvention> customObservationConvention,
                                            BatchingStrategy batchingStrategy) {
         ElasticsearchVectorStoreOptions elasticsearchVectorStoreOptions = new ElasticsearchVectorStoreOptions();
@@ -76,7 +71,7 @@ public class ElasticsearchVectorStoreAutoConfiguration {
             elasticsearchVectorStoreOptions.setSimilarity(properties.getSimilarity());
         }
 
-        return ElasticsearchVectorStore.builder(restClient, ollamaEmbeddingModel)
+        return ElasticsearchVectorStore.builder(restClient, activeEmbeddingModel)
                 .options(elasticsearchVectorStoreOptions)
                 .initializeSchema(properties.isInitializeSchema())
                 .observationRegistry(observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP))

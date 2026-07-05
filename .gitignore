@@ -40,3 +40,5 @@ build/
 
 ### secrets ###
 llm-secrets.properties
+.env
+.env.local

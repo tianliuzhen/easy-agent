@@ -7,6 +7,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import java.util.List;
  * @version 1.0 LocalDocumentService.java  2024/12/28 21:31
  */
 @Component
+@ConditionalOnProperty(name = "easy-agent.vectorstore.provider", havingValue = "es", matchIfMissing = true)
 public class EsDocumentService {
 
     @Value("classpath:docs/MetalPrice.txt") // This is the text document to load

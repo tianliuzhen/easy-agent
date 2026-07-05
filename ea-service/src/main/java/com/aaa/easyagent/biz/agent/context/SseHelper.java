@@ -100,7 +100,7 @@ public class SseHelper {
         if (message == null || message.length == 0) {
             return;
         }
-        if (message.length == 1 && (message[0] == null || StringUtils.isBlank(message[0].toString()))) {
+        if (message.length == 1 && (message[0] == null || StringUtils.isEmpty(message[0].toString()))) {
             return;
         }
 

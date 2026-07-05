@@ -3,6 +3,18 @@ spring:
     exclude:
       - org.springframework.ai.autoconfigure.vectorstore.redis.RedisVectorStoreAutoConfiguration
       - org.springframework.ai.retry.autoconfigure.SpringAiRetryAutoConfiguration
+      # Milvus 向量库不使用官方自动配置，改由 MilvusVectorStoreConfig + VectorStoreRegister 按集合动态创建，避免启动时强制连接 Milvus
+      - org.springframework.ai.vectorstore.milvus.autoconfigure.MilvusVectorStoreAutoConfiguration
+      # ES 向量库同样由 ElasticsearchVectorStoreAutoConfiguration(本项目自定义, 按 provider 开关) 唯一提供，排除官方自动配置避免 milvus 模式下仍连接 ES
+      - org.springframework.ai.vectorstore.elasticsearch.autoconfigure.ElasticsearchVectorStoreAutoConfiguration
+
+# 向量数据库提供方开关：es 或 milvus（后端统一由 VectorStoreRegister 按此值选择）
+# embedding 提供方开关：ollama（本地 qwen2.5:3b）或 openai（百炼 text-embedding-v4，走 OpenAI 兼容接口）
+easy-agent:
+  vectorstore:
+    provider: milvus
+  embedding:
+    provider: openai
 ---
 
 
@@ -29,6 +41,13 @@ spring:
         enabled: true # 默认是开启的
         base-url:   https://api.chatanywhere.tech #可选地覆盖 spring.ai.openai.base-url 以提供特定于聊天的 url
         api-key: your_api_key #可选地覆盖 spring.ai.openai.api-key 以提供特定于聊天的 api-key
+      # 通用 embedding：走阿里云百炼 OpenAI 兼容接口（text-embedding-v4），独立于上面的 chat 配置
+      embedding:
+        base-url: https://dashscope.aliyuncs.com/compatible-mode/v1 # 覆盖 chat 的 base-url，仅 embedding 生效
+        api-key: ${DASHSCOPE_API_KEY} # 从项目根 .env 读取，勿把真实 key 写进本文件
+        options:
+          model: text-embedding-v4
+          dimensions: 2048 # 必须与 Milvus/ES 配置的维度一致
 ---
 spring:
   ai:

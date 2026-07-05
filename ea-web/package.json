@@ -12,6 +12,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
     "@ant-design/x": "^2.4.0",
+    "@ant-design/x-markdown": "^2.8.0",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@uiw/react-json-view": "^2.0.0-alpha.43",
     "antd": "^6.3.1",

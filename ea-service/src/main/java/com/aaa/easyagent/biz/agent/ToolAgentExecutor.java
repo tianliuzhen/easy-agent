@@ -159,24 +159,25 @@ public class ToolAgentExecutor extends BaseAgent {
             lastChatResponse[0] = chatRes;
 
             // 思考过程（SSE 由 SseAdvisor 推送，这里只做内存汇总）
+            // 用 hasLength 而非 hasText：保留纯空格 token，避免 markdown 的 "### " 等空格被吞掉
             String lineThinks = ChatResponseUtil.getReasoningContent(chatRes);
-            if (StringUtils.hasText(lineThinks)) {
+            if (StringUtils.hasLength(lineThinks)) {
                 reasoningContent.append(lineThinks);
             }
 
             // 结果文本
             String lineResStr = ChatResponseUtil.getResStr(chatRes);
-            if (StringUtils.hasText(lineResStr)) {
+            if (StringUtils.hasLength(lineResStr)) {
                 resStr.append(lineResStr);
             }
 
             String reasoning = ChatResponseUtil.getReasoningContent(chatRes);
-            if (StringUtils.hasText(reasoning)) {
+            if (StringUtils.hasLength(reasoning)) {
                 SseHelper.sendThink(sse, reasoning);
             }
 
             String data = ChatResponseUtil.getResStr(chatRes);
-            if (StringUtils.hasText(data)) {
+            if (StringUtils.hasLength(data)) {
                 SseHelper.sendData(sse, data);
             }
 

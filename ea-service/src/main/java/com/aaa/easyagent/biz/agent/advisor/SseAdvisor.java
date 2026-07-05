@@ -101,13 +101,14 @@ public class SseAdvisor implements CallAdvisor, StreamAdvisor {
             return;
         }
 
+        // 用 hasLength 而非 hasText：保留纯空格 token，避免 markdown 的 "### " 等空格被吞掉
         String reasoning = ChatResponseUtil.getReasoningContent(chatResponse);
-        if (StringUtils.hasText(reasoning)) {
+        if (StringUtils.hasLength(reasoning)) {
             SseHelper.sendThink(sse, reasoning);
         }
 
         String data = ChatResponseUtil.getResStr(chatResponse);
-        if (StringUtils.hasText(data)) {
+        if (StringUtils.hasLength(data)) {
             SseHelper.sendData(sse, data);
         }
     }

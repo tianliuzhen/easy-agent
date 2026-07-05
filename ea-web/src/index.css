@@ -14,3 +14,51 @@ body {
     background: var(--ea-theme-background) !important;
     color: #000 !important;
 }
+
+/* XMarkdown 表格边框样式（聊天回答/思考区） */
+.x-markdown table {
+    border-collapse: collapse;
+}
+
+.x-markdown th,
+.x-markdown td {
+    border: 1px solid #e8e8e8;
+    text-align: left;
+}
+
+.x-markdown thead th {
+    background: #fafafa;
+    font-weight: 600;
+}
+
+/* 紧凑排版：重定义 XMarkdown 间距变量（双类名提高优先级，覆盖包默认值） */
+.x-markdown.x-markdown {
+    --margin-block: 0 0 0.4em 0;      /* 段落 */
+    --margin-ul-ol: 0 0 0.4em 1.6em;  /* 列表 */
+    --margin-li: 0.1em 0;             /* 列表项 */
+    --margin-pre: 0.5em 0;            /* 代码块 */
+    --hr-margin: 0.6em 0;             /* 分隔线 */
+    --table-margin: 0.5em 0;          /* 表格 */
+    --image-margin: 0.3em 0;          /* 图片 */
+    --td-th-padding: 0.4em 0.8em;     /* 单元格内边距 */
+}
+
+/* 紧凑标题（包未设标题 margin，浏览器默认过大） */
+.x-markdown.x-markdown h1,
+.x-markdown.x-markdown h2,
+.x-markdown.x-markdown h3,
+.x-markdown.x-markdown h4,
+.x-markdown.x-markdown h5,
+.x-markdown.x-markdown h6 {
+    margin: 0.6em 0 0.3em;
+    line-height: 1.3;
+}
+
+/* 首尾元素去掉外边距，避免气泡内上下留白 */
+.x-markdown.x-markdown > *:first-child {
+    margin-top: 0;
+}
+
+.x-markdown.x-markdown > *:last-child {
+    margin-bottom: 0;
+}
