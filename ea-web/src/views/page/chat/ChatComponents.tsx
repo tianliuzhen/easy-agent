@@ -59,6 +59,18 @@ const typeConfig = {
     finalAnswer: {title: '最终答案', icon: '✅', description: '', color: '#52c41a', status: 'success' as const},
 };
 
+// XMarkdown 紧凑间距：覆盖其默认 1em 的块级外边距（段落/列表/代码块等），
+// 避免多段落回答时段间空行过大、看起来像"双倍换行"。通过 CSS 变量下发，无需全局样式。
+const COMPACT_MARKDOWN_STYLE = {
+    '--margin-block': '0 0 0.4em 0',
+    '--margin-ul-ol': '0.2em 0 0.4em 1.5em',
+    '--margin-li': '0.1em 0',
+    '--margin-pre': '0.5em 0',
+    '--table-margin': '0.5em 0',
+    '--hr-margin': '0.8em 0',
+    '--image-margin': '0.4em 0',
+} as React.CSSProperties;
+
 // ==================== 工具详情抽屉组件 ====================
 interface ToolDetailDrawerProps {
     entry: ThinkingLogEntry;
@@ -258,6 +270,7 @@ const ThinkingContentList: React.FC<{ merged: ThinkingLogEntry[], isRealTime: bo
                 }}>
                     <XMarkdown
                         content={entry.content}
+                        style={COMPACT_MARKDOWN_STYLE}
                         openLinksInNewTab
                         escapeRawHtml
                         streaming={{
@@ -440,6 +453,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                             ) : (
                                 <XMarkdown
                                     content={msg.text.replace(/^\n+|\n+$/g, '')}
+                                    style={COMPACT_MARKDOWN_STYLE}
                                     openLinksInNewTab
                                     escapeRawHtml
                                     streaming={{
