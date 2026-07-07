@@ -14,6 +14,7 @@ export interface ImageItem {
     ext: string;
     score?: number;
     imageUrl: string;
+    sourceUrl?: string;
 }
 
 /**
@@ -26,6 +27,14 @@ export const resolveImageUrl = (imageUrl?: string): string => {
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
     return `${API_BASE_URL}${imageUrl}`;
 };
+
+// 分页列表响应
+export interface PageResult {
+    data: ImageItem[];
+    total: number;
+    offset: number;
+    limit: number;
+}
 
 export const imageSearchApi = {
     /** 上传图片入库 */
@@ -52,8 +61,8 @@ export const imageSearchApi = {
     },
 
     /** 已入库图片列表 */
-    list: async (): Promise<BaseResult<ImageItem[]>> => {
-        const response = await fetch(`${API_BASE_URL}/imageSearch/list`, {
+    list: async (offset: number = 0, limit: number = 24): Promise<BaseResult<PageResult>> => {
+        const response = await fetch(`${API_BASE_URL}/imageSearch/list?offset=${offset}&limit=${limit}`, {
             method: 'GET',
         });
         return response.json();

@@ -28,12 +28,19 @@ public class DashScopeMultimodalClient {
     private final ImageSearchProperties properties;
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
-    /** 图片向量化 */
+    /** 图片向量化（本地文件 base64 编码） */
     public float[] embedImage(byte[] bytes, String contentType) {
         String mime = (contentType == null || contentType.isBlank()) ? "image/jpeg" : contentType;
         String dataUri = "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
         JSONObject content = new JSONObject();
         content.put("image", dataUri);
+        return embed(content);
+    }
+
+    /** 图片向量化（HTTP URL，无需下载/转 base64，百炼直接拉取） */
+    public float[] embedImageByUrl(String imageUrl) {
+        JSONObject content = new JSONObject();
+        content.put("image", imageUrl);
         return embed(content);
     }
 

@@ -19,7 +19,7 @@ easy-agent:
   image-search:
     api-key: ${DASHSCOPE_API_KEY:sk-placeholder-set-in-dotenv}
     model: qwen3-vl-embedding
-    dimension: 1024
+    dimension: 2560
     collection-name: ea_image_search
     storage: local
     upload-dir: ./uploads/image-search

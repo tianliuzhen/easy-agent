@@ -19,4 +19,6 @@ public class ImageSearchResult {
     private Float score;
     /** 图片访问地址（由存储层生成，local 为相对路径，前端补 API_BASE_URL） */
     private String imageUrl;
+    /** 原始来源链接（导入时有值，本地上传为空） */
+    private String sourceUrl;
 }

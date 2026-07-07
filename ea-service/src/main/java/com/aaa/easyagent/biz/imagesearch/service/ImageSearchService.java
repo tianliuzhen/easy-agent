@@ -4,6 +4,7 @@ import com.aaa.easyagent.core.domain.result.ImageSearchResult;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 图片搜索（以图搜图）服务。
@@ -12,14 +13,17 @@ import java.util.List;
  */
 public interface ImageSearchService {
 
-    /** 上传图片并入库（向量化 + 存储） */
+    /** 上传图片并入库（本地文件 base64 编码） */
     ImageSearchResult upload(MultipartFile file, String name);
+
+    /** 通过 URL 上传（百炼直接拉取，不存本地文件） */
+    ImageSearchResult uploadByUrl(String imageUrl, String name);
 
     /** 以图搜图 */
     List<ImageSearchResult> searchByImage(MultipartFile file, int topK);
 
-    /** 列出已入库图片 */
-    List<ImageSearchResult> list();
+    /** 分页列出已入库图片 */
+    Map<String, Object> list(int offset, int limit);
 
     /** 删除一条 */
     void delete(String id);

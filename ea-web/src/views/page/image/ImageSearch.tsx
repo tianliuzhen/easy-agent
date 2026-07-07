@@ -11,6 +11,7 @@ import {
     InputNumber,
     message,
     Modal,
+    Pagination,
     Popconfirm,
     Space,
     Spin,
@@ -35,6 +36,9 @@ const {Title, Text} = Typography;
 const ImageSearch: React.FC = () => {
     const [dataSource, setDataSource] = useState<ImageItem[]>([]);
     const [loading, setLoading] = useState(false);
+    const [page, setPage] = useState(0);
+    const [total, setTotal] = useState(0);
+    const pageSize = 24;
 
     const [uploadOpen, setUploadOpen] = useState(false);
     const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
@@ -52,12 +56,13 @@ const ImageSearch: React.FC = () => {
     const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
     const imgRef = useRef<HTMLImageElement>(null);
 
-    const loadData = async () => {
+    const loadData = async (pg: number = page) => {
         setLoading(true);
         try {
-            const res = await imageSearchApi.list();
+            const res = await imageSearchApi.list(pg * pageSize, pageSize);
             if (res.success) {
-                setDataSource(res.data || []);
+                setDataSource(res.data.data || []);
+                setTotal(res.data.total || 0);
             } else {
                 message.error(res.message || '加载失败');
             }
@@ -69,7 +74,7 @@ const ImageSearch: React.FC = () => {
     };
 
     useEffect(() => {
-        loadData();
+        loadData(0);
     }, []);
 
     const setItemStatus = (uid: string, status: UploadFile['status'], percent?: number) => {
@@ -108,7 +113,8 @@ const ImageSearch: React.FC = () => {
             }
             if (ok > 0) {
                 message.success(`上传成功 ${ok} 张${fail ? `，失败 ${fail} 张` : ''}`);
-                loadData();
+                loadData(0);
+                setPage(0);
             } else {
                 message.error('上传失败');
             }
@@ -228,7 +234,8 @@ const ImageSearch: React.FC = () => {
             const res = await imageSearchApi.delete(id);
             if (res.success) {
                 message.success('已删除');
-                loadData();
+                loadData(0);
+                setPage(0);
             } else {
                 message.error(res.message || '删除失败');
             }
@@ -268,7 +275,7 @@ const ImageSearch: React.FC = () => {
                         setCompletedCrop(undefined);
                         setSearchOpen(true);
                     }}>图片搜索</Button>
-                    <Button icon={<ReloadOutlined/>} onClick={loadData}>刷新</Button>
+                    <Button icon={<ReloadOutlined/>} onClick={() => loadData(0)}>刷新</Button>
                 </Space>
             </Space>
 
@@ -304,7 +311,18 @@ const ImageSearch: React.FC = () => {
                                 >
                                     <Card.Meta
                                         title={<span style={{fontSize: 13}}>{item.name}</span>}
-                                        description={<Tag>{item.ext}</Tag>}
+                                        description={
+                                            <>
+                                                <Tag>{item.ext}</Tag>
+                                                {item.sourceUrl && (
+                                                    <a href={item.sourceUrl} target="_blank" rel="noreferrer"
+                                                       style={{fontSize: 11, display: 'block', overflow: 'hidden',
+                                                           textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140}}>
+                                                        {item.sourceUrl}
+                                                    </a>
+                                                )}
+                                            </>
+                                        }
                                     />
                                 </Card>
                             ))}
@@ -312,6 +330,21 @@ const ImageSearch: React.FC = () => {
                     </Image.PreviewGroup>
                 )}
             </Spin>
+
+            {total > pageSize && (
+                <div style={{display: 'flex', justifyContent: 'center', marginTop: 16}}>
+                    <Pagination
+                        current={page + 1}
+                        total={total}
+                        pageSize={pageSize}
+                        showTotal={(t) => `共 ${t} 张图片`}
+                        onChange={(p) => {
+                            setPage(p - 1);
+                            loadData(p - 1);
+                        }}
+                    />
+                </div>
+            )}
 
             {/* 上传弹窗 */}
             <Modal
@@ -412,7 +445,18 @@ const ImageSearch: React.FC = () => {
                                                     height={140} width="100%" style={{objectFit: 'cover'}}/>}>
                                     <Card.Meta
                                         title={<span style={{fontSize: 13}}>{r.name}</span>}
-                                        description={<Tag color="blue">相似度 {r.score?.toFixed(4)}</Tag>}
+                                        description={
+                                            <>
+                                                <Tag color="blue">相似度 {r.score?.toFixed(4)}</Tag>
+                                                {r.sourceUrl && (
+                                                    <a href={r.sourceUrl} target="_blank" rel="noreferrer"
+                                                       style={{fontSize: 11, display: 'block', overflow: 'hidden',
+                                                           textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140}}>
+                                                        {r.sourceUrl}
+                                                    </a>
+                                                )}
+                                            </>
+                                        }
                                     />
                                 </Card>
                             ))}

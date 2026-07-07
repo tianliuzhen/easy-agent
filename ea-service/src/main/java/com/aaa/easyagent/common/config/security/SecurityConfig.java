@@ -127,7 +127,8 @@ public class SecurityConfig {
                                 "/eaAgent/ai/streamChatWith",   // ai流接口
                                 "/eaAgent/ai/chat",   // ai流接口
                                 "/example/**",    // ai流接口
-                                "/imageSearch/file/**"   // 图片文件读取（<img> 不带 JWT）
+                                "/imageSearch/file/**",   // 图片文件读取（<img> 不带 JWT）
+                                "/imageSearch/import/**"   // 批量导入接口
                         ).permitAll()
 
                         // 所有其他请求需要认证

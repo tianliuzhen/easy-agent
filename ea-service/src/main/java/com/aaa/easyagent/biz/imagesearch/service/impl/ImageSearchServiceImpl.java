@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -24,11 +26,39 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ImageSearchServiceImpl implements ImageSearchService {
 
-    private static final int LIST_LIMIT = 500;
+    private static final int PAGE_SIZE = 24;
 
     private final DashScopeMultimodalClient multimodalClient;
     private final ImageMilvusDao imageMilvusDao;
     private final ImageStorage imageStorage;
+
+    @Override
+    public ImageSearchResult uploadByUrl(String imageUrl, String name) {
+        String id = UUID.randomUUID().toString().replace("-", "");
+        String displayName = StringUtils.hasText(name) ? name : id;
+        String ext = guessExtFromUrl(imageUrl);
+
+        float[] vector = multimodalClient.embedImageByUrl(imageUrl);
+        imageMilvusDao.insert(id, displayName, ext, imageUrl, vector);
+
+        ImageSearchResult result = new ImageSearchResult();
+        result.setId(id);
+        result.setName(displayName);
+        result.setExt(ext);
+        result.setImageUrl(imageUrl);
+        result.setSourceUrl(imageUrl);
+        log.info("图片入库成功(URL): id={}, name={}, url={}", id, displayName, imageUrl);
+        return result;
+    }
+
+    private static String guessExtFromUrl(String url) {
+        String lower = url.toLowerCase();
+        if (lower.contains(".webp")) return "webp";
+        if (lower.contains(".png")) return "png";
+        if (lower.contains(".gif")) return "gif";
+        if (lower.contains(".jpg") || lower.contains(".jpeg")) return "jpg";
+        return "jpg";
+    }
 
     @Override
     public ImageSearchResult upload(MultipartFile file, String name) {
@@ -43,7 +73,7 @@ public class ImageSearchServiceImpl implements ImageSearchService {
 
             imageStorage.save(id, bytes, ext);
             float[] vector = multimodalClient.embedImage(bytes, file.getContentType());
-            imageMilvusDao.insert(id, displayName, ext, vector);
+            imageMilvusDao.insert(id, displayName, ext, null, vector);
 
             ImageSearchResult result = new ImageSearchResult();
             result.setId(id);
@@ -66,7 +96,8 @@ public class ImageSearchServiceImpl implements ImageSearchService {
         try {
             float[] vector = multimodalClient.embedImage(file.getBytes(), file.getContentType());
             List<ImageSearchResult> results = imageMilvusDao.search(vector, topK <= 0 ? 10 : topK);
-            results.forEach(r -> r.setImageUrl(imageStorage.publicUrl(r.getId())));
+            results.forEach(r -> r.setImageUrl(
+                    StringUtils.hasText(r.getSourceUrl()) ? r.getSourceUrl() : imageStorage.publicUrl(r.getId())));
             return results;
         } catch (Exception e) {
             log.error("图片搜索失败", e);
@@ -75,10 +106,18 @@ public class ImageSearchServiceImpl implements ImageSearchService {
     }
 
     @Override
-    public List<ImageSearchResult> list() {
-        List<ImageSearchResult> results = imageMilvusDao.listAll(LIST_LIMIT);
-        results.forEach(r -> r.setImageUrl(imageStorage.publicUrl(r.getId())));
-        return results;
+    public Map<String, Object> list(int offset, int limit) {
+        int size = limit > 0 ? Math.min(limit, 200) : PAGE_SIZE;
+        long total = imageMilvusDao.countAll();
+        List<ImageSearchResult> results = imageMilvusDao.listAll(offset, size);
+        results.forEach(r -> r.setImageUrl(
+                StringUtils.hasText(r.getSourceUrl()) ? r.getSourceUrl() : imageStorage.publicUrl(r.getId())));
+        Map<String, Object> map = new HashMap<>();
+        map.put("data", results);
+        map.put("total", total);
+        map.put("offset", offset);
+        map.put("limit", size);
+        return map;
     }
 
     @Override

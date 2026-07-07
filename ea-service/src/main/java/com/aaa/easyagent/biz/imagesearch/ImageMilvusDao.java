@@ -12,6 +12,7 @@ import io.milvus.param.MetricType;
 import io.milvus.param.R;
 import io.milvus.param.collection.CreateCollectionParam;
 import io.milvus.param.collection.FieldType;
+import io.milvus.param.collection.GetCollectionStatisticsParam;
 import io.milvus.param.collection.HasCollectionParam;
 import io.milvus.param.collection.LoadCollectionParam;
 import io.milvus.param.dml.DeleteParam;
@@ -44,6 +45,7 @@ public class ImageMilvusDao {
     private static final String F_NAME = "name";
     private static final String F_EXT = "file_ext";
     private static final String F_EMBEDDING = "embedding";
+    private static final String F_SOURCE_URL = "source_url";
 
     private final ObjectProvider<MilvusServiceClient> milvusClientProvider;
     private final ImageSearchProperties properties;
@@ -75,12 +77,14 @@ public class ImageMilvusDao {
                     .withMaxLength(512).build();
             FieldType extField = FieldType.newBuilder().withName(F_EXT).withDataType(DataType.VarChar)
                     .withMaxLength(16).build();
+            FieldType sourceUrlField = FieldType.newBuilder().withName(F_SOURCE_URL).withDataType(DataType.VarChar)
+                    .withMaxLength(1024).build();
             FieldType vecField = FieldType.newBuilder().withName(F_EMBEDDING).withDataType(DataType.FloatVector)
                     .withDimension(properties.getDimension()).build();
 
             check(client.createCollection(CreateCollectionParam.newBuilder()
                     .withCollectionName(coll)
-                    .addFieldType(idField).addFieldType(nameField).addFieldType(extField).addFieldType(vecField)
+                    .addFieldType(idField).addFieldType(nameField).addFieldType(extField).addFieldType(sourceUrlField).addFieldType(vecField)
                     .build()), "createCollection");
 
             check(client.createIndex(CreateIndexParam.newBuilder()
@@ -97,7 +101,7 @@ public class ImageMilvusDao {
         collectionReady = true;
     }
 
-    public void insert(String id, String name, String ext, float[] vector) {
+    public void insert(String id, String name, String ext, String sourceUrl, float[] vector) {
         ensureCollection();
         List<Float> vec = new ArrayList<>(vector.length);
         for (float v : vector) {
@@ -107,6 +111,7 @@ public class ImageMilvusDao {
         fields.add(new InsertParam.Field(F_ID, Collections.singletonList(id)));
         fields.add(new InsertParam.Field(F_NAME, Collections.singletonList(name)));
         fields.add(new InsertParam.Field(F_EXT, Collections.singletonList(ext)));
+        fields.add(new InsertParam.Field(F_SOURCE_URL, Collections.singletonList(sourceUrl != null ? sourceUrl : "")));
         fields.add(new InsertParam.Field(F_EMBEDDING, Collections.singletonList(vec)));
 
         check(client().insert(InsertParam.newBuilder()
@@ -129,7 +134,7 @@ public class ImageMilvusDao {
                 .withVectorFieldName(F_EMBEDDING)
                 .withTopK(topK)
                 .withFloatVectors(Collections.singletonList(vec))
-                .withOutFields(List.of(F_NAME, F_EXT))
+                .withOutFields(List.of(F_NAME, F_EXT, F_SOURCE_URL))
                 .withParams("{\"nprobe\":10}")
                 .build());
         check(resp, "search");
@@ -143,19 +148,21 @@ public class ImageMilvusDao {
             r.setScore(s.getScore());
             r.setName(asString(s.get(F_NAME)));
             r.setExt(asString(s.get(F_EXT)));
+            r.setSourceUrl(asString(s.get(F_SOURCE_URL)));
             list.add(r);
         }
         return list;
     }
 
     @SuppressWarnings("unchecked")
-    public List<ImageSearchResult> listAll(int limit) {
+    public List<ImageSearchResult> listAll(int offset, int limit) {
         ensureCollection();
         R<QueryResults> resp = client().query(QueryParam.newBuilder()
                 .withCollectionName(properties.getCollectionName())
                 .withConsistencyLevel(ConsistencyLevelEnum.STRONG)
                 .withExpr(F_ID + " != \"\"")
-                .withOutFields(List.of(F_ID, F_NAME, F_EXT))
+                .withOutFields(List.of(F_ID, F_NAME, F_EXT, F_SOURCE_URL))
+                .withOffset((long) offset)
                 .withLimit((long) limit)
                 .build());
         check(resp, "query");
@@ -164,6 +171,7 @@ public class ImageMilvusDao {
         List<?> ids = wrapper.getFieldWrapper(F_ID).getFieldData();
         List<?> names = wrapper.getFieldWrapper(F_NAME).getFieldData();
         List<?> exts = wrapper.getFieldWrapper(F_EXT).getFieldData();
+        List<?> sourceUrls = wrapper.getFieldWrapper(F_SOURCE_URL).getFieldData();
 
         List<ImageSearchResult> list = new ArrayList<>();
         for (int i = 0; i < ids.size(); i++) {
@@ -171,9 +179,25 @@ public class ImageMilvusDao {
             r.setId(asString(ids.get(i)));
             r.setName(i < names.size() ? asString(names.get(i)) : null);
             r.setExt(i < exts.size() ? asString(exts.get(i)) : null);
+            r.setSourceUrl(i < sourceUrls.size() ? asString(sourceUrls.get(i)) : null);
             list.add(r);
         }
         return list;
+    }
+
+    public long countAll() {
+        ensureCollection();
+        R<io.milvus.grpc.GetCollectionStatisticsResponse> resp = client().getCollectionStatistics(
+                GetCollectionStatisticsParam.newBuilder()
+                        .withCollectionName(properties.getCollectionName())
+                        .build());
+        check(resp, "getCollectionStatistics");
+        for (io.milvus.grpc.KeyValuePair kv : resp.getData().getStatsList()) {
+            if ("row_count".equals(kv.getKey())) {
+                return Long.parseLong(kv.getValue());
+            }
+        }
+        return 0;
     }
 
     public void deleteById(String id) {
