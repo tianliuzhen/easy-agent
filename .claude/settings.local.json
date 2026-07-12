@@ -9,7 +9,19 @@
       "Agent",
       "Skill",
       "WebFetch",
-      "WebSearch"
+      "WebSearch",
+      "Mvn",
+      "Bash",
+      "Write",
+      "Edit",
+      "Read",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Agent",
+      "NotebookEdit",
+      "Skill"
     ],
     "deny": [
       "Bash(rm:*)",
@@ -19,6 +31,7 @@
       "Bash(trash:*)",
       "Bash(find:* -delete)",
       "Bash(find:* -exec rm*)"
-    ]
+    ],
+    "defaultMode": "acceptEdits"
   }
 }

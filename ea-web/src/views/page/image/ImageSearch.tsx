@@ -12,10 +12,10 @@ import {
     message,
     Modal,
     Pagination,
-    Popconfirm,
     Space,
     Spin,
     Tag,
+    Tooltip,
     Typography,
     Upload,
 } from 'antd';
@@ -229,7 +229,56 @@ const ImageSearch: React.FC = () => {
         return () => document.removeEventListener('paste', handlePaste);
     }, [searchOpen, topK]);
 
-    const handleDelete = async (id: string) => {
+    // 通过 <img> + canvas 把图片 URL 转成 File，绕过全局 fetch 拦截器注入的
+    // Authorization/credentials（跨域 CDN 会因此触发预检失败），用匿名 CORS 请求取图。
+    // 同时缩放到最长边 1024 并编码为 JPEG，避免全分辨率大图超出上传/向量化接口大小限制。
+    const urlToFile = (url: string, filename: string): Promise<File> =>
+        new Promise((resolve, reject) => {
+            const img = new window.Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                const maxEdge = 1024;
+                const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(img.naturalWidth * scale);
+                canvas.height = Math.round(img.naturalHeight * scale);
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('无法创建画布'));
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        reject(new Error('图片转换失败'));
+                        return;
+                    }
+                    resolve(new File([blob], filename, {type: 'image/jpeg'}));
+                }, 'image/jpeg', 0.92);
+            };
+            img.onerror = () => reject(new Error('图片加载失败'));
+            img.src = url;
+        });
+
+    // 点击列表项的放大镜：把该图放入以图搜图并自动搜整图
+    const handleSearchByItem = async (item: ImageItem) => {
+        setSearchResults([]);
+        setQueryFile(null);
+        setQueryPreviewUrl('');
+        setCrop(undefined);
+        setCompletedCrop(undefined);
+        setSearchOpen(true);
+        try {
+            const url = resolveImageUrl(item.imageUrl);
+            const file = await urlToFile(url, `${item.name || 'query'}.jpg`);
+            setQueryImage(file);
+            doSearch(file);
+        } catch (e) {
+            message.error('无法加载该图片用于搜索');
+        }
+    };
+
+    const doDelete = async (id: string) => {
         try {
             const res = await imageSearchApi.delete(id);
             if (res.success) {
@@ -242,6 +291,17 @@ const ImageSearch: React.FC = () => {
         } catch (e) {
             message.error('删除失败');
         }
+    };
+
+    const handleDelete = (item: ImageItem) => {
+        Modal.confirm({
+            title: '确认删除',
+            content: `确定删除图片「${item.name}」？此操作不可恢复。`,
+            okText: '删除',
+            okType: 'danger',
+            cancelText: '取消',
+            onOk: () => doDelete(item.id),
+        });
     };
 
     const uploadProps = (fileList: UploadFile[], setFileList: (f: UploadFile[]) => void, multiple = false) => ({
@@ -300,13 +360,12 @@ const ImageSearch: React.FC = () => {
                                         />
                                     }
                                     actions={[
-                                        <Popconfirm
-                                            key="del"
-                                            title="确认删除这张图片？"
-                                            onConfirm={() => handleDelete(item.id)}
-                                        >
-                                            <DeleteOutlined/>
-                                        </Popconfirm>,
+                                        <Tooltip key="search" title="找相似">
+                                            <SearchOutlined onClick={() => handleSearchByItem(item)}/>
+                                        </Tooltip>,
+                                        <Tooltip key="del" title="删除">
+                                            <DeleteOutlined onClick={() => handleDelete(item)}/>
+                                        </Tooltip>,
                                     ]}
                                 >
                                     <Card.Meta

@@ -1,6 +1,6 @@
 // src/pages/EaAgentPage.tsx
 import React, {useEffect, useState, useRef} from 'react';
-import {Button, Table, Modal, Form, Input, Space, Select, Card, List, Row, Col, Divider, Tag, AutoComplete} from 'antd';
+import {Button, Modal, Form, Input, Space, Select, Card, Row, Col, AutoComplete, Spin} from 'antd';
 import {App} from 'antd';
 import {Link, useNavigate} from 'react-router-dom';
 
@@ -497,20 +497,10 @@ const EaAgentPage: React.FC = () => {
                     </Button>
                 </div>
 
-                <List
-                    grid={{
-                        gutter: 16,
-                        xs: 1,
-                        sm: 2,
-                        md: 3,
-                        lg: 3,
-                        xl: 4,
-                        xxl: 5,
-                    }}
-                    loading={loading}
-                    dataSource={data}
-                    renderItem={(item) => (
-                        <List.Item>
+                <Spin spinning={loading}>
+                <Row gutter={[16, 16]}>
+                    {data.map((item) => (
+                        <Col xs={24} sm={12} md={8} lg={8} xl={6} xxl={6} key={item.id}>
                             <Card
                                 size="small"
                                 title={
@@ -720,9 +710,10 @@ const EaAgentPage: React.FC = () => {
                                     <MessageOutlined/>
                                 </div>
                             </Card>
-                        </List.Item>
-                    )}
-                />
+                        </Col>
+                    ))}
+                </Row>
+                </Spin>
 
                 <Modal
                     title={editingId ? '编辑Agent' : '添加Agent'}

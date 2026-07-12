@@ -51,7 +51,6 @@ public class ImageSearchController {
     private String productsDbUser;
     @Value("${PRODUCTS_DB_PASSWORD:}")
     private String productsDbPassword;
-
     /** 上传图片入库 */
     @PostMapping("upload")
     public BaseResult<ImageSearchResult> upload(@RequestPart("file") MultipartFile file,
