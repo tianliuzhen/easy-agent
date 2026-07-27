@@ -38,7 +38,24 @@ import {authApi} from './api/AuthApi';
 const {Header, Content, Sider} = Layout;
 
 // 定义路由配置
-const routes = [
+interface RouteChild {
+    key: string;
+    label: string;
+    path?: string;
+    component?: React.ReactNode;
+    href?: string;
+    external?: boolean;
+    children?: RouteChild[];
+}
+
+interface RouteGroup {
+    key: string;
+    icon: React.ReactNode;
+    label: string;
+    children: RouteChild[];
+}
+
+const routes: RouteGroup[] = [
     {
         key: 'sub1',
         icon: <RobotOutlined/>,
@@ -115,6 +132,16 @@ const routes = [
         children: [
             {key: '8', label: '我的Skill', path: '/page/skill/my', component: <AuthGuard><MySkill/></AuthGuard>},
             {key: '9', label: 'Skill市场', path: '/page/skill/market', component: <AuthGuard><SkillMarket/></AuthGuard>},
+            {
+                key: 'skills-plaza',
+                label: 'skills广场',
+                children: [
+                    {key: 'ms-skills', label: '魔塔skills', href: 'https://www.modelscope.cn/skills', external: true},
+                    {key: 'skillsmp', label: 'SkillsMP', href: 'https://skillsmp.com/search', external: true},
+                    {key: 'skills-sh', label: 'skills.sh', href: 'https://skills.sh/', external: true},
+                    {key: 'qoder-skills', label: 'Qoder 社区', href: 'https://qoder-community.pages.dev/zh/skills/', external: true},
+                ]
+            },
         ]
     },
     {
@@ -262,15 +289,28 @@ const AppLayout = () => {
         return breadcrumbs;
     };
 
+    const mapChild = (child: RouteChild): NonNullable<MenuProps['items']>[number] => {
+        if (child.children) {
+            return {
+                key: child.key,
+                label: child.label,
+                children: child.children.map(mapChild),
+            };
+        }
+        return {
+            key: child.key,
+            label: child.external
+                ? <a href={child.href} target="_blank" rel="noopener noreferrer">{child.label}</a>
+                : <Link to={child.path!}>{child.label}</Link>
+        };
+    };
+
     const getMenuItems = (): MenuProps['items'] => {
         return routes.map(route => ({
             key: route.key,
             icon: route.icon,
             label: route.label,
-            children: route.children.map(child => ({
-                key: child.key,
-                label: <Link to={child.path}>{child.label}</Link>
-            }))
+            children: route.children.map(mapChild)
         }));
     };
 
@@ -356,9 +396,11 @@ const AppLayout = () => {
                         <Routes>
                             <Route path="/" element={<Home/>}/>
                             {routes.flatMap(route =>
-                                route.children.map(child => (
-                                    <Route key={child.key} path={child.path} element={child.component}/>
-                                ))
+                                route.children
+                                    .filter(child => child.path && child.component)
+                                    .map(child => (
+                                        <Route key={child.key} path={child.path} element={child.component}/>
+                                    ))
                             )}
                             {/* 工具管理的子路由 */}
                             <Route path="/toolManager/tool/:type" element={<AuthGuard><ToolManager mode="default" /></AuthGuard>} />

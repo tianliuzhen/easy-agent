@@ -10,7 +10,7 @@ import com.aaa.easyagent.common.util.SpringContextUtil;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import com.aaa.easyagent.biz.agent.advisor.ToolChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.Message;
@@ -75,6 +75,17 @@ public class ToolAgentExecutor extends BaseAgent {
         this.accumulateInputTokenCount = initInputTokens;
         this.accumulateOutputTokenCount = initOutputTokens;
 
+        // 历史加载：从 ChatMemory 把跨请求历史加载进 this.messages（含 tool_calls）。
+        // 必须在构造时加载，因为 run() 里 spec.messages(this.messages) 在主线程先执行，
+        // 而 advisor 的 before() 在 scheduler 线程后执行，来不及影响 prompt。
+        if (agentContext.getSessionId() != null) {
+            ChatMemory chatMemory = SpringContextUtil.getBean(ChatMemory.class);
+            List<Message> history = chatMemory.get(agentContext.getSessionId());
+            if (history != null && !history.isEmpty()) {
+                messages.addAll(history);
+            }
+        }
+
         // 将 FunctionCallback 适配为 Spring AI ToolCallback
         List<ToolCallback> toolCallbacks = callbackMap.values().stream()
                 .map(FunctionCallbackAdapter::new)
@@ -87,25 +98,23 @@ public class ToolAgentExecutor extends BaseAgent {
                 // new SseAdvisor(sse),
                 new ToolExecutionAdvisor(callbackMap, toolSameCallCountMap, sse));
 
-        // 窗口策略：轮数限制 / 滑动窗口
-        AgentMemoryConfig agentMemoryConfig = agentContext.getAgentMemoryConfig();
-        if (agentMemoryConfig != null) {
-            // 轮数限制（MessageChatMemoryAdvisor）
-            if (agentMemoryConfig.isRoundLimitEnabled() && agentMemoryConfig.getRoundLimit() > 0) {
-                advisors.add(MessageChatMemoryAdvisor
-                        .builder(SpringContextUtil.getBean(ChatMemory.class))
-                        .build());
-            }
+        // 默认开启会话记忆：只要存在 sessionId，就加载/保存多轮历史
+        if (agentContext.getSessionId() != null) {
+            advisors.add(ToolChatMemoryAdvisor
+                    .builder(SpringContextUtil.getBean(ChatMemory.class))
+                    .build());
+        }
 
-            // 滑动窗口（SlidingWindowAdvisor）：基于 token 计数
-            // 当 overflowStrategy == SLIDING 且 windowStrategyEnabled 且 windowLimit > 0 时启用
-            if (agentMemoryConfig.isWindowStrategyEnabled()
-                    && OverflowStrategyEnum.SLIDING.equals(agentMemoryConfig.getOverflowStrategy())
-                    && agentMemoryConfig.getWindowLimit() > 0) {
-                double threshold = agentMemoryConfig.getTriggerThreshold() != null ? agentMemoryConfig.getTriggerThreshold() : 0.82;
-                advisors.add(new SlidingWindowAdvisor(0, this.accumulateInputTokenCount, this.accumulateOutputTokenCount,
-                        agentMemoryConfig.getWindowLimit(), threshold));
-            }
+        // 滑动窗口（SlidingWindowAdvisor）：基于 token 计数
+        // 当 overflowStrategy == SLIDING 且 windowStrategyEnabled 且 windowLimit > 0 时启用
+        AgentMemoryConfig agentMemoryConfig = agentContext.getAgentMemoryConfig();
+        if (agentMemoryConfig != null
+                && agentMemoryConfig.isWindowStrategyEnabled()
+                && OverflowStrategyEnum.SLIDING.equals(agentMemoryConfig.getOverflowStrategy())
+                && agentMemoryConfig.getWindowLimit() > 0) {
+            double threshold = agentMemoryConfig.getTriggerThreshold() != null ? agentMemoryConfig.getTriggerThreshold() : 0.82;
+            advisors.add(new SlidingWindowAdvisor(0, this.accumulateInputTokenCount, this.accumulateOutputTokenCount,
+                    agentMemoryConfig.getWindowLimit(), threshold));
         }
 
         ChatClient.Builder builder = ChatClient.builder(chatModel)
@@ -141,10 +150,15 @@ public class ToolAgentExecutor extends BaseAgent {
         setImageMsg(spec);
 
         // 每轮变化的参数（messages、withToolCall）通过 advisor params 传入
+        // 注意：request 级 advisors(Consumer) 会覆盖 builder 的默认参数，
+        // 所以 CONVERSATION_ID 必须在这里重新带上，否则 ToolChatMemoryAdvisor 拿不到
         spec.advisors(as -> {
             as.param(ToolExecutionAdvisor.MESSAGES_KEY, messages);
             as.param(ToolExecutionAdvisor.WITH_TOOL_CALL_KEY, withToolCall);
             as.param(SlidingWindowAdvisor.MESSAGES_KEY, messages);
+            if (agentContext.getSessionId() != null) {
+                as.param(ChatMemory.CONVERSATION_ID, agentContext.getSessionId());
+            }
         });
 
         Flux<ChatResponse> stream = spec.stream().chatResponse();

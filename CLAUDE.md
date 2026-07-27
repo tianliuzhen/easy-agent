@@ -144,7 +144,7 @@ common/     - 工具类、配置、文档处理、LLM 适配、向量库配置
 
 **路由拓扑**（在 `App.tsx` 中按 pathname 前缀分流）：
 - `/login`、`/register` — 认证页，无布局
-- `/` — IndexLayout（侧边栏管理界面，包含 Agent 管理、知识库、工具、MCP、Skill、模型平台、用户配置）
+- `/` — IndexLayout（侧边栏管理界面，包含 Agent 管理、知识库、工具、MCP、Skill、模型平台、图片搜索、用户配置）
 - `/home/chatdemo` — 带顶部导航栏的聊天页
 - `/agentChat/chatDemo/*` — 纯聊天页（无导航）
 - `/pageTool/AgentConfig/*` — Agent 配置页（多 Tab 编辑，工具子路由 `tool/sql`、`tool/http`、`tool/mcp`、`tool/grpc`）
@@ -163,12 +163,24 @@ common/     - 工具类、配置、文档处理、LLM 适配、向量库配置
 - `debug/` — 在线调试
 - `ResourceBindingPanel.tsx`、`AgentConfigContext.tsx`、`AgentEditModal.tsx`
 
-**API 层** (`views/api/`)：每个 API 文件导出对象字面量，直接使用 `fetch`（经拦截器增强），以 `API_BASE_URL = http://localhost:8080` 为基地址。包含 AuthApi、ChatApi、ChatConversationApi、EaAgentApi、EaToolApi、FlowApi、KnowledgeBaseApi、McpApi、ModelPlatformApi、SkillApi。
+**API 层** (`views/api/`)：每个 API 文件导出对象字面量，直接使用 `fetch`（经拦截器增强），以 `API_BASE_URL = http://localhost:8080` 为基地址。包含 AuthApi、ChatApi、ChatConversationApi、EaAgentApi、EaToolApi、FlowApi、ImageSearchApi、KnowledgeBaseApi、McpApi、ModelPlatformApi、SkillApi。
 
 ### 多模态图片支持
 
 - **后端**：`StreamChatPostRequest.imageBase64` 贯穿 `AgentChatServiceImpl` → `AgentContext` → `ToolAgentExecutor` / `BaseAgent`（构造 Media），需 openai profile `image.enabled: true`
 - **前端**：`views/page/chat/ChatComponents.tsx` 处理图片上传并写入 `imageBase64`
+
+### 图片搜索（以图搜图）
+
+电商图搜图功能，**独立于文本 RAG**，走单独的多模态向量化 + 专属 Milvus 集合。
+
+- **多模态向量化** `common/embedding/DashScopeMultimodalClient`：调用阿里云百炼 **原生** multimodal-embedding 端点（`qwen3-vl-embedding`）。注意：百炼多模态 embedding **不支持 OpenAI 兼容接口**，必须走原生端点。支持三种输入：本地字节 base64（`embedImage`）、HTTP URL 直传（`embedImageByUrl`，百炼直接拉取无需下载）、文本（`embedText`，预留文字搜图）
+- **业务层** `biz/imagesearch/`：`ImageSearchService(Impl)` 编排「向量化 + Milvus + 存储」；`ImageMilvusDao` 操作独立集合 `ea_image_search`（维度默认 1024，COSINE / IVF_FLAT），存储 sourceUrl 以便 URL 导入的图片直接展示
+- **图片存储** `common/storage/`：`ImageStorage` 接口 + `LocalImageStorage`（默认 `./uploads/image-search`），配置项预留 oss 扩展
+- **配置** `ImageSearchProperties`（前缀 `easy-agent.image-search`）：apiKey 默认读 `.env` 的 `DASHSCOPE_API_KEY`，含 endpoint / model / dimension / collectionName / storage / uploadDir
+- **控制器** `web/biz/imagesearch/ImageSearchController`（`@RequestMapping("imageSearch/")`）：`upload`（上传入库）、`search`（以图搜图 topK）、`list`（分页）、`delete`、`file/{id}`（返回图片字节供 `<img>`）、`import/products`（**异步**从远程 products 库批量导入主图，按 1000 条/线程并发向量化，远程库连接靠 `PRODUCTS_DB_URL/USER/PASSWORD` 环境变量）
+- **安全**：`SecurityConfig` 将 `/imageSearch/file/**`（`<img>` 不带 JWT）与 `/imageSearch/import/**` 设为 permitAll
+- **前端**：页面 `views/page/image/ImageSearch.tsx`（IndexLayout 路由 `/page/image/ImageSearch`）+ `views/api/ImageSearchApi.ts`
 
 ### MCP 模块 (ea-mcp)
 

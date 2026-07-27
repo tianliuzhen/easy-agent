@@ -51,12 +51,38 @@ export interface QuickPromptGroup {
 
 // ==================== 类型配置 ====================
 const typeConfig = {
-    think: {title: '思考', icon: '🤔', description: '', color: '#1677ff', status: 'pending' as const},
+    think: {title: '深度思考', icon: '🤔', description: '', color: '#8c8c8c', status: 'pending' as const},
     data: {title: '回答', icon: '💬', description: '', color: '#52c41a', status: 'success' as const},
     tool: {title: '工具', icon: '🎰', description: '', color: '#fa8c16', status: 'success' as const},
     log: {title: '日志', icon: '📝', description: '运行日志', color: '#8c8c8c', status: 'default' as const},
     error: {title: '错误', icon: '⚠️', description: '', color: '#ff4d4f', status: 'error' as const},
     finalAnswer: {title: '最终答案', icon: '✅', description: '', color: '#52c41a', status: 'success' as const},
+};
+
+// 思考日志中不同类型条目的内容样式：
+// - think（推理/思考）：灰色字体 + 独立边界卡片，与回答明显区分（现代 Agent 对话格式）
+// - data/finalAnswer（回答）：正常深色可读文本
+// - log/error：弱化/告警色
+const getEntryContentStyle = (type: ThinkingLogEntry['type']): React.CSSProperties => {
+    switch (type) {
+        case 'think':
+            return {
+                fontSize: '13px',
+                lineHeight: 1.7,
+                color: '#8c8c8c',
+                padding: '10px 14px',
+                background: '#f7f8fa',
+                border: '1px solid #ebedf0',
+                borderRadius: '8px',
+            };
+        case 'error':
+            return {fontSize: '13px', lineHeight: 1.6, color: '#ff4d4f', padding: '8px 0'};
+        case 'log':
+            return {fontSize: '12px', lineHeight: 1.6, color: '#8c8c8c', padding: '6px 0'};
+        default:
+            // data / finalAnswer 等回答文本，保持深色可读
+            return {fontSize: '13px', lineHeight: 1.6, color: '#333', padding: '8px 0'};
+    }
 };
 
 // XMarkdown 紧凑间距：覆盖其默认 1em 的块级外边距（段落/列表/代码块等），
@@ -262,12 +288,7 @@ const ThinkingContentList: React.FC<{ merged: ThinkingLogEntry[], isRealTime: bo
                     />
                 </div>
             ) : (
-                <div style={{
-                    fontSize: '12px',
-                    lineHeight: 1.6,
-                    color: '#333',
-                    padding: '8px 0'
-                }}>
+                <div style={getEntryContentStyle(entry.type)}>
                     <XMarkdown
                         content={entry.content}
                         style={COMPACT_MARKDOWN_STYLE}
@@ -478,30 +499,24 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             {!msg.isUser && hasThinkingLog && isThinkingVisible && currentAnsweringMsgId !== msg.id && (
                 <div style={{marginBottom: '16px', marginLeft: '56px', maxWidth: '70%'}}>
                     <div style={{
-                        background: '#fff',
+                        background: '#fbfbfc',
                         borderRadius: '12px',
                         padding: '12px 16px',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        border: '1px solid #ebedf0',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                     }}>
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             fontSize: '13px',
-                            color: '#1890ff',
+                            color: '#8c8c8c',
                             fontWeight: 500,
                             marginBottom: '8px',
                         }}>
-                            <div style={{display: 'flex', alignItems: 'center'}}>
-                                <span>✅ </span>
-                                <span style={{
-                                    fontSize: '11px',
-                                    backgroundColor: '#fff',
-                                    padding: '2px 4px',
-                                    borderRadius: '10px'
-                                }}>
-                                    已完成
-                                </span>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                <span>🤔</span>
+                                <span>已深度思考</span>
                             </div>
                             <Tooltip title="隐藏">
                                 <Button
@@ -560,10 +575,11 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
             {isVisible && (
                 <div style={{marginBottom: '16px', marginLeft: '56px', maxWidth: '70%', marginTop: '8px'}}>
                     <div style={{
-                        background: '#fff',
+                        background: '#fbfbfc',
                         borderRadius: '12px',
                         padding: '12px 16px',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        border: '1px solid #ebedf0',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                         animation: 'pulse 2s infinite',
                     }}>
                         <div style={{
