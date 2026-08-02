@@ -10,6 +10,7 @@ import com.aaa.easyagent.common.util.SpringContextUtil;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClientAttributes;
 import com.aaa.easyagent.biz.agent.advisor.ToolChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -156,6 +157,10 @@ public class ToolAgentExecutor extends BaseAgent {
             as.param(ToolExecutionAdvisor.MESSAGES_KEY, messages);
             as.param(ToolExecutionAdvisor.WITH_TOOL_CALL_KEY, withToolCall);
             as.param(SlidingWindowAdvisor.MESSAGES_KEY, messages);
+            // 关闭 Spring AI 内置 ToolCallingAdvisor 的自动注册：工具执行由自定义 ToolExecutionAdvisor
+            // + doExec() 外循环手动控制。内置 advisor 会重复执行工具，且回灌模型时因 conversationHistoryEnabled=false
+            // 把历史裁剪成 [system, 最后一条 tool 消息]，导致上下文丢失。
+            as.param(ChatClientAttributes.TOOL_CALLING_ADVISOR_AUTO_REGISTER.getKey(), false);
             if (agentContext.getSessionId() != null) {
                 as.param(ChatMemory.CONVERSATION_ID, agentContext.getSessionId());
             }
