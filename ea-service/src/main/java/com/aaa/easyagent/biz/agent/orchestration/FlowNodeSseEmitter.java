@@ -19,11 +19,11 @@ public class FlowNodeSseEmitter extends SseEmitter implements ScopedEventEmitter
 
     @Override
     public void sendScoped(String eventType, String content) {
-        String mapped = switch (eventType) {
-            case "data", "finalAnswer" -> "node_data";
-            case "think" -> "node_think";
-            case "tool" -> "node_tool";
-            default -> "node_log";
+        FlowEventType mapped = switch (eventType) {
+            case "data", "finalAnswer" -> FlowEventType.NODE_DATA;
+            case "think" -> FlowEventType.NODE_THINK;
+            case "tool" -> FlowEventType.NODE_TOOL;
+            default -> FlowEventType.NODE_LOG;
         };
         publisher.publish(mapped, node, agentId, content);
     }
@@ -35,6 +35,6 @@ public class FlowNodeSseEmitter extends SseEmitter implements ScopedEventEmitter
 
     @Override
     public void completeWithError(Throwable ex) {
-        publisher.publish("node_failed", node, agentId, ex.getMessage());
+        publisher.publish(FlowEventType.NODE_FAILED, node, agentId, ex.getMessage());
     }
 }

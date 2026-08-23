@@ -14,10 +14,10 @@ import java.util.Map;
 public class FlowEventPublisher {
     private final FlowRunContext context;
 
-    public void publish(String eventType, FlowNodeDefinition node, Long agentId, Object data) {
+    public void publish(FlowEventType eventType, FlowNodeDefinition node, Long agentId, Object data) {
         Map<String, Object> event = new LinkedHashMap<>();
-        event.put("type", clientType(eventType));
-        event.put("eventType", eventType);
+        event.put("type", eventType.clientType());
+        event.put("eventType", eventType.eventName());
         event.put("runId", context.getRunId());
         event.put("flowId", context.getFlowId());
         event.put("revisionId", context.getRevisionId());
@@ -32,18 +32,7 @@ public class FlowEventPublisher {
         event.put("data", data);
         event.put("content", data instanceof String ? data : JacksonUtil.beanToStr(data));
         event.put("timestamp", Instant.now().toString());
-        SseHelper.sendJson(context.getSseEmitter(), JacksonUtil.beanToStr(event), eventType);
-    }
-
-    private String clientType(String eventType) {
-        return switch (eventType) {
-            case "node_data" -> "data";
-            case "node_think" -> "think";
-            case "node_tool" -> "tool";
-            case "flow_succeeded" -> "finalAnswer";
-            case "flow_failed" -> "error";
-            default -> "flow";
-        };
+        SseHelper.sendJson(context.getSseEmitter(), JacksonUtil.beanToStr(event), eventType.eventName());
     }
 
     public SseEmitter emitter() {

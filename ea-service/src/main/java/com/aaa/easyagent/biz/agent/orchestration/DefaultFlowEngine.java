@@ -42,7 +42,7 @@ public class DefaultFlowEngine implements FlowEngine {
         AtomicLong inputTokens = new AtomicLong();
         AtomicLong outputTokens = new AtomicLong();
         recorder.startFlow(context);
-        events.publish("flow_started", null, null, context.getInput());
+        events.publish(FlowEventType.FLOW_STARTED, null, null, context.getInput());
         int parallelism = Math.max(2, Math.min(8, plan.getNodes().size()));
         ExecutorService executor = Executors.newFixedThreadPool(parallelism, threadFactory(context.getRunId()));
         CompletionService<NodeTaskResult> completion = new ExecutorCompletionService<>(executor);
@@ -67,11 +67,11 @@ public class DefaultFlowEngine implements FlowEngine {
                             nodeStates.put(node.getId(), NodeState.SKIPPED);
                             plan.outgoing(EdgeKind.CONTROL, node.getId())
                                     .forEach(edge -> edgeStates.replace(edge.getId(), EdgeState.PENDING, EdgeState.SKIPPED));
-                            events.publish("node_skipped", node, agentId(node), "上游分支未激活");
+                            events.publish(FlowEventType.NODE_SKIPPED, node, agentId(node), "上游分支未激活");
                             progressed = true;
                         } else if (readiness == Readiness.READY) {
                             nodeStates.put(node.getId(), NodeState.RUNNING);
-                            events.publish("node_ready", node, agentId(node), null);
+                            events.publish(FlowEventType.NODE_READY, node, agentId(node), null);
                             completion.submit(() -> executeNode(plan, context, state, events, node));
                             running++;
                             progressed = true;
@@ -91,8 +91,8 @@ public class DefaultFlowEngine implements FlowEngine {
                             ? task.error().getClass().getSimpleName() : task.error().getMessage();
                     log.error("Flow node failed, runId={}, nodeId={}", context.getRunId(), node.getId(), task.error());
                     recorder.finishNode(task.nodeRunId(), "FAILED", null, 0, 0, message);
-                    events.publish("node_failed", node, agentId(node), message);
-                    events.publish("flow_failed", null, null, message);
+                    events.publish(FlowEventType.NODE_FAILED, node, agentId(node), message);
+                    events.publish(FlowEventType.FLOW_FAILED, null, null, message);
                     recorder.finishFlow(context, "FAILED", null, inputTokens.get(), outputTokens.get(), message);
                     return result(context, "FAILED", null, state, inputTokens.get(), outputTokens.get());
                 }
@@ -104,7 +104,7 @@ public class DefaultFlowEngine implements FlowEngine {
                 nodeStates.put(node.getId(), NodeState.SUCCEEDED);
                 recorder.finishNode(task.nodeRunId(), "SUCCEEDED", nodeResult.getOutputs(),
                         nodeResult.getInputTokens(), nodeResult.getOutputTokens(), null);
-                events.publish("node_succeeded", node, agentId(node), nodeResult.getOutputs());
+                events.publish(FlowEventType.NODE_SUCCEEDED, node, agentId(node), nodeResult.getOutputs());
                 activateOutgoing(plan, node, nodeResult, edgeStates);
 
                 if ("END".equals(node.getType())) {
@@ -115,11 +115,11 @@ public class DefaultFlowEngine implements FlowEngine {
 
             if (!endReached) {
                 String message = "Flow 执行结束但没有到达 END 节点";
-                events.publish("flow_failed", null, null, message);
+                events.publish(FlowEventType.FLOW_FAILED, null, null, message);
                 recorder.finishFlow(context, "FAILED", null, inputTokens.get(), outputTokens.get(), message);
                 return result(context, "FAILED", null, state, inputTokens.get(), outputTokens.get());
             }
-            events.publish("flow_succeeded", null, null, finalResult);
+            events.publish(FlowEventType.FLOW_SUCCEEDED, null, null, finalResult);
             recorder.finishFlow(context, "SUCCEEDED", finalResult, inputTokens.get(), outputTokens.get(), null);
             return result(context, "SUCCEEDED", finalResult, state, inputTokens.get(), outputTokens.get());
         } catch (InterruptedException interrupted) {
@@ -129,7 +129,7 @@ public class DefaultFlowEngine implements FlowEngine {
             return result(context, "CANCELLED", null, state, inputTokens.get(), outputTokens.get());
         } catch (Exception ex) {
             log.error("Flow execution failed, runId={}", context.getRunId(), ex);
-            events.publish("flow_failed", null, null, ex.getMessage());
+            events.publish(FlowEventType.FLOW_FAILED, null, null, ex.getMessage());
             recorder.finishFlow(context, "FAILED", null, inputTokens.get(), outputTokens.get(), ex.getMessage());
             return result(context, "FAILED", null, state, inputTokens.get(), outputTokens.get());
         } finally {
@@ -141,7 +141,7 @@ public class DefaultFlowEngine implements FlowEngine {
                                        FlowEventPublisher events, FlowNodeDefinition node) {
         Map<String, Object> inputs = collectInputs(plan, node, state);
         Long nodeRunId = recorder.startNode(context, node, agentId(node), inputs);
-        events.publish("node_started", node, agentId(node), inputs);
+        events.publish(FlowEventType.NODE_STARTED, node, agentId(node), inputs);
         try {
             NodeExecutionContext nodeContext = NodeExecutionContext.builder()
                     .node(node).inputs(inputs).state(state).runContext(context).events(events)
@@ -164,7 +164,7 @@ public class DefaultFlowEngine implements FlowEngine {
             throw new IllegalArgumentException("Worker 端口只能连接 AGENT 节点：" + workerId);
         }
         Long nodeRunId = recorder.startNode(context, worker, agentId(worker), workerInput);
-        events.publish("node_started", worker, agentId(worker), workerInput);
+        events.publish(FlowEventType.NODE_STARTED, worker, agentId(worker), workerInput);
         try {
             NodeExecutionContext workerContext = NodeExecutionContext.builder().node(worker).inputs(workerInput)
                     .state(state).runContext(context).events(events).outgoingEdges(allOutgoing(plan, workerId))
@@ -173,11 +173,11 @@ public class DefaultFlowEngine implements FlowEngine {
             result.getOutputs().forEach((key, value) -> state.put(workerId, key, value));
             recorder.finishNode(nodeRunId, "SUCCEEDED", result.getOutputs(), result.getInputTokens(),
                     result.getOutputTokens(), null);
-            events.publish("node_succeeded", worker, agentId(worker), result.getOutputs());
+            events.publish(FlowEventType.NODE_SUCCEEDED, worker, agentId(worker), result.getOutputs());
             return result;
         } catch (RuntimeException ex) {
             recorder.finishNode(nodeRunId, "FAILED", null, 0, 0, ex.getMessage());
-            events.publish("node_failed", worker, agentId(worker), ex.getMessage());
+            events.publish(FlowEventType.NODE_FAILED, worker, agentId(worker), ex.getMessage());
             throw ex;
         }
     }

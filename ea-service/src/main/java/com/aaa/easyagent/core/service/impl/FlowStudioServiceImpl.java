@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import tk.mybatis.mapper.entity.Example;
 
 import java.util.Date;
@@ -112,6 +113,13 @@ public class FlowStudioServiceImpl implements FlowStudioService {
     @Transactional
     public void saveDraft(Long flowId, FlowDefinition definition) {
         EaAgentFlowDO flow = requireFlow(flowId);
+        if (StringUtils.hasText(definition.getName())) {
+            String flowName = definition.getName().trim();
+            definition.setName(flowName);
+            flow.setFlowName(flowName);
+        } else {
+            definition.setName(flow.getFlowName());
+        }
         definition.setFlowId(flowId).setSchemaVersion(FlowDefinition.CURRENT_SCHEMA_VERSION);
         String json = JacksonUtil.beanToStr(definition);
         String checksum = compiler.checksum(definition);

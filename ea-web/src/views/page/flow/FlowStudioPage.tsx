@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {App, Button, Divider, Form, Input, InputNumber, Modal, Select, Space, Spin, Tag, Typography} from 'antd';
+import {App, Button, Divider, Drawer, Form, Input, InputNumber, Modal, Select, Space, Spin, Tag, Typography} from 'antd';
 import {ArrowLeftOutlined, BugOutlined, CheckCircleOutlined, CloseOutlined, DeleteOutlined, FullscreenExitOutlined, FullscreenOutlined, MinusCircleOutlined, PlusOutlined, RocketOutlined, SaveOutlined} from '@ant-design/icons';
 import {
   Background, Controls, Handle, MiniMap, Position, ReactFlow, ReactFlowProvider, addEdge,
@@ -16,13 +16,15 @@ interface StudioNodeData extends Record<string, unknown> {
   label: string;
   metadata: NodeMetadata;
   config: Record<string, unknown>;
-  runStatus?: string;
+  runStatus?: NodeRunStatus;
   onDelete?: () => void;
 }
 type StudioNode = Node<StudioNodeData, 'studio'>;
 type StudioEdge = Edge<{kind: PortKind}>;
 interface AgentOption {id: number; agentName: string;}
 interface RouterBranch {key: string; label: string; description: string;}
+interface FlowDebugEvent {eventType: string; nodeId?: string; nodeName?: string; content: string;}
+type NodeRunStatus = 'ready' | 'running' | 'succeeded' | 'failed' | 'skipped';
 
 const portColor: Record<PortKind, string> = {CONTROL: '#1677ff', DATA: '#722ed1', WORKER: '#fa8c16'};
 const fullscreenDraftKey = (flowId: number) => `easy-agent:flow-fullscreen:${flowId}`;
@@ -66,6 +68,14 @@ const valueTypesCompatible = (source: PortDefinition, target: PortDefinition) =>
   || target.valueType === 'ANY' || source.valueType === target.valueType
   || (source.valueType === 'STRING' && target.valueType === 'MESSAGE')
   || (source.valueType === 'MESSAGE' && target.valueType === 'STRING');
+const nodeRunStatus = (eventType?: string): NodeRunStatus | undefined => {
+  if (eventType === 'node_ready') return 'ready';
+  if (['node_started', 'node_think', 'node_tool', 'node_log', 'node_data'].includes(eventType || '')) return 'running';
+  if (eventType === 'node_succeeded') return 'succeeded';
+  if (eventType === 'node_failed') return 'failed';
+  if (eventType === 'node_skipped') return 'skipped';
+  return undefined;
+};
 
 const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
   const {message} = App.useApp();
@@ -81,14 +91,21 @@ const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
   const [selectedId, setSelectedId] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
-  const [events, setEvents] = useState<string[]>([]);
+  const [events, setEvents] = useState<FlowDebugEvent[]>([]);
   const [debugInput, setDebugInput] = useState('请根据输入完成任务');
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debugging, setDebugging] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const initialLoad = useRef(true);
   const nodesRef = useRef<StudioNode[]>([]);
+  const debugTerminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => {
+    const terminal = debugTerminalRef.current;
+    if (terminal) terminal.scrollTop = terminal.scrollHeight;
+  }, [events]);
 
   const removeNode = useCallback((nodeId: string) => {
     setNodes(current => current.filter(node => node.id !== nodeId));
@@ -211,17 +228,33 @@ const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
   const publish = async () => { await save(); await validate(); const result = await flowApi.validate(flowId, toDefinition()); if (!result.valid) return; await flowApi.publish(flowId); message.success('发布成功'); };
 
   const debug = async () => {
-    await save(); setEvents([]); setNodes(current => current.map(node => ({...node, data: {...node.data, runStatus: undefined}})));
-    const token = localStorage.getItem('AUTH_TOKEN');
-    await fetchEventSource(`http://localhost:8080/eaAgent/flow/${flowId}/debug-run`, {
-      method: 'POST', headers: {'Content-Type': 'application/json', ...(token ? {Authorization: `Bearer ${token}`} : {})},
-      body: JSON.stringify({definition: toDefinition(), input: {input: debugInput, question: debugInput}, sessionId: `debug-${Date.now()}`}), openWhenHidden: true,
-      onmessage: event => {
-        const data = JSON.parse(event.data) as {eventType?: string; nodeId?: string; nodeName?: string; content?: string};
-        setEvents(current => [...current, `${data.eventType || 'event'} · ${data.nodeName || data.nodeId || 'Flow'} · ${data.content || ''}`]);
-        if (data.nodeId) setNodes(current => current.map(node => node.id === data.nodeId ? {...node, data: {...node.data, runStatus: data.eventType === 'node_failed' ? 'failed' : data.eventType === 'node_succeeded' ? 'succeeded' : 'running'}} : node));
-      }, onerror: error => { throw error; },
-    });
+    setDebugging(true);
+    try {
+      await save(); setEvents([]); setNodes(current => current.map(node => ({...node, data: {...node.data, runStatus: undefined}})));
+      const token = localStorage.getItem('AUTH_TOKEN');
+      await fetchEventSource(`http://localhost:8080/eaAgent/flow/${flowId}/debug-run`, {
+        method: 'POST', headers: {'Content-Type': 'application/json', ...(token ? {Authorization: `Bearer ${token}`} : {})},
+        body: JSON.stringify({definition: toDefinition(), input: {input: debugInput, question: debugInput}, sessionId: `debug-${Date.now()}`}), openWhenHidden: true,
+        onmessage: event => {
+          const data = JSON.parse(event.data) as {eventType?: string; nodeId?: string; nodeName?: string; content?: string};
+          const nextEvent: FlowDebugEvent = {eventType: data.eventType || 'event', nodeId: data.nodeId, nodeName: data.nodeName, content: data.content || ''};
+          setEvents(current => {
+            const last = current[current.length - 1];
+            const isStreamingEvent = nextEvent.eventType === 'node_data' || nextEvent.eventType === 'node_think';
+            if (isStreamingEvent && last?.eventType === nextEvent.eventType && last.nodeId === nextEvent.nodeId) {
+              return [...current.slice(0, -1), {...last, content: `${last.content}${nextEvent.content}`}];
+            }
+            return [...current, nextEvent];
+          });
+          const runStatus = nodeRunStatus(data.eventType);
+          if (data.nodeId && runStatus) setNodes(current => current.map(node => node.id === data.nodeId ? {...node, data: {...node.data, runStatus}} : node));
+        }, onerror: error => { throw error; },
+      });
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '试运行失败');
+    } finally {
+      setDebugging(false);
+    }
   };
 
   const categories = useMemo(() => metadata.reduce((groups, item) => {
@@ -236,9 +269,20 @@ const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
     window.close();
     window.setTimeout(() => { if (!window.closed) navigate(`/page/FlowStudio/${flowId}`); }, 120);
   };
+  const updateFlowName = (value: string) => {
+    const name = value.trim();
+    if (!name) {
+      message.warning('编排名称不能为空');
+      return;
+    }
+    if (name !== flowName) {
+      setFlowName(name);
+      setDirty(true);
+    }
+  };
   return <Spin spinning={loading}><div className={`flow-studio ${inspectorOpen ? '' : 'inspector-collapsed'} ${fullscreen ? 'flow-studio-fullscreen' : ''}`}>
-    <header className="flow-toolbar"><Space><Button icon={<ArrowLeftOutlined/>} onClick={() => fullscreen ? closeFullscreen() : navigate('/page/FlowManager')}/><Typography.Title level={4} style={{margin: 0}}>{flowName}</Typography.Title>{dirty && <Tag color="orange">未保存</Tag>}</Space>
-      <Space>{fullscreen ? <Button icon={<FullscreenExitOutlined/>} aria-label="退出全屏" title="退出全屏" onClick={closeFullscreen}/> : <Button icon={<FullscreenOutlined/>} aria-label="全屏画布" title="全屏画布" onClick={openFullscreen}/>}<Button icon={<SaveOutlined/>} onClick={() => void save()}>保存</Button><Button icon={<CheckCircleOutlined/>} onClick={() => void validate()}>校验</Button><Button icon={<BugOutlined/>} onClick={() => void debug()}>试运行</Button><Button type="primary" icon={<RocketOutlined/>} onClick={() => void publish()}>发布</Button></Space>
+    <header className="flow-toolbar"><Space><Button icon={<ArrowLeftOutlined/>} onClick={() => fullscreen ? closeFullscreen() : navigate('/page/FlowManager')}/><Typography.Title level={4} className="flow-name-title" style={{margin: 0}} editable={{tooltip: '修改编排名称', onChange: updateFlowName}}>{flowName}</Typography.Title>{dirty && <Tag color="orange">未保存</Tag>}</Space>
+      <Space>{fullscreen ? <Button icon={<FullscreenExitOutlined/>} aria-label="退出全屏" title="退出全屏" onClick={closeFullscreen}/> : <Button icon={<FullscreenOutlined/>} aria-label="全屏画布" title="全屏画布" onClick={openFullscreen}/>}<Button icon={<SaveOutlined/>} onClick={() => void save()}>保存</Button><Button icon={<CheckCircleOutlined/>} onClick={() => void validate()}>校验</Button><Button icon={<BugOutlined/>} onClick={() => setDebugOpen(true)}>试运行</Button><Button type="primary" icon={<RocketOutlined/>} onClick={() => void publish()}>发布</Button></Space>
     </header>
     <aside className="flow-palette"><Typography.Text strong>节点库</Typography.Text>{Array.from(categories.entries()).map(([category, items]) => <div key={category}><Divider titlePlacement="start" plain>{category}</Divider>{items.map(item => <div className="flow-palette-item" draggable key={item.type} onDragStart={event => {event.dataTransfer.setData('application/easy-agent-node', item.type); event.dataTransfer.effectAllowed = 'move';}}><strong>{item.displayName}</strong><small>{item.description}</small></div>)}</div>)}</aside>
     <main className="flow-canvas" onDrop={onDrop} onDragOver={event => {event.preventDefault(); event.dataTransfer.dropEffect = 'move';}}>
@@ -251,7 +295,12 @@ const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
     {inspectorOpen && <aside className="flow-inspector"><div className="flow-inspector-header"><Typography.Title level={5} style={{margin: 0}}>{selected ? selected.data.label : '节点配置'}</Typography.Title><Button type="text" aria-label="关闭节点配置" icon={<CloseOutlined/>} onClick={() => setInspectorOpen(false)}/></div>{selected ? <NodeInspector node={selected} agents={agents} onChange={patch => setNodes(current => current.map(node => node.id === selected.id ? {...node, data: {...node.data, ...patch}} : node))}/> : <Typography.Text type="secondary">选择画布中的节点后配置参数</Typography.Text>}
       <Divider/><Typography.Text strong>校验问题</Typography.Text><div className="flow-issues">{issues.length === 0 ? <Typography.Text type="secondary">暂无</Typography.Text> : issues.map((issue, index) => <div key={`${issue.code}-${index}`} className={issue.severity === 'ERROR' ? 'issue-error' : 'issue-warning'} onClick={() => issue.targetId && setSelectedId(issue.targetId)}>{issue.message}</div>)}</div>
     </aside>}
-    <section className="flow-debug"><div className="flow-debug-input"><Typography.Text strong>试运行输入</Typography.Text><Input value={debugInput} onChange={event => setDebugInput(event.target.value)} placeholder="输入本次调试问题"/></div>{events.slice(-8).map((event, index) => <div key={index}>{event}</div>)}</section>
+    <Drawer title="试运行" placement="right" width={520} open={debugOpen} mask={false} onClose={() => setDebugOpen(false)} rootClassName="flow-debug-drawer" extra={<Button type="primary" icon={<BugOutlined/>} loading={debugging} disabled={!debugInput.trim()} onClick={() => void debug()}>{debugging ? '运行中' : '开始运行'}</Button>}>
+      <div className="flow-debug-form"><Typography.Text strong>运行输入</Typography.Text><Input.TextArea value={debugInput} onChange={event => setDebugInput(event.target.value)} placeholder="输入本次调试问题" autoSize={{minRows: 3, maxRows: 7}}/></div>
+      <div className="flow-status-legend"><span><i className="ready"/>已就绪</span><span><i className="running"/>执行中</span><span><i className="succeeded"/>成功</span><span><i className="failed"/>失败</span><span><i className="skipped"/>跳过</span></div>
+      <Divider titlePlacement="start" plain>运行日志</Divider>
+      <div className="flow-debug-terminal" ref={debugTerminalRef}>{events.length === 0 ? <div className="flow-debug-empty">尚未运行，填写输入后点击“开始运行”</div> : events.map((event, index) => <div className="flow-debug-line" key={`${event.eventType}-${event.nodeId || 'flow'}-${index}`}>{event.eventType} · {event.nodeName || event.nodeId || 'Flow'} · {event.content}</div>)}</div>
+    </Drawer>
   </div></Spin>;
 };
 
