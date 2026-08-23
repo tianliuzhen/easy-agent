@@ -1,7 +1,7 @@
-import {useCallback, useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {App, Button, Divider, Drawer, Form, Input, InputNumber, Modal, Select, Space, Spin, Tag, Typography} from 'antd';
-import {ArrowLeftOutlined, BugOutlined, CheckCircleOutlined, CloseOutlined, DeleteOutlined, FullscreenExitOutlined, FullscreenOutlined, MinusCircleOutlined, PlusOutlined, RocketOutlined, SaveOutlined} from '@ant-design/icons';
+import {App, Button, Divider, Drawer, Form, Input, InputNumber, Modal, Select, Space, Spin, Tag, Tooltip, Typography} from 'antd';
+import {ApartmentOutlined, ArrowLeftOutlined, BlockOutlined, BranchesOutlined, BugOutlined, CheckCircleOutlined, CloseOutlined, DeleteOutlined, FileTextOutlined, FullscreenExitOutlined, FullscreenOutlined, MergeCellsOutlined, MinusCircleOutlined, PlayCircleOutlined, PlusOutlined, QuestionCircleOutlined, RobotOutlined, RocketOutlined, SaveOutlined, StopOutlined} from '@ant-design/icons';
 import {
   Background, Controls, Handle, MiniMap, Position, ReactFlow, ReactFlowProvider, addEdge,
   useEdgesState, useNodesState, useReactFlow, type Connection, type Edge, type Node, type NodeProps,
@@ -27,6 +27,16 @@ interface FlowDebugEvent {eventType: string; nodeId?: string; nodeName?: string;
 type NodeRunStatus = 'ready' | 'running' | 'succeeded' | 'failed' | 'skipped';
 
 const portColor: Record<PortKind, string> = {CONTROL: '#1677ff', DATA: '#722ed1', WORKER: '#fa8c16'};
+const nodeIconMap: Record<string, ReactNode> = {
+  RobotOutlined: <RobotOutlined/>,
+  StopOutlined: <StopOutlined/>,
+  PlayCircleOutlined: <PlayCircleOutlined/>,
+  BranchesOutlined: <BranchesOutlined/>,
+  MergeCellsOutlined: <MergeCellsOutlined/>,
+  ApartmentOutlined: <ApartmentOutlined/>,
+  FileTextOutlined: <FileTextOutlined/>,
+};
+const nodeIcon = (metadata: NodeMetadata) => nodeIconMap[metadata.icon || ''] || <BlockOutlined/>;
 const fullscreenDraftKey = (flowId: number) => `easy-agent:flow-fullscreen:${flowId}`;
 const handleId = (port: PortDefinition) => `${port.kind}:${port.key}`;
 const isRouterBranch = (value: unknown): value is RouterBranch => typeof value === 'object' && value !== null && 'key' in value;
@@ -46,7 +56,7 @@ const withDynamicPorts = (meta: NodeMetadata, config: Record<string, unknown>): 
 });
 
 const StudioNodeView = ({data, selected}: NodeProps<StudioNode>) => <div className={`flow-node ${selected ? 'selected' : ''} ${data.runStatus || ''}`}>
-  <div className="flow-node-title"><span className="flow-node-type">{data.metadata.type}</span><strong>{data.label}</strong>{data.onDelete && <button className="flow-node-delete" type="button" aria-label={`删除${data.label}`} onMouseDown={event => event.stopPropagation()} onClick={event => {event.stopPropagation(); data.onDelete?.();}}><DeleteOutlined/></button>}</div>
+  <div className="flow-node-title"><span className="flow-node-type">{data.metadata.type}</span><span className="flow-node-icon">{nodeIcon(data.metadata)}</span><strong>{data.label}</strong>{data.onDelete && <button className="flow-node-delete" type="button" aria-label={`删除${data.label}`} onMouseDown={event => event.stopPropagation()} onClick={event => {event.stopPropagation(); data.onDelete?.();}}><DeleteOutlined/></button>}</div>
   <div className="flow-node-desc">{data.metadata.description}</div>
   <div className="flow-node-ports">
     <div>{data.metadata.inputPorts.map((port) => <div className="flow-port-label input" key={handleId(port)}>
@@ -96,7 +106,7 @@ const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugging, setDebugging] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const initialLoad = useRef(true);
   const nodesRef = useRef<StudioNode[]>([]);
   const debugTerminalRef = useRef<HTMLDivElement>(null);
@@ -284,7 +294,7 @@ const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
     <header className="flow-toolbar"><Space><Button icon={<ArrowLeftOutlined/>} onClick={() => fullscreen ? closeFullscreen() : navigate('/page/FlowManager')}/><Typography.Title level={4} className="flow-name-title" style={{margin: 0}} editable={{tooltip: '修改编排名称', onChange: updateFlowName}}>{flowName}</Typography.Title>{dirty && <Tag color="orange">未保存</Tag>}</Space>
       <Space>{fullscreen ? <Button icon={<FullscreenExitOutlined/>} aria-label="退出全屏" title="退出全屏" onClick={closeFullscreen}/> : <Button icon={<FullscreenOutlined/>} aria-label="全屏画布" title="全屏画布" onClick={openFullscreen}/>}<Button icon={<SaveOutlined/>} onClick={() => void save()}>保存</Button><Button icon={<CheckCircleOutlined/>} onClick={() => void validate()}>校验</Button><Button icon={<BugOutlined/>} onClick={() => setDebugOpen(true)}>试运行</Button><Button type="primary" icon={<RocketOutlined/>} onClick={() => void publish()}>发布</Button></Space>
     </header>
-    <aside className="flow-palette"><Typography.Text strong>节点库</Typography.Text>{Array.from(categories.entries()).map(([category, items]) => <div key={category}><Divider titlePlacement="start" plain>{category}</Divider>{items.map(item => <div className="flow-palette-item" draggable key={item.type} onDragStart={event => {event.dataTransfer.setData('application/easy-agent-node', item.type); event.dataTransfer.effectAllowed = 'move';}}><strong>{item.displayName}</strong><small>{item.description}</small></div>)}</div>)}</aside>
+    <aside className="flow-palette"><Typography.Text strong>节点库</Typography.Text>{Array.from(categories.entries()).map(([category, items]) => <div key={category}><Divider titlePlacement="start" plain>{category}</Divider>{items.map(item => <div className="flow-palette-item" draggable key={item.type} onDragStart={event => {event.dataTransfer.setData('application/easy-agent-node', item.type); event.dataTransfer.effectAllowed = 'move';}}><div className="flow-palette-item-title"><span className="flow-palette-icon">{nodeIcon(item)}</span><strong>{item.displayName}</strong><Tooltip title={item.description}><QuestionCircleOutlined className="flow-palette-help" aria-label={`${item.displayName}说明`}/></Tooltip></div></div>)}</div>)}</aside>
     <main className="flow-canvas" onDrop={onDrop} onDragOver={event => {event.preventDefault(); event.dataTransfer.dropEffect = 'move';}}>
       <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onBeforeDelete={async ({nodes: deletedNodes}) => {
         if (deletedNodes.length === 0) return true;
