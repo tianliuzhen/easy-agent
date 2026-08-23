@@ -250,11 +250,13 @@ public class ChatRecordController {
     public BaseResult startNewConversation(
             @RequestParam Long agentId,
             @RequestParam(required = false) Long flowId,
+            @RequestParam(required = false) Long flowRevisionId,
             @RequestParam String userId,
             @RequestParam String sessionId,
             @RequestParam String firstQuestion) {
         try {
-            StartNewConversationResp resp = chatRecordService.startNewConversation(agentId, flowId, sessionId, userId, firstQuestion);
+            StartNewConversationResp resp = chatRecordService.startNewConversation(
+                    agentId, flowId, flowRevisionId, sessionId, userId, firstQuestion);
             return BaseResult.buildSuc(resp);
         } catch (Exception e) {
             log.error("开始新会话失败", e);

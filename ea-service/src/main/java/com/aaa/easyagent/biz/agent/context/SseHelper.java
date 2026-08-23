@@ -109,6 +109,11 @@ public class SseHelper {
         // 发送日志
         log.info(formattedMessage);
 
+        if (sseEmitter instanceof ScopedEventEmitter scopedEventEmitter) {
+            scopedEventEmitter.sendScoped(eventName, formattedMessage);
+            return;
+        }
+
         if ("log".equals(eventName)) {
             // 日志不需要发送
             return;
@@ -119,6 +124,13 @@ public class SseHelper {
             // 统一发送 JSON 格式数据，包含事件类型和消息内容
             String jsonData = String.format("{\"type\":\"%s\",\"content\":\"%s\"}",
                     eventName, escapeJsonString(formattedMessage));
+            rawSend(sseEmitter, jsonData, eventName);
+        }
+    }
+
+    /** 发送已经序列化好的结构化事件。 */
+    public static void sendJson(SseEmitter sseEmitter, String jsonData, String eventName) {
+        if (sseEmitter != null && jsonData != null) {
             rawSend(sseEmitter, jsonData, eventName);
         }
     }

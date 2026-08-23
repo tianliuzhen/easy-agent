@@ -9,8 +9,10 @@ import HTTPConfig from './views/page/agent/tool/HTTPConfig';
 import MCPConfig from './views/page/agent/tool/MCPConfig';
 import GRPCConfig from './views/page/agent/tool/GRPCConfig';
 import ToolManager from './views/page/ToolManager';
+import FlowStudioPage from './views/page/flow/FlowStudioPage';
 import Login from './views/page/Login';
 import Register from './views/page/Register';
+import AuthGuard from './components/AuthGuard';
 import {App as AntdApp, Button, ConfigProvider, Flex} from 'antd';
 
 function App() {
@@ -69,6 +71,14 @@ function AppContent() {
                     </Route>
                 </Routes>
             </>
+        );
+    }
+
+    if (location.pathname.startsWith('/page/FlowStudio/') && location.pathname.endsWith('/fullscreen')) {
+        return (
+            <Routes>
+                <Route path="/page/FlowStudio/:flowId/fullscreen" element={<AuthGuard><FlowStudioPage fullscreen/></AuthGuard>}/>
+            </Routes>
         );
     }
 

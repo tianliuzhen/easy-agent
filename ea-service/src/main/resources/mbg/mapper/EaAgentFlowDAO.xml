@@ -8,13 +8,13 @@
     <id column="id" jdbcType="BIGINT" property="id" />
     <result column="flow_name" jdbcType="VARCHAR" property="flowName" />
     <result column="flow_key" jdbcType="VARCHAR" property="flowKey" />
-    <result column="strategy" jdbcType="VARCHAR" property="strategy" />
-    <result column="supervisor_agent_id" jdbcType="BIGINT" property="supervisorAgentId" />
+    <result column="current_draft_id" jdbcType="BIGINT" property="currentDraftId" />
+    <result column="published_revision_id" jdbcType="BIGINT" property="publishedRevisionId" />
+    <result column="created_by" jdbcType="VARCHAR" property="createdBy" />
     <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
     <result column="updated_at" jdbcType="TIMESTAMP" property="updatedAt" />
     <result column="avatar" jdbcType="LONGVARCHAR" property="avatar" />
     <result column="flow_desc" jdbcType="LONGVARCHAR" property="flowDesc" />
-    <result column="prompt" jdbcType="LONGVARCHAR" property="prompt" />
     <result column="welcome_message" jdbcType="LONGVARCHAR" property="welcomeMessage" />
   </resultMap>
 </mapper>

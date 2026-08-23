@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLocation} from 'react-router-dom';
 import {queryAgent, type AgentDetail} from '../../../api/ChatConversationApi';
-import {flowApi, type Flow} from '../../../api/FlowApi';
+import {flowApi, type FlowSummary} from '../../../api/FlowApi';
 import {eaAgentApi} from '../../../api/EaAgentApi';
 import type {QuickPromptGroup} from '../ChatComponents';
 
@@ -19,7 +19,7 @@ export interface ChatSession {
     flowId?: number;
     isFlow: boolean;
     agentDetail: AgentDetail | null;
-    flowDetail: Flow | null;
+    flowDetail: FlowSummary | null;
     quickPrompts: QuickPromptGroup[];
     display: ChatSessionDisplay;
     modelVersion: string | null;
@@ -48,7 +48,7 @@ const parseModelVersion = (modelConfig?: string): string | null => {
 export const useChatSession = (): ChatSession => {
     const location = useLocation();
     const [agentDetail, setAgentDetail] = useState<AgentDetail | null>(null);
-    const [flowDetail, setFlowDetail] = useState<Flow | null>(null);
+    const [flowDetail, setFlowDetail] = useState<FlowSummary | null>(null);
     const [quickPrompts, setQuickPrompts] = useState<QuickPromptGroup[]>([]);
     const [conversationId, setConversationId] = useState<number | null>(null);
 
@@ -68,7 +68,8 @@ export const useChatSession = (): ChatSession => {
     // 编排模式：会话归属首节点 Agent（与后端 execFlow 一致）
     const agentId = useMemo(() => {
         if (isFlow) {
-            return flowDetail?.nodes && flowDetail.nodes.length > 0 ? flowDetail.nodes[0].agentId : 1;
+            const agentNode = flowDetail?.draft?.nodes.find(node => node.config.agentId != null);
+            return agentNode ? Number(agentNode.config.agentId) : 1;
         }
         return urlAgentId;
     }, [isFlow, flowDetail, urlAgentId]);
@@ -82,7 +83,7 @@ export const useChatSession = (): ChatSession => {
                 setQuickPrompts([]);
                 try {
                     const result = await flowApi.detail(flowId!);
-                    if (!cancelled) setFlowDetail(result?.data || null);
+                    if (!cancelled) setFlowDetail(result);
                 } catch (error) {
                     console.error('加载编排详情失败:', error);
                 }

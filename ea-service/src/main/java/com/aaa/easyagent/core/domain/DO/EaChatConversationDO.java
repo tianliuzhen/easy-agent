@@ -47,6 +47,12 @@ public class EaChatConversationDO {
     private Long flowId;
 
     /**
+     * 会话固定使用的 Flow 发布版本 ID。
+     */
+    @Column(name = "flow_revision_id")
+    private Long flowRevisionId;
+
+    /**
      * 用户ID（预留字段，未来扩展用）
      */
     @Column(name = "user_id")

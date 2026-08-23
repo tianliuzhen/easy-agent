@@ -7,6 +7,7 @@ import lombok.Data;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import com.aaa.easyagent.biz.agent.context.FunctionCallback;
 
 /**
  * @author liuzhen.tian
@@ -22,6 +23,8 @@ public class AgentContext {
      * 编排ID（多 Agent 编排会话归属用；单 Agent 为 null）
      */
     private Long flowId;
+    /** 编排发布版本；会话创建后固定，避免发布新版本改变历史会话语义。 */
+    private Long flowRevisionId;
     /**
      * agentName
      */
@@ -57,6 +60,9 @@ public class AgentContext {
      * agent 关联工具
      */
     private List<ToolDefinition> toolDefinitions;
+
+    /** 仅本次运行有效的动态工具，例如 Supervisor 的 Worker Agent。 */
+    private List<FunctionCallback> runtimeCallbacks;
 
     /**
      * 大模型
@@ -96,4 +102,7 @@ public class AgentContext {
      * 图片数据（Base64 Data URL 格式，如 data:image/jpeg;base64,/9j/4AAQ...）
      */
     private String imageBase64;
+
+    /** Flow 节点标识，仅用于运行观测。 */
+    private String flowNodeId;
 }

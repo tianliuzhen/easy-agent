@@ -154,7 +154,8 @@ public interface ChatRecordService {
      * @param firstQuestion 第一个问题（用于生成标题）
      * @return 创建的会话ID
      */
-   StartNewConversationResp startNewConversation(Long agentId, Long flowId, String sessionId, String userId, String firstQuestion);
+   StartNewConversationResp startNewConversation(Long agentId, Long flowId, Long flowRevisionId,
+                                                  String sessionId, String userId, String firstQuestion);
 
     /**
      * 保存完整的聊天交互（用户提问 + AI回答）

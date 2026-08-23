@@ -136,6 +136,9 @@ public abstract class BaseAgent {
         // 根据agent构造回调工具
         List<ToolDefinition> toolDefinitions = agentContext.getToolDefinitions();
         callbackMap = buildToolFun(toolDefinitions);
+        if (agentContext.getRuntimeCallbacks() != null) {
+            agentContext.getRuntimeCallbacks().forEach(callback -> callbackMap.put(callback.getName(), callback));
+        }
 
         messages = new ArrayList<>();
 

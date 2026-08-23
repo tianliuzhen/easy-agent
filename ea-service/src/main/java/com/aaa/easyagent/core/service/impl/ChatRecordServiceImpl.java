@@ -58,6 +58,11 @@ public class ChatRecordServiceImpl implements ChatRecordService {
         if (req.getId() != null) {
             EaChatConversationDO eaChatConversationDO = eaChatConversationDAO.selectByPrimaryKey(req.getId());
             if (eaChatConversationDO != null) {
+                if (eaChatConversationDO.getFlowRevisionId() == null && req.getFlowRevisionId() != null) {
+                    eaChatConversationDO.setFlowRevisionId(req.getFlowRevisionId());
+                    eaChatConversationDO.setSessionId(req.getSessionId());
+                    eaChatConversationDAO.updateByPrimaryKeySelective(eaChatConversationDO);
+                }
                 return eaChatConversationDO.getId();
             }
         }
@@ -273,11 +278,14 @@ public class ChatRecordServiceImpl implements ChatRecordService {
 
     @Override
     @Transactional
-    public StartNewConversationResp startNewConversation(Long agentId, Long flowId, String sessionId, String userId, String firstQuestion) {
+    public StartNewConversationResp startNewConversation(Long agentId, Long flowId, Long flowRevisionId,
+                                                         String sessionId, String userId, String firstQuestion) {
         // 创建会话
         ChatConversationReq conversationReq = new ChatConversationReq();
         conversationReq.setAgentId(agentId);
         conversationReq.setFlowId(flowId);
+        conversationReq.setFlowRevisionId(flowRevisionId);
+        conversationReq.setSessionId(sessionId);
         conversationReq.setUserId(userId);
         conversationReq.setTitle(conversationReq.generateTitleIfEmpty(firstQuestion));
         conversationReq.setId(Long.valueOf(sessionId));
@@ -404,6 +412,11 @@ public class ChatRecordServiceImpl implements ChatRecordService {
         Example.Criteria criteria = example.createCriteria();
         criteria.andEqualTo("sessionId", sessionId);
         List<EaChatConversationDO> list = eaChatConversationDAO.selectByExample(example);
-        return list.isEmpty() ? null : list.get(0);
+        if (!list.isEmpty()) return list.get(0);
+        try {
+            return eaChatConversationDAO.selectByPrimaryKey(Long.valueOf(sessionId));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 }

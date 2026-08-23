@@ -97,16 +97,16 @@ public class SqlExecutor implements ToolExecutor<SqlParamsTemplate> {
             try (Connection connection = DriverManager.getConnection(jdbcUrl,
                     paramsTemplate.getUsername(), paramsTemplate.getPassword())) {
 
-                // 设置查询超时时间
-                if (paramsTemplate.getTimeout() != null && paramsTemplate.getTimeout() > 0) {
-                    connection.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, paramsTemplate.getTimeout());
-                } else {
-                    connection.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, 30); // 默认30秒
-                }
+                Integer configuredTimeout = paramsTemplate.getTimeout();
+                int timeoutSeconds = configuredTimeout != null && configuredTimeout > 0 ? configuredTimeout : 30;
+                // setNetworkTimeout 单位为毫秒
+                connection.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, timeoutSeconds * 1000);
 
                 // 执行SQL查询
                 PreparedStatement statement = connection.prepareStatement(sql);
                 try {
+                    statement.setQueryTimeout(timeoutSeconds);
+
                     // 设置最大返回行数
                     if (paramsTemplate.getMaxRows() != null) {
                         statement.setMaxRows(paramsTemplate.getMaxRows());

@@ -37,17 +37,14 @@ public class EaAgentFlowDO {
     @Column(name = "flow_key")
     private String flowKey;
 
-    /**
-     * 编排策略：SUPERVISOR/ROUTER/WORKFLOW
-     */
-    @Column(name = "strategy")
-    private String strategy;
+    @Column(name = "current_draft_id")
+    private Long currentDraftId;
 
-    /**
-     * 主管/路由Agent ID
-     */
-    @Column(name = "supervisor_agent_id")
-    private Long supervisorAgentId;
+    @Column(name = "published_revision_id")
+    private Long publishedRevisionId;
+
+    @Column(name = "created_by")
+    private String createdBy;
 
     @Column(name = "created_at")
     private Date createdAt;
@@ -66,12 +63,6 @@ public class EaAgentFlowDO {
      */
     @Column(name = "flow_desc")
     private String flowDesc;
-
-    /**
-     * 编排级提示词（主管/路由指令）
-     */
-    @Column(name = "prompt")
-    private String prompt;
 
     /**
      * 欢迎语

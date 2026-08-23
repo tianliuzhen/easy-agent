@@ -50,6 +50,7 @@ CREATE TABLE `ea_chat_conversation` (
   `session_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `agent_id` bigint NOT NULL COMMENT '关联的Agent ID',
   `flow_id` bigint DEFAULT NULL COMMENT '关联的编排ID（NULL=单Agent会话，非NULL=多Agent编排会话）',
+  `flow_revision_id` bigint DEFAULT NULL COMMENT '会话固定使用的Flow发布版本ID',
   `user_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '用户ID（预留字段，未来扩展用）',
   `message_count` int NOT NULL DEFAULT '0' COMMENT '消息总数',
   `last_message_time` timestamp NULL DEFAULT NULL COMMENT '最后消息时间',
@@ -61,6 +62,7 @@ CREATE TABLE `ea_chat_conversation` (
   PRIMARY KEY (`id`) USING BTREE,
   KEY `idx_agent_id_created_at` (`agent_id`,`created_at`) USING BTREE,
   KEY `idx_flow_id` (`flow_id`) USING BTREE,
+  KEY `idx_flow_revision_id` (`flow_revision_id`) USING BTREE,
   KEY `idx_status_updated_at` (`status`,`updated_at`) USING BTREE,
   KEY `idx_created_at` (`created_at`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=82 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC COMMENT='聊天会话表';
@@ -379,33 +381,61 @@ CREATE TABLE `ea_agent_quick_prompt` (
 DROP TABLE IF EXISTS `ea_agent_flow`;
 CREATE TABLE `ea_agent_flow` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `flow_name` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '多Agent编排名称',
-  `flow_key` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '编排Key',
+  `flow_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '多Agent编排名称',
+  `flow_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '编排Key',
   `avatar` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '头像',
   `flow_desc` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '编排备注',
-  `strategy` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '编排策略：SUPERVISOR/ROUTER/WORKFLOW',
-  `supervisor_agent_id` bigint DEFAULT NULL COMMENT '主管/路由Agent ID：SUPERVISOR、ROUTER 策略使用',
-  `prompt` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '编排级提示词（主管/路由指令）',
   `welcome_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '欢迎语',
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMMENT='多Agent编排表';
-
--- ----------------------------
--- Table structure for ea_agent_flow_node
--- ----------------------------
-DROP TABLE IF EXISTS `ea_agent_flow_node`;
-CREATE TABLE `ea_agent_flow_node` (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `flow_id` bigint NOT NULL COMMENT '关联的编排 ID（ea_agent_flow.id）',
-  `agent_id` bigint NOT NULL COMMENT '成员 Agent ID（ea_agent.id）',
-  `node_role` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '节点角色描述：供主管选择工具/路由分类用',
-  `order_index` int NOT NULL DEFAULT '0' COMMENT '执行顺序：WORKFLOW 策略按此串行',
+  `current_draft_id` bigint DEFAULT NULL COMMENT '当前草稿版本ID',
+  `published_revision_id` bigint DEFAULT NULL COMMENT '当前发布版本ID',
+  `created_by` varchar(100) DEFAULT NULL COMMENT '创建人',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
-  KEY `idx_flow_id` (`flow_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMMENT='多Agent编排成员节点表';
+  UNIQUE KEY `uk_flow_key` (`flow_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMMENT='多Agent编排表';
+
+-- ----------------------------
+-- Table structure for ea_agent_flow_revision
+-- ----------------------------
+DROP TABLE IF EXISTS `ea_agent_flow_revision`;
+CREATE TABLE `ea_agent_flow_revision` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `flow_id` bigint NOT NULL COMMENT 'Flow ID',
+  `revision_no` int NOT NULL COMMENT '版本号',
+  `status` varchar(32) NOT NULL COMMENT 'DRAFT/PUBLISHED/ARCHIVED',
+  `schema_version` varchar(32) NOT NULL,
+  `definition_json` longtext NOT NULL COMMENT '画布图定义',
+  `checksum` varchar(64) NOT NULL,
+  `validation_json` longtext,
+  `created_by` varchar(100),
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `published_at` timestamp NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_flow_revision` (`flow_id`,`revision_no`),
+  KEY `idx_flow_status` (`flow_id`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Flow不可变版本';
+
+DROP TABLE IF EXISTS `ea_agent_flow_run`;
+CREATE TABLE `ea_agent_flow_run` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `run_id` varchar(64) NOT NULL, `flow_id` bigint NOT NULL, `revision_id` bigint NOT NULL,
+  `session_id` varchar(255), `run_type` varchar(32) NOT NULL, `status` varchar(32) NOT NULL,
+  `input_json` longtext, `output_json` longtext, `error_message` text,
+  `input_tokens` bigint DEFAULT 0, `output_tokens` bigint DEFAULT 0,
+  `started_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `finished_at` timestamp NULL,
+  PRIMARY KEY (`id`), UNIQUE KEY `uk_flow_run_id` (`run_id`), KEY `idx_flow_run` (`flow_id`,`started_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Flow运行记录';
+
+DROP TABLE IF EXISTS `ea_agent_flow_node_run`;
+CREATE TABLE `ea_agent_flow_node_run` (
+  `id` bigint NOT NULL AUTO_INCREMENT, `run_id` varchar(64) NOT NULL,
+  `node_id` varchar(128) NOT NULL, `node_type` varchar(64) NOT NULL, `agent_id` bigint,
+  `status` varchar(32) NOT NULL, `attempt` int NOT NULL DEFAULT 1,
+  `input_json` longtext, `output_json` longtext, `error_message` text,
+  `input_tokens` bigint DEFAULT 0, `output_tokens` bigint DEFAULT 0,
+  `started_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `finished_at` timestamp NULL,
+  PRIMARY KEY (`id`), KEY `idx_node_run` (`run_id`,`node_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Flow节点运行记录';
 
 SET FOREIGN_KEY_CHECKS = 1;

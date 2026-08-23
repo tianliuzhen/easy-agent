@@ -3,11 +3,15 @@ package com.aaa.easyagent.biz.agent.service.impl;
 import com.aaa.easyagent.biz.agent.ReActAgentExecutor;
 import com.aaa.easyagent.biz.agent.ToolAgentExecutor;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
+import com.aaa.easyagent.biz.agent.data.AgentFinish;
 import com.aaa.easyagent.biz.agent.data.AgentModelConfig;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
-import com.aaa.easyagent.biz.agent.flow.FlowContext;
-import com.aaa.easyagent.biz.agent.flow.FlowExecutorManager;
-import com.aaa.easyagent.biz.agent.flow.FlowManagerService;
+import com.aaa.easyagent.biz.agent.context.AgentContextFactory;
+import com.aaa.easyagent.biz.agent.orchestration.CompiledFlowPlan;
+import com.aaa.easyagent.biz.agent.orchestration.FlowEngine;
+import com.aaa.easyagent.biz.agent.orchestration.FlowExecutionResult;
+import com.aaa.easyagent.biz.agent.orchestration.FlowRunContext;
+import com.aaa.easyagent.biz.agent.orchestration.FlowCompiler;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
 import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
 import com.aaa.easyagent.core.domain.DO.EaChatConversationDO;
@@ -20,12 +24,14 @@ import com.aaa.easyagent.core.service.AgentManagerService;
 import com.aaa.easyagent.core.service.ChatRecordService;
 import com.aaa.easyagent.core.service.McpToolIntegrationService;
 import com.aaa.easyagent.core.service.ToolMangerService;
+import com.aaa.easyagent.core.service.FlowStudioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,8 +49,10 @@ public class AgentChatServiceImpl implements AgentChatService {
     private final ToolMangerService toolMangerService;
     private final McpToolIntegrationService mcpToolIntegrationService;
     private final ChatRecordService chatRecordService;
-    private final FlowManagerService flowManagerService;
-    private final FlowExecutorManager flowExecutorManager;
+    private final FlowStudioService flowStudioService;
+    private final FlowCompiler flowCompiler;
+    private final FlowEngine flowEngine;
+    private final AgentContextFactory agentContextFactory;
 
     /**
      * 非流式 SSE 发射器：缓冲所有 send 调用，在 complete 时一次性发送
@@ -146,38 +154,8 @@ public class AgentChatServiceImpl implements AgentChatService {
 
 
         // agent 基础信息
-        AgentContext agentContext = new AgentContext();
-        agentContext.setAgentId(agent.getId());
-        agentContext.setAgentName(agent.getAgentName());
-        agentContext.setPrompt(agent.getPrompt());
-        agentContext.setAgentMemoryConfig(agent.getAgentMemoryConfig());
-        agentContext.setImageBase64(imageBase64);
-        if (syncMode) {
-            agentContext.setWithStream(false);
-        }
-
-        // Agent来源
-        agentContext.setModelType(ModelTypeEnum.getByModel(agent.getModelPlatform()));
-
-        // 执行参数
-        agentContext.setAgentModelConfig(agent.getAgentModelConfig());
-
-        // 工具信息
-        List<EaToolConfigResult> eaToolConfigResults = toolMangerService.listBoundToolsByAgentId(agent.getId());
-        List<ToolDefinition> toolDefinitions = eaToolConfigResults.stream().map(ToolDefinition::buildToolDefinition).collect(Collectors.toList());
-        agentContext.setToolDefinitions(toolDefinitions);
-
-        // 集成mcp
-        List<ToolDefinition<?>> mcpToolDefinitions = mcpToolIntegrationService.getMcpToolsForAgent(agent.getId());
-        agentContext.getToolDefinitions().addAll(mcpToolDefinitions);
-
-        // 工具决策-tool
-        ToolRunMode runMode = ToolRunMode.getByMode(agent.getToolRunMode());
-        agentContext.setToolRunMode(runMode);
-
-        // sse
-        agentContext.setSseEmitter(effectiveEmitter);
-        agentContext.setSessionId(sessionId);
+        AgentContext agentContext = agentContextFactory.build(agent, effectiveEmitter, sessionId, imageBase64, syncMode);
+        ToolRunMode runMode = agentContext.getToolRunMode();
 
         // 开始新的聊天会话并保存到数据库
         ChatRecordSaver.startNewConversation(agentContext, question);
@@ -204,43 +182,51 @@ public class AgentChatServiceImpl implements AgentChatService {
         return result;
     }
 
-    /**
-     * 多 Agent 编排执行。加载编排 + 有序成员，填充运行期上下文后交由 {@link FlowExecutorManager} 分发。
-     * 会话归属记录 flow_id（隔离编排会话），agent_id 取首节点，token 历史累计沿用单 Agent 机制。
-     */
+    /** 多 Agent 图执行。会话首次运行时固定发布版本，最终答案按本轮 token 增量保存一次。 */
     private String execFlow(StreamChatPostRequest request, SseEmitter sseEmitter) {
+        long startedAt = System.currentTimeMillis();
         String sessionId = request.getSessionId();
         String question = request.getMsg();
         String imageBase64 = request.getImageBase64();
         boolean syncMode = sseEmitter == null;
 
-        FlowContext flowCtx = flowManagerService.loadFlow(request.getFlowId());
-        if (flowCtx.getMembers() == null || flowCtx.getMembers().isEmpty()) {
-            if (sseEmitter != null) {
-                sseEmitter.complete();
-            }
-            return null;
+        EaChatConversationDO existing = chatRecordService.getBySessionId(sessionId);
+        if (existing != null && existing.getFlowId() != null && !request.getFlowId().equals(existing.getFlowId())) {
+            throw new IllegalArgumentException("当前会话属于其他 Flow，不能复用 sessionId：" + sessionId);
         }
-        flowCtx.setSse(sseEmitter)
-                .setSessionId(sessionId)
-                .setImageBase64(imageBase64)
-                .setSyncMode(syncMode);
-
-        // 会话归属：复用首节点 agent_id（轻量上下文，仅用于开启会话，避免重复加载工具）
-        EaAgentResult firstMember = flowCtx.getMembers().get(0);
+        Long pinnedRevisionId = existing != null && request.getFlowId().equals(existing.getFlowId())
+                ? existing.getFlowRevisionId() : null;
+        com.aaa.easyagent.core.domain.flow.FlowDefinition definition = pinnedRevisionId == null
+                ? flowStudioService.published(request.getFlowId())
+                : flowStudioService.revision(request.getFlowId(), pinnedRevisionId);
+        CompiledFlowPlan plan = flowCompiler.compile(definition);
+        Long firstAgentId = definition.getNodes().stream().filter(node -> node.getConfig().get("agentId") != null)
+                .map(node -> node.getConfig().get("agentId")).filter(java.util.Objects::nonNull)
+                .map(value -> Long.valueOf(String.valueOf(value))).findFirst().orElse(1L);
         AgentContext convCtx = new AgentContext();
-        convCtx.setAgentId(firstMember.getId());
+        convCtx.setAgentId(firstAgentId);
         convCtx.setFlowId(request.getFlowId());
+        convCtx.setFlowRevisionId(definition.getRevisionId());
         convCtx.setSessionId(sessionId);
         ChatRecordSaver.startNewConversation(convCtx, question);
-
-        // 历史累计 Token（与单 Agent 一致）
-        EaChatConversationDO conversation = chatRecordService.getBySessionId(sessionId);
-        flowCtx.setInitInputTokens(conversation != null && conversation.getAccumulatedInputTokens() != null
-                ? conversation.getAccumulatedInputTokens() : 0L);
-        flowCtx.setInitOutputTokens(conversation != null && conversation.getAccumulatedOutputTokens() != null
-                ? conversation.getAccumulatedOutputTokens() : 0L);
-
-        return flowExecutorManager.exec(flowCtx, question);
+        FlowRunContext context = FlowRunContext.builder().runId(java.util.UUID.randomUUID().toString())
+                .flowId(request.getFlowId()).revisionId(definition.getRevisionId()).sessionId(sessionId)
+                .imageBase64(imageBase64).syncMode(syncMode).sseEmitter(sseEmitter)
+                .input(java.util.Map.of("input", question, "question", question)).build();
+        FlowExecutionResult result = flowEngine.execute(plan, context);
+        if (sseEmitter != null) sseEmitter.complete();
+        if (!"SUCCEEDED".equals(result.getStatus())) {
+            ChatRecordSaver.clearThreadLocal();
+            return null;
+        }
+        String answer = result.getResult() == null ? "" : String.valueOf(result.getResult());
+        ChatRecordSaver.addFinalAnswer(answer);
+        AgentFinish finish = new AgentFinish();
+        finish.setResult(answer);
+        ChatRecordSaver.saveAgentFinish(finish,
+                "flow:" + request.getFlowId() + "@" + definition.getRevisionId(),
+                result.getInputTokens(), result.getOutputTokens(),
+                BigDecimal.valueOf(System.currentTimeMillis() - startedAt));
+        return answer;
     }
 }

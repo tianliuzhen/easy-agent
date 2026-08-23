@@ -1,6 +1,5 @@
 import React, {useState, useEffect} from 'react';
 import {
-    LaptopOutlined,
     UserOutlined,
     SlackOutlined,
     RobotOutlined,
@@ -17,13 +16,10 @@ import {Breadcrumb, Layout, Menu, theme, Avatar, Dropdown, message, Space, Toolt
 import {Link, Routes, Route, useLocation, useNavigate} from 'react-router-dom';
 import AgentManager from './page/AgentManager';
 import FlowManager from './page/FlowManager';
+import FlowStudioPage from './page/flow/FlowStudioPage';
 import ChatModelConfig from './page/ChatModelConfig';
 import User from './page/User';
 import ToolManager from './page/ToolManager';
-import SQLConfig from './page/agent/tool/SQLConfig';
-import HTTPConfig from './page/agent/tool/HTTPConfig';
-import MCPConfig from './page/agent/tool/MCPConfig';
-import GRPCConfig from './page/agent/tool/GRPCConfig';
 import KnowledgeBaseList from './page/agent/knowledge/KnowledgeBaseList';
 import ImageSearch from './page/image/ImageSearch';
 import MCPMarket from './page/mcp/MCPMarket';
@@ -405,6 +401,7 @@ const AppLayout = () => {
                             {/* 工具管理的子路由 */}
                             <Route path="/toolManager/tool/:type" element={<AuthGuard><ToolManager mode="default" /></AuthGuard>} />
                             <Route path="/myToolManager/tool/:type" element={<AuthGuard><ToolManager mode="my" /></AuthGuard>} />
+                            <Route path="/page/FlowStudio/:flowId" element={<AuthGuard><FlowStudioPage/></AuthGuard>} />
                         </Routes>
                     </Content>
                 </Layout>

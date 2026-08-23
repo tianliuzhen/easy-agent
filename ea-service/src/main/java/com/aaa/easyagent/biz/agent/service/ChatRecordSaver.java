@@ -83,6 +83,7 @@ public class ChatRecordSaver {
             StartNewConversationResp startNewConversationResp = chatRecordService.startNewConversation(
                     agentContext.getAgentId(),
                     agentContext.getFlowId(),
+                    agentContext.getFlowRevisionId(),
                     agentContext.getSessionId(),
                     userId,
                     userQuestion
