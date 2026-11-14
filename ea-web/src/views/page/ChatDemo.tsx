@@ -119,6 +119,8 @@ const ChatDemo: React.FC = () => {
             style={{
                 display: 'flex',
                 height: '100vh',
+                // 页面本身不滚动：超出部分交给消息区内部滚动，保证输入框常驻视口底部
+                overflow: 'hidden',
                 background: 'var(--ea-theme-background)',
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             }}
@@ -141,6 +143,9 @@ const ChatDemo: React.FC = () => {
                     flexDirection: 'column',
                     background: 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)',
                     position: 'relative',
+                    // 与 ChatRightPanel 同理：不写 minHeight:0 会被长回答撑出 100vh，
+                    // 整页出现滚动条、输入框被顶出视口
+                    minHeight: 0,
                 }}
             >
                 {session.modelVersion && (

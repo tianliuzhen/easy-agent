@@ -306,6 +306,9 @@ const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({agentId: propAgentId, cl
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
+            // 超出部分交给消息区内部滚动，输入框常驻面板底部
+            minHeight: 0,
+            overflow: 'hidden',
             background: 'var(--ea-theme-background)',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         }}>

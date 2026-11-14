@@ -1,49 +1,47 @@
 // Chat 组件统一导出
-export { default as ThinkComponent } from './ThinkComponent';
-export { default as ToolComponent } from './ToolComponent';
-export { default as LogComponent } from './LogComponent';
-export { default as MessageBubble, MessageBubbleWithXMarkdown } from './MessageBubble';
 
-// 类型导出
+// 消息展示层（重写后的实现）
+export {
+    ChatMessageList,
+    ChatMessageItem,
+    MarkdownContent,
+    TracePanel,
+    ToolCallList,
+    buildMessageTrace,
+    parseToolTrace,
+    formatJson,
+} from './message';
+
 export type {
-  ChatMessage,
-  ThinkingProcess,
-  ThinkingStep,
-  ToolCall,
-  LogEntry,
-  ThinkingLogEntry,
-  TypeConfig
-} from './types';
+    ChatMessageListProps,
+    ChatMessageItemProps,
+    MessageTrace,
+    ToolTrace,
+} from './message';
 
-// 工具函数导出
+// 聊天面板与输入区
 export {
-  parseMessageContext,
-  extractFinalAnswer,
-  convertEntriesToMessage,
-  createNewAIMessage,
-  updateMessageThinking,
-  updateMessageData,
-  addToolToMessage,
-  addLogToMessage,
-  finalizeMessage,
-  errorMessage
-} from './messageUtils';
-
-// ChatComponents 导出
-export {
-  ChatRightPanel,
-  ChatMessageItem,
-  ChatInputArea,
-  ChatEmptyState,
-  ThinkingIndicator,
-  formatTime,
-  typeConfig
+    ChatRightPanel,
+    ChatInputArea,
+    ChatEmptyState,
 } from './ChatComponents';
 
 export type {
-  ChatMessageItemProps,
-  ChatInputAreaProps,
-  ChatEmptyStateProps,
-  ChatRightPanelProps,
-  ThinkingIndicatorProps
+    ChatRightPanelProps,
+    ChatInputAreaProps,
+    ChatEmptyStateProps,
+    ChatMessage,
+    ThinkingLogEntry,
+    ThinkingLogState,
+    QuickPromptGroup,
 } from './ChatComponents';
+
+// 会话侧边栏
+export {ConversationSidebar} from './ConversationSidebar';
+
+// 历史记录转换
+export {
+    historyToChatMessages,
+    parseThinkingEntries,
+    extractAnswerText,
+} from './chatContextUtils';

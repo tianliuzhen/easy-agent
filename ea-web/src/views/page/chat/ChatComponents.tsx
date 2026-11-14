@@ -1,22 +1,15 @@
 import React, {useRef, useEffect, useState} from 'react';
-import {Button, Input, Spin, Tooltip, Drawer, Typography} from 'antd';
+import {Button, Input, Tooltip} from 'antd';
 import {
     SendOutlined,
     RobotOutlined,
-    UserOutlined,
-    EyeOutlined,
-    EyeInvisibleOutlined,
-    CodeOutlined,
-    EditOutlined,
     PictureOutlined,
     CloseOutlined,
     BulbOutlined,
     DownOutlined,
     EnterOutlined,
 } from '@ant-design/icons';
-import type {ThoughtChainProps} from '@ant-design/x';
-import {ThoughtChain, Think} from '@ant-design/x';
-import {XMarkdown} from '@ant-design/x-markdown';
+import ChatMessageList from './message/ChatMessageList';
 
 // ==================== 类型定义 ====================
 export interface ThinkingLogEntry {
@@ -48,577 +41,6 @@ export interface QuickPromptGroup {
     label: string;
     questions: string[];
 }
-
-// ==================== 类型配置 ====================
-const typeConfig = {
-    think: {title: '深度思考', icon: '🤔', description: '', color: '#8c8c8c', status: 'pending' as const},
-    data: {title: '回答', icon: '💬', description: '', color: '#52c41a', status: 'success' as const},
-    tool: {title: '工具', icon: '🎰', description: '', color: '#fa8c16', status: 'success' as const},
-    log: {title: '日志', icon: '📝', description: '运行日志', color: '#8c8c8c', status: 'default' as const},
-    error: {title: '错误', icon: '⚠️', description: '', color: '#ff4d4f', status: 'error' as const},
-    finalAnswer: {title: '最终答案', icon: '✅', description: '', color: '#52c41a', status: 'success' as const},
-};
-
-// 思考日志中不同类型条目的内容样式：
-// - think（推理/思考）：灰色字体 + 独立边界卡片，与回答明显区分（现代 Agent 对话格式）
-// - data/finalAnswer（回答）：正常深色可读文本
-// - log/error：弱化/告警色
-const getEntryContentStyle = (type: ThinkingLogEntry['type']): React.CSSProperties => {
-    switch (type) {
-        case 'think':
-            return {
-                fontSize: '13px',
-                lineHeight: 1.7,
-                color: '#8c8c8c',
-                padding: '10px 14px',
-                background: '#f7f8fa',
-                border: '1px solid #ebedf0',
-                borderRadius: '8px',
-            };
-        case 'error':
-            return {fontSize: '13px', lineHeight: 1.6, color: '#ff4d4f', padding: '8px 0'};
-        case 'log':
-            return {fontSize: '12px', lineHeight: 1.6, color: '#8c8c8c', padding: '6px 0'};
-        default:
-            // data / finalAnswer 等回答文本，保持深色可读
-            return {fontSize: '13px', lineHeight: 1.6, color: '#333', padding: '8px 0'};
-    }
-};
-
-// XMarkdown 紧凑间距：覆盖其默认 1em 的块级外边距（段落/列表/代码块等），
-// 避免多段落回答时段间空行过大、看起来像"双倍换行"。通过 CSS 变量下发，无需全局样式。
-const COMPACT_MARKDOWN_STYLE = {
-    '--margin-block': '0 0 0.4em 0',
-    '--margin-ul-ol': '0.2em 0 0.4em 1.5em',
-    '--margin-li': '0.1em 0',
-    '--margin-pre': '0.5em 0',
-    '--table-margin': '0.5em 0',
-    '--hr-margin': '0.8em 0',
-    '--image-margin': '0.4em 0',
-} as React.CSSProperties;
-
-// ==================== 工具详情抽屉组件 ====================
-interface ToolDetailDrawerProps {
-    entry: ThinkingLogEntry;
-    open: boolean;
-    onClose: () => void;
-}
-
-const {Text} = Typography;
-
-// 解析工具内容，提取工具名称、输入参数和输出参数
-const parseToolContent = (content: string) => {
-    // 支持多种格式：后端可能发送 "正在执行工具：" 或 "工具名称："
-    // 使用 [\s\S] 替代 . 来匹配包括换行符在内的所有字符
-    const toolNameMatch = content.match(/(?:正在执行工具|工具名称)[:：]\s*([\s\S]+?)(?:\s*(?:\n|$|工具入参|输入参数|执行结果|输出参数))/);
-    const inputMatch = content.match(/(?:工具入参|输入参数)[:：]\s*({[^}]+})/);
-    // 输出参数可能是 JSON 或纯文本，支持到字符串末尾的所有内容
-    const outputMatch = content.match(/(?:执行结果|输出参数)[:：]\s*([\s\S]+)$/);
-
-    return {
-        toolName: toolNameMatch ? toolNameMatch[1].trim() : '',
-        inputParams: inputMatch ? inputMatch[1] : '',
-        outputParams: outputMatch ? outputMatch[1].trim() : '',
-    };
-};
-
-// JSON 展示组件
-const JsonDisplay: React.FC<{ data: string; title: string }> = ({data, title}) => {
-    if (!data) return null;
-
-    let formattedJson = data;
-    try {
-        formattedJson = JSON.stringify(JSON.parse(data), null, 2);
-    } catch {
-        // 解析失败则使用原始数据
-    }
-
-    return (
-        <div style={{marginBottom: '16px'}}>
-            <div style={{
-                fontSize: '13px',
-                color: '#666',
-                marginBottom: '8px',
-                fontWeight: 500,
-            }}>
-                {title}
-            </div>
-            <pre style={{
-                background: '#f6f8fa',
-                border: '1px solid #e8e8e8',
-                borderRadius: '6px',
-                padding: '12px',
-                fontSize: '12px',
-                lineHeight: 1.6,
-                color: '#333',
-                fontFamily: '"Microsoft YaHei", "微软雅黑", sans-serif',
-                overflow: 'auto',
-                margin: 0,
-            }}>
-                <code>{formattedJson}</code>
-            </pre>
-        </div>
-    );
-};
-
-const ToolDetailDrawer: React.FC<ToolDetailDrawerProps> = ({entry, open, onClose}) => {
-    const config = typeConfig[entry.type] || typeConfig.log;
-    const {toolName, inputParams, outputParams} = parseToolContent(entry.content);
-
-    return (
-        <Drawer
-            title={
-                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                    <span>{config.icon}</span>
-                    <span>{config.title}详情</span>
-                </div>
-            }
-            placement="right"
-            onClose={onClose}
-            open={open}
-            width={560}
-            bodyStyle={{padding: '16px', background: '#f5f5f5'}}
-        >
-            <div style={{
-                background: '#fff',
-                borderRadius: '8px',
-                padding: '20px',
-                maxHeight: 'calc(100vh - 140px)',
-                overflowY: 'auto',
-            }}>
-                {/* 工具名称 */}
-                {toolName && (
-                    <div style={{marginBottom: '16px'}}>
-                        <span style={{fontSize: '13px', color: '#666', fontWeight: 500}}>工具名称：</span>
-                        <Text strong style={{fontSize: '15px', color: '#333'}}>
-                            {toolName}
-                        </Text>
-                    </div>
-                )}
-
-                {/* 输入参数 */}
-                {inputParams && <JsonDisplay data={inputParams} title="输入参数"/>}
-
-                {/* 输出参数 */}
-                {outputParams && <JsonDisplay data={outputParams} title="执行结果"/>}
-
-                {/* 如果没有解析到任何内容，显示原始内容 */}
-                {!toolName && !inputParams && !outputParams && (
-                    <pre style={{
-                        background: '#f6f8fa',
-                        border: '1px solid #e8e8e8',
-                        borderRadius: '6px',
-                        padding: '12px',
-                        fontSize: '12px',
-                        lineHeight: 1.6,
-                        color: '#333',
-                        fontFamily: 'monospace',
-                        overflow: 'auto',
-                        margin: 0,
-                        whiteSpace: 'pre-wrap',
-                    }}>
-                        {entry.content}
-                    </pre>
-                )}
-            </div>
-        </Drawer>
-    );
-};
-
-// ==================== 渲染思考内容 ====================
-export const renderThinkingContent = (entries: ThinkingLogEntry[], isRealTime: boolean = false) => {
-    if (!entries || entries.length === 0) return null;
-
-    // 合并相同类型的连续 entry
-    // 注意：SSE 流式数据可能将一个完整消息分成多个 chunk，需要正确拼接
-    // 特殊处理：tool 类型遇到"正在执行工具"标记时，应该开始新的工具调用
-    const merged: ThinkingLogEntry[] = [];
-    for (const entry of entries) {
-        const lastEntry = merged[merged.length - 1];
-        
-        // 如果是 tool 类型，检查是否是新的一次工具调用
-        if (lastEntry && lastEntry.type === 'tool' && entry.type === 'tool') {
-            // 如果新消息包含"正在执行工具"，说明是新的工具调用，不合并
-            if (entry.content.includes('正在执行工具') || entry.content.includes('工具名称')) {
-                merged.push({...entry});
-            } else {
-                // 否则是同一次工具调用的后续信息（入参、结果等），合并
-                lastEntry.content = lastEntry.content + entry.content;
-            }
-        } else if (lastEntry && lastEntry.type === entry.type) {
-            // 其他类型直接合并
-            lastEntry.content = lastEntry.content + entry.content;
-        } else {
-            merged.push({...entry});
-        }
-    }
-
-    return <ThinkingContentList merged={merged} isRealTime={isRealTime}/>;
-};
-
-// 思考内容列表组件（内部使用，支持抽屉状态管理）
-const ThinkingContentList: React.FC<{ merged: ThinkingLogEntry[], isRealTime: boolean }> = ({merged, isRealTime}) => {
-    const [drawerState, setDrawerState] = useState<{ open: boolean; entry: ThinkingLogEntry | null }>({
-        open: false,
-        entry: null,
-    });
-
-    const items: ThoughtChainProps['items'] = merged.map((entry, index) => {
-        const config = typeConfig[entry.type] || typeConfig.log;
-        const isLastItem = index === merged.length - 1;
-        const isTool = entry.type === 'tool';
-
-        return {
-            key: `${entry.type}-${index}`,
-            title: `${config.icon} ${config.title}`,
-            description: config.description,
-            icon: config.icon,
-            status: isRealTime && isLastItem ? 'loading' : config.status,
-            collapsible: !isTool, // 工具类型默认不折叠，点击展开抽屉
-            onExpand: isTool
-                ? () => setDrawerState({open: true, entry})
-                : undefined,
-            content: isTool ? (
-                <div onClick={() => setDrawerState({open: true, entry})} style={{cursor: 'pointer'}}>
-                    <ThoughtChain.Item
-                        variant="solid"
-                        icon={<CodeOutlined/>}
-                        title={parseToolContent(entry.content).toolName || 'Executing command'}
-                        description=" Executing command"
-                    />
-                </div>
-            ) : (
-                <div style={getEntryContentStyle(entry.type)}>
-                    <XMarkdown
-                        content={entry.content}
-                        style={COMPACT_MARKDOWN_STYLE}
-                        openLinksInNewTab
-                        escapeRawHtml
-                        streaming={{
-                            hasNextChunk: isRealTime && isLastItem,
-                            enableAnimation: true,
-                            tail: isRealTime && isLastItem,
-                        }}
-                    />
-                </div>
-            ),
-        };
-    });
-
-    const collapsibleKeys = items
-        .filter(item => item.collapsible !== false)
-        .map(item => item.key!);
-
-    return (
-        <div style={{marginTop: '8px'}}>
-            <ThoughtChain
-                // defaultExpandedKeys 仅在挂载时生效；流式中后增的「回答/思考」块不会被纳入。
-                // 用可折叠块数量作为 key，新增块时强制重挂载，重新应用「全部展开」。
-                key={`tc-${collapsibleKeys.length}`}
-                defaultExpandedKeys={collapsibleKeys}
-                items={items}
-                line="dashed"
-            />
-            {drawerState.entry && (
-                <ToolDetailDrawer
-                    entry={drawerState.entry}
-                    open={drawerState.open}
-                    onClose={() => setDrawerState({open: false, entry: null})}
-                />
-            )}
-        </div>
-    );
-};
-
-// ==================== 思考过程切换按钮 ====================
-export const ThinkingLogToggleButton: React.FC<{
-    messageId: string;
-    isVisible: boolean;
-    onToggle: (messageId: string) => void;
-}> = ({messageId, isVisible, onToggle}) => (
-    <Tooltip title={isVisible ? "隐藏思考过程" : "显示思考过程"}>
-        <Button
-            type="text"
-            size="small"
-            icon={isVisible ? <EyeInvisibleOutlined/> : <EyeOutlined/>}
-            onClick={(e) => {
-                e.stopPropagation();
-                onToggle(messageId);
-            }}
-            style={{
-                position: 'absolute',
-                top: '-10px',
-                right: '-10px',
-                background: '#fff',
-                border: '1px solid #91caff',
-                borderRadius: '16px',
-                padding: '4px 8px',
-                height: '24px',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
-                color: '#1890ff',
-                fontWeight: 500,
-                zIndex: 10,
-            }}
-        />
-    </Tooltip>
-);
-
-// ==================== 单条消息组件 ====================
-export interface ChatMessageItemProps {
-    msg: ChatMessage;
-    messageThinkingLogs: ThinkingLogState;
-    onToggleThinkingLog: (messageId: string) => void;
-    renderThinkingContentFn: (entries: ThinkingLogEntry[], isRealTime?: boolean) => React.ReactNode;
-    currentAnsweringMsgId: string | null;
-}
-
-export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
-                                                                    msg,
-                                                                    messageThinkingLogs,
-                                                                    onToggleThinkingLog,
-                                                                    renderThinkingContentFn,
-                                                                    currentAnsweringMsgId,
-                                                                }) => {
-    const msgThinkingLog = messageThinkingLogs[msg.id];
-    const hasThinkingLog = msgThinkingLog && msgThinkingLog.content.length > 0;
-    const isThinkingVisible = msgThinkingLog?.isVisible || false;
-    const isThinkingMessage = !msg.isUser &&
-        msg.text === '思考中...' &&
-        currentAnsweringMsgId === msg.id;
-    // 空消息不显示
-    const isEmptyMessage = !msg.isUser && msg.text.trim() === '';
-
-    const avatarStyle: React.CSSProperties = {
-        width: '40px',
-        height: '40px',
-        borderRadius: '12px',
-        background: 'linear-gradient(135deg, #5c74a8 0%, #a9b9d6 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        boxShadow: '0 4px 12px rgba(92, 116, 168, 0.3)',
-    };
-
-    return (
-        <React.Fragment key={`msg-${msg.id}`}>
-            {!isEmptyMessage && (
-                <div style={{
-                    display: 'flex',
-                    justifyContent: msg.isUser ? 'flex-end' : 'flex-start',
-                    marginBottom: '24px',
-                    animation: 'fadeIn 0.3s ease',
-                }}>
-                    {!msg.isUser && (
-                        <div style={{...avatarStyle, marginRight: '16px', marginTop: '4px'}}>
-                            <RobotOutlined style={{color: 'white', fontSize: '18px'}}/>
-                        </div>
-                    )}
-
-                    <div style={{position: 'relative'}}>
-                        <div style={{
-                            backgroundColor: '#fff',
-                            color: '#000',
-                            padding: '16px 20px',
-                            borderRadius: '18px',
-                            maxWidth: '70%',
-                            minWidth: '120px',
-                            wordBreak: 'break-word',
-                            lineHeight: 1.6,
-                            fontSize: '14px',
-                            position: 'relative',
-                            boxShadow: msg.isUser
-                                ? '0 4px 15px rgba(102, 126, 234, 0.3)'
-                                : '0 4px 15px rgba(0, 0, 0, 0.08)',
-                            border: `1px solid ${msg.isUser ? 'rgba(255, 255, 255, 0.2)' : '#f0f0f0'}`,
-                        }}>
-                            {!msg.isUser && hasThinkingLog && (
-                                <ThinkingLogToggleButton
-                                    messageId={msg.id}
-                                    isVisible={isThinkingVisible}
-                                    onToggle={onToggleThinkingLog}
-                                />
-                            )}
-                            {/* 图片渲染 */}
-                            {msg.imageBase64 && (
-                                <div style={{marginBottom: msg.text ? '12px' : 0}}>
-                                    <img
-                                        src={msg.imageBase64}
-                                        alt="用户发送的图片"
-                                        style={{
-                                            maxWidth: '300px',
-                                            maxHeight: '200px',
-                                            borderRadius: '8px',
-                                            cursor: 'pointer',
-                                        }}
-                                        onClick={() => {
-                                            // 点击图片在新窗口打开
-                                            window.open(msg.imageBase64, '_blank');
-                                        }}
-                                    />
-                                </div>
-                            )}
-                            {isThinkingMessage ? (
-                                <div style={{whiteSpace: 'pre-wrap'}}>
-                                    <Spin size="small"/>
-                                    {msg.text}
-                                </div>
-                            ) : msg.isUser ? (
-                                <div style={{whiteSpace: 'pre-wrap'}}>
-                                    {msg.text.replace(/^\n+|\n+$/g, '')}
-                                </div>
-                            ) : (
-                                <XMarkdown
-                                    content={msg.text.replace(/^\n+|\n+$/g, '')}
-                                    style={COMPACT_MARKDOWN_STYLE}
-                                    openLinksInNewTab
-                                    escapeRawHtml
-                                    streaming={{
-                                        hasNextChunk: currentAnsweringMsgId === msg.id,
-                                        enableAnimation: true,
-                                        tail: currentAnsweringMsgId === msg.id,
-                                    }}
-                                />
-                            )}
-                        </div>
-                    </div>
-
-                    {msg.isUser && (
-                        <div style={{...avatarStyle, marginLeft: '16px', marginTop: '4px'}}>
-                            <UserOutlined style={{color: 'white', fontSize: '18px'}}/>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* 已完成的思考过程 */}
-            {!msg.isUser && hasThinkingLog && isThinkingVisible && currentAnsweringMsgId !== msg.id && (
-                <div style={{marginBottom: '16px', marginLeft: '56px', maxWidth: '70%'}}>
-                    <div style={{
-                        background: '#fbfbfc',
-                        borderRadius: '12px',
-                        padding: '12px 16px',
-                        border: '1px solid #ebedf0',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                    }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            fontSize: '13px',
-                            color: '#8c8c8c',
-                            fontWeight: 500,
-                            marginBottom: '8px',
-                        }}>
-                            <div style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                <span>🤔</span>
-                                <span>已深度思考</span>
-                            </div>
-                            <Tooltip title="隐藏">
-                                <Button
-                                    type="text"
-                                    size="small"
-                                    icon={<EyeInvisibleOutlined/>}
-                                    onClick={() => onToggleThinkingLog(msg.id)}
-                                    style={{fontSize: '12px', padding: '0 4px', height: '20px'}}
-                                />
-                            </Tooltip>
-                        </div>
-                        <div style={{
-                            fontSize: '12px',
-                            lineHeight: 1.6,
-                            color: '#333',
-                            whiteSpace: 'pre-wrap',
-                            maxHeight: '500px',
-                            overflowY: 'auto',
-                        }}>
-                            {renderThinkingContentFn(msgThinkingLog.content, false)}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </React.Fragment>
-    );
-};
-
-// ==================== 实时思考指示器 ====================
-export interface ThinkingIndicatorProps {
-    messageThinkingLogs: ThinkingLogState;
-    currentAnsweringMsgId: string | null;
-    onToggleThinkingLog: (messageId: string) => void;
-    renderThinkingContentFn: (entries: ThinkingLogEntry[], isRealTime?: boolean) => React.ReactNode;
-    thinkingContentRef: React.RefObject<HTMLDivElement>;
-    onThinkingScroll?: React.UIEventHandler<HTMLDivElement>;
-}
-
-export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
-                                                                        messageThinkingLogs,
-                                                                        currentAnsweringMsgId,
-                                                                        onToggleThinkingLog,
-                                                                        renderThinkingContentFn,
-                                                                        thinkingContentRef,
-                                                                        onThinkingScroll,
-                                                                    }) => {
-    if (!currentAnsweringMsgId || !messageThinkingLogs[currentAnsweringMsgId]) {
-        return null;
-    }
-
-    const isVisible = messageThinkingLogs[currentAnsweringMsgId]?.isVisible || false;
-    const content = messageThinkingLogs[currentAnsweringMsgId]?.content || [];
-
-    return (
-        <div style={{marginBottom: '24px', animation: 'fadeIn 0.3s ease'}}>
-            {isVisible && (
-                <div style={{marginBottom: '16px', marginLeft: '56px', maxWidth: '70%', marginTop: '8px'}}>
-                    <div style={{
-                        background: '#fbfbfc',
-                        borderRadius: '12px',
-                        padding: '12px 16px',
-                        border: '1px solid #ebedf0',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                        animation: 'pulse 2s infinite',
-                    }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            marginBottom: '8px',
-                        }}>
-                            <Think title="分析中..." blink loading/>
-                            <Tooltip title="隐藏">
-                                <Button
-                                    type="text"
-                                    size="small"
-                                    icon={<EyeInvisibleOutlined/>}
-                                    onClick={() => onToggleThinkingLog(currentAnsweringMsgId!)}
-                                    style={{fontSize: '12px', padding: '0 4px', height: '20px'}}
-                                />
-                            </Tooltip>
-                        </div>
-                        <div
-                            ref={thinkingContentRef}
-                            onScroll={onThinkingScroll}
-                            style={{
-                                fontSize: '12px',
-                                lineHeight: 1.6,
-                                color: '#333',
-                                whiteSpace: 'pre-wrap',
-                                maxHeight: '400px',
-                                overflowY: 'auto',
-                            }}
-                        >
-                            {renderThinkingContentFn(content, true)}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
 
 // ==================== 输入区域 ====================
 export interface ChatInputAreaProps {
@@ -710,7 +132,12 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
     return (
         <div style={{
             background: 'transparent',
-            padding: '16px 32px 24px',
+            padding: '12px 24px 16px',
+            // 固定在底部：不参与 flex 收缩，消息再长也不会把输入区挤出视口
+            flexShrink: 0,
+            // 提示词展开很多行时自身限高滚动，不去挤压消息区
+            maxHeight: '45vh',
+            overflowY: 'auto',
         }}>
             {/* 隐藏的文件输入 */}
             <input
@@ -730,7 +157,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 
             {/* 浮选提示词 */}
             {quickPrompts && quickPrompts.length > 0 && (
-                <div style={{maxWidth: '860px', margin: '0 auto 10px'}}>
+                <div style={{maxWidth: 'var(--ea-chat-max-width)', margin: '0 auto 10px'}}>
                     <style>{`
                         .ea-quick-cat {
                             display: inline-flex;
@@ -850,7 +277,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                             </div>
 
                             {quickPrompts[activeGroup].questions.length === 0 ? (
-                                <Text type="secondary" style={{fontSize: '12px'}}>暂无推荐问题</Text>
+                                <span style={{fontSize: '12px', color: '#9aa1ab'}}>暂无推荐问题</span>
                             ) : (
                                 <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px'}}>
                                     {quickPrompts[activeGroup].questions.map((q, qi) => (
@@ -874,7 +301,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 
             {/* 统一输入容器 */}
             <div style={{
-                maxWidth: '860px',
+                maxWidth: 'var(--ea-chat-max-width)',
                 margin: '0 auto',
                 background: '#fff',
                 borderRadius: '26px',
@@ -1001,7 +428,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 
             {/* 提示文字 */}
             <div style={{
-                maxWidth: '860px',
+                maxWidth: 'var(--ea-chat-max-width)',
                 margin: '8px auto 0',
                 textAlign: 'center',
                 fontSize: '12px',
@@ -1083,8 +510,14 @@ export interface ChatRightPanelProps {
     onInputChange: (value: string) => void;
     onSend: () => void;
     onKeyPress?: (e: React.KeyboardEvent) => void;
-    onToggleThinkingLog: (messageId: string) => void;
+    /**
+     * @deprecated 执行过程的展开状态已由消息自身维护（生成中展开、结束收起、手动可切换），
+     * 不再需要外部传入。保留该属性只为兼容现有调用方。
+     */
+    onToggleThinkingLog?: (messageId: string) => void;
     agentName?: string;
+    /** 模型版本，展示在消息区顶部 */
+    modelVersion?: string | null;
     conversationId?: number | null;
     error?: string | null;
     emptyTitle?: string;
@@ -1112,8 +545,8 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                                                                   onInputChange,
                                                                   onSend,
                                                                   onKeyPress,
-                                                                  onToggleThinkingLog,
                                                                   agentName = 'EasyAgent',
+                                                                  modelVersion,
                                                                   conversationId,
                                                                   error,
                                                                   emptyTitle = '开始新的对话',
@@ -1125,55 +558,48 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                                                                   quickPrompts,
                                                                   onQuickQuestion,
                                                               }) => {
-    const chatMessagesEndRef = useRef<HTMLDivElement>(null);
-    const thinkingContentRef = useRef<HTMLDivElement>(null);
-    const prevThinkingContentLengthRef = useRef<number>(0);
-    const messagesContainerRef = useRef<HTMLDivElement>(null);
-    // 用户手动上翻后暂停自动滚动，滚回底部再恢复
-    const shouldAutoScrollRef = useRef<boolean>(true);
-    const shouldAutoScrollThinkingRef = useRef<boolean>(true);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    // 用户手动上翻后暂停自动跟随，滚回底部附近再恢复
+    const followBottomRef = useRef(true);
+    // 自动滚动写入 scrollTop 会再次触发 onScroll，这里标记忽略那一次回调
+    const autoScrollingRef = useRef(false);
+    const scrollFrameRef = useRef<number | null>(null);
 
-    const isNearBottom = (el: HTMLElement, threshold = 40) =>
-        el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
-
-    const handleMessagesScroll: React.UIEventHandler<HTMLDivElement> = () => {
-        if (messagesContainerRef.current) {
-            shouldAutoScrollRef.current = isNearBottom(messagesContainerRef.current);
+    const handleScroll: React.UIEventHandler<HTMLDivElement> = () => {
+        if (autoScrollingRef.current) {
+            autoScrollingRef.current = false;
+            return;
         }
+        const container = scrollRef.current;
+        if (!container) return;
+        followBottomRef.current =
+            container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
     };
 
-    const handleThinkingScroll: React.UIEventHandler<HTMLDivElement> = () => {
-        if (thinkingContentRef.current) {
-            shouldAutoScrollThinkingRef.current = isNearBottom(thinkingContentRef.current);
-        }
-    };
-
-    // 自动滚动到底部
+    /**
+     * 跟随到底部。
+     * <p>
+     * 流式输出每秒有几十次内容更新，这里用两条措施避免画面抖动：
+     * 1. 直接写 scrollTop 而不是 scrollIntoView({behavior:'smooth'})，
+     *    平滑滚动会在每个 chunk 到达时重启动画，前后动画互相打断就是肉眼看到的抖动；
+     * 2. 用 requestAnimationFrame 合并同一帧内的多次更新，一帧只滚一次。
+     */
     useEffect(() => {
-        if (!shouldAutoScrollRef.current) return;
-        chatMessagesEndRef.current?.scrollIntoView({behavior: 'smooth'});
-    }, [messages, isThinking]);
+        if (!followBottomRef.current) return;
+        if (scrollFrameRef.current !== null) return;
+        scrollFrameRef.current = requestAnimationFrame(() => {
+            scrollFrameRef.current = null;
+            const container = scrollRef.current;
+            if (!container) return;
+            autoScrollingRef.current = true;
+            container.scrollTop = container.scrollHeight;
+        });
+    }, [messages, messageThinkingLogs, isThinking]);
 
-    // 思考内容自动滚动到底部
-    useEffect(() => {
-        if (thinkingContentRef.current && currentAnsweringMsgId) {
-            const thinkingContent = messageThinkingLogs[currentAnsweringMsgId]?.content || [];
-            const currentLength = thinkingContent.length;
-
-            if (currentLength > prevThinkingContentLengthRef.current) {
-                setTimeout(() => {
-                    if (!shouldAutoScrollThinkingRef.current) return;
-                    thinkingContentRef.current?.scrollTo({
-                        top: thinkingContentRef.current.scrollHeight,
-                        behavior: 'smooth',
-                    });
-                }, 0);
-            }
-            prevThinkingContentLengthRef.current = currentLength;
-        } else {
-            prevThinkingContentLengthRef.current = 0;
-        }
-    }, [messageThinkingLogs, currentAnsweringMsgId]);
+    // 卸载时取消未执行的滚动帧
+    useEffect(() => () => {
+        if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
+    }, []);
 
     return (
         <div style={{
@@ -1182,70 +608,67 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
             flexDirection: 'column',
             background: '#f5f5f5',
             position: 'relative',
+            minWidth: 0,
+            // 关键：flex 子项默认 min-height:auto，不会收缩到小于内容高度。
+            // 不写死这条，长回答会把本容器撑出父级高度，导致整页出现滚动条、
+            // 输入框被顶到视口外（消息区则完全不滚动）。
+            minHeight: 0,
+            // 自身高度由父级 flex 决定，内部靠消息区滚动消化超出部分
+            overflow: 'hidden',
         }}>
-            <div
-                ref={messagesContainerRef}
-                onScroll={handleMessagesScroll}
-                style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '32px',
-                background: '#f5f5f5',
-                position: 'relative',
-            }}>
-                {conversationId && (
-                    <div style={{
-                        position: 'absolute',
-                        top: '12px',
-                        right: '12px',
-                        fontSize: '11px',
-                        color: '#999',
-                        zIndex: 10,
-                    }}>
-                        会话ID: {conversationId}
-                    </div>
-                )}
+            {/* 会话元信息：模型版本与会话 ID */}
+            {(modelVersion || conversationId) && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    padding: '10px 24px 0',
+                    fontSize: '11.5px',
+                    color: '#9aa1ab',
+                    flexShrink: 0,
+                }}>
+                    <span>{modelVersion ? `模型版本：${modelVersion}` : ''}</span>
+                    <span>{conversationId ? `会话ID: ${conversationId}` : ''}</span>
+                </div>
+            )}
 
+            <div
+                ref={scrollRef}
+                onScroll={handleScroll}
+                style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: '20px 24px 8px',
+                    minHeight: 0,
+                }}
+            >
                 {messages.length === 0 ? (
                     <ChatEmptyState agentName={agentName} title={emptyTitle} subtitle={emptySubtitle} welcomeMessage={welcomeMessage} avatar={avatar}/>
                 ) : (
-                    <>
-                        {messages.map((msg) => (
-                            <ChatMessageItem
-                                key={msg.id}
-                                msg={msg}
-                                messageThinkingLogs={messageThinkingLogs}
-                                onToggleThinkingLog={onToggleThinkingLog}
-                                renderThinkingContentFn={renderThinkingContent}
-                                currentAnsweringMsgId={currentAnsweringMsgId}
-                            />
-                        ))}
-                        <ThinkingIndicator
-                            messageThinkingLogs={messageThinkingLogs}
-                            currentAnsweringMsgId={currentAnsweringMsgId}
-                            onToggleThinkingLog={onToggleThinkingLog}
-                            renderThinkingContentFn={renderThinkingContent}
-                            thinkingContentRef={thinkingContentRef}
-                            onThinkingScroll={handleThinkingScroll}
-                        />
-                        <div ref={chatMessagesEndRef}/>
-                    </>
+                    <ChatMessageList
+                        messages={messages}
+                        thinkingLogs={messageThinkingLogs}
+                        currentAnsweringMsgId={currentAnsweringMsgId}
+                        avatar={avatar}
+                    />
                 )}
 
                 {error && (
                     <div style={{
-                        background: 'var(--ea-theme-background)',
-                        color: '#ff4d4f',
-                        padding: '12px 16px',
-                        fontSize: '14px',
+                        maxWidth: 'var(--ea-chat-max-width)',
+                        margin: '16px auto 0',
+                        padding: '10px 14px',
+                        background: '#fff2f0',
+                        color: '#cf1322',
+                        fontSize: '13px',
                         borderRadius: '8px',
                         border: '1px solid #ffccc7',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
-                        marginTop: '16px',
                     }}>
-                        <span style={{fontSize: '16px'}}>⚠️</span>
+                        <span>⚠️</span>
                         {error}
                     </div>
                 )}

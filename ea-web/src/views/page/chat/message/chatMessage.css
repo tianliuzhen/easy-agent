@@ -1,0 +1,454 @@
+/* ==========================================================================
+   聊天消息展示样式
+   ==========================================================================
+   约定：
+   1. 所有类名以 ea-chat- / ea-md 开头，只作用于消息区，不污染全局。
+   2. Markdown 排版统一由 .ea-md 控制，禁止在祖先节点上使用 white-space: pre-wrap
+      （该属性会被后代继承，使 Markdown 块元素之间的换行变成真实空行）。
+   3. 纯文本（用户提问、运行日志）用 .ea-chat-plaintext 单独开启 pre-wrap。
+   ========================================================================== */
+
+:root {
+    /* 消息列最大宽度：表格类内容较宽，留足横向空间，窄屏自动收缩 */
+    --ea-chat-max-width: 1440px;
+}
+
+.ea-chat-list {
+    /* 消息列：居中但尽量占满可用宽度，不在宽屏上留大片空白 */
+    width: 100%;
+    max-width: var(--ea-chat-max-width);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* --------------------------------------------------------------------------
+   单条消息：头像列 + 内容列，用户与助手共用同一网格，保证左右行高一致
+   -------------------------------------------------------------------------- */
+.ea-chat-row {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    column-gap: 12px;
+    align-items: start;
+}
+
+.ea-chat-row-user {
+    /* 用户消息：头像在右，内容列靠右对齐 */
+    grid-template-columns: minmax(0, 1fr) 30px;
+}
+
+.ea-chat-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    /* 与第一行文字基线对齐 */
+    margin-top: 1px;
+    overflow: hidden;
+    font-size: 15px;
+    color: #fff;
+    /* 深一档的底色，保证白色图标有足够对比度 */
+    background: linear-gradient(135deg, #4f6596 0%, #7389b8 100%);
+}
+
+.ea-chat-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ea-chat-avatar-user {
+    background: #cfd7e4;
+    color: #4a5365;
+}
+
+.ea-chat-body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ea-chat-body-user {
+    align-items: flex-end;
+}
+
+/* --------------------------------------------------------------------------
+   用户气泡
+   -------------------------------------------------------------------------- */
+.ea-chat-bubble-user {
+    max-width: 86%;
+    padding: 9px 14px;
+    border-radius: 14px 14px 4px 14px;
+    background: #eef3fb;
+    border: 1px solid #e0e8f4;
+    color: #1f2328;
+    font-size: 14px;
+    line-height: 1.65;
+    text-align: left;
+    word-break: break-word;
+}
+
+.ea-chat-plaintext {
+    /* 纯文本保留换行与缩进；只用于不含 Markdown 的内容 */
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.ea-chat-image {
+    max-width: 280px;
+    max-height: 200px;
+    border-radius: 10px;
+    cursor: zoom-in;
+    display: block;
+}
+
+/* --------------------------------------------------------------------------
+   助手回答：不套卡片，直接落在背景上，减少层层嵌套带来的留白
+   -------------------------------------------------------------------------- */
+.ea-chat-answer {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #1f2328;
+    word-break: break-word;
+}
+
+/* 生成中标记：独立一行，内容增长时位置不变，不会像尾部光标那样引起换行回弹 */
+.ea-chat-streaming-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: #9aa1ab;
+}
+
+.ea-chat-streaming-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #7389b8;
+    animation: ea-chat-blink 1.1s ease-in-out infinite;
+}
+
+@keyframes ea-chat-blink {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+}
+
+.ea-chat-pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #8c8c8c;
+}
+
+.ea-chat-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fff2f0;
+    border: 1px solid #ffccc7;
+    color: #cf1322;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* --------------------------------------------------------------------------
+   执行过程面板（思考 / 工具 / 日志）：一条轻量折叠条，不再是卡片套卡片
+   -------------------------------------------------------------------------- */
+.ea-chat-trace {
+    border: 1px solid #ebedf0;
+    border-radius: 10px;
+    background: #fafbfc;
+    overflow: hidden;
+}
+
+.ea-chat-trace-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 12.5px;
+    color: #6b7280;
+    text-align: left;
+    font-family: inherit;
+}
+
+.ea-chat-trace-head:hover {
+    color: #1f2328;
+    background: #f2f4f7;
+}
+
+.ea-chat-trace-caret {
+    font-size: 10px;
+    transition: transform 0.18s ease;
+}
+
+.ea-chat-trace-caret-open {
+    transform: rotate(90deg);
+}
+
+.ea-chat-trace-meta {
+    margin-left: auto;
+    font-size: 11.5px;
+    color: #9aa1ab;
+}
+
+/* 轮换的思考提示词：切换时淡入，避免文字突变 */
+.ea-chat-trace-verb {
+    animation: ea-chat-verb-in 0.35s ease-out;
+}
+
+@keyframes ea-chat-verb-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* 系统设置了「减少动态效果」时不做淡入 */
+@media (prefers-reduced-motion: reduce) {
+    .ea-chat-trace-verb {
+        animation: none;
+    }
+}
+
+.ea-chat-trace-panel {
+    padding: 2px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    /* 过程可能很长，限高滚动，避免把回答顶出屏幕 */
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.ea-chat-trace-section-title {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #9aa1ab;
+    letter-spacing: 0.02em;
+}
+
+.ea-chat-reasoning {
+    font-size: 13px;
+    line-height: 1.75;
+    color: #6b7280;
+}
+
+.ea-chat-logs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ea-chat-log {
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: #9aa1ab;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* --------------------------------------------------------------------------
+   工具调用行
+   -------------------------------------------------------------------------- */
+.ea-chat-tool {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #ebedf0;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 12.5px;
+    color: #1f2328;
+    text-align: left;
+    font-family: inherit;
+}
+
+.ea-chat-tool:hover {
+    border-color: #c7d4e8;
+    background: #f7f9fc;
+}
+
+.ea-chat-tool-icon {
+    color: #5c74a8;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.ea-chat-tool-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ea-chat-tool-hint {
+    margin-left: auto;
+    font-size: 11.5px;
+    color: #9aa1ab;
+    flex-shrink: 0;
+}
+
+.ea-chat-tool-code {
+    margin: 0;
+    padding: 12px;
+    border-radius: 8px;
+    background: #f6f8fa;
+    border: 1px solid #e8e8e8;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #1f2328;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Markdown 排版
+   --------------------------------------------------------------------------
+   间距通过 XMarkdown 的 CSS 变量下发：包内默认值定义在 `.x-markdown` 上
+   （特异度 0,1,0），这里用三个类名（0,3,0）覆盖，确保优先级足够。
+   -------------------------------------------------------------------------- */
+.ea-md.ea-md.ea-md {
+    /* 关键：显式复位 white-space。祖先若继承了 pre-wrap，
+       Markdown 块元素之间的换行会被渲染成真实空行，导致大面积空白。 */
+    white-space: normal;
+
+    --margin-block: 0 0 8px 0;
+    --margin-ul-ol: 4px 0 8px 0;
+    --padding-ul-ol: 0 0 0 22px;
+    --margin-li: 2px 0;
+    --margin-pre: 8px 0;
+    --table-margin: 8px 0;
+    --hr-margin: 12px 0;
+    --image-margin: 6px 0;
+    --td-th-padding: 7px 12px;
+    --code-inline-text: 0.88em;
+    --padding-code-inline: 0.15em 0.35em;
+}
+
+/* 首尾元素去掉外边距，避免容器上下多一截空白 */
+.ea-md.ea-md.ea-md > :first-child {
+    margin-top: 0;
+}
+
+.ea-md.ea-md.ea-md > :last-child {
+    margin-bottom: 0;
+}
+
+/* 松散列表（列表项之间有空行）会把每项包进 <p>，这里压掉内层段落间距 */
+.ea-md.ea-md.ea-md li > p {
+    margin: 0 0 2px 0;
+}
+
+.ea-md.ea-md.ea-md li > p:last-child {
+    margin-bottom: 0;
+}
+
+/* 嵌套列表不需要额外的上下外边距 */
+.ea-md.ea-md.ea-md li > ul,
+.ea-md.ea-md.ea-md li > ol {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+/* 标题：包内未设置 margin，浏览器默认值在聊天里过大 */
+.ea-md.ea-md.ea-md h1,
+.ea-md.ea-md.ea-md h2,
+.ea-md.ea-md.ea-md h3,
+.ea-md.ea-md.ea-md h4,
+.ea-md.ea-md.ea-md h5,
+.ea-md.ea-md.ea-md h6 {
+    margin: 14px 0 6px;
+    line-height: 1.4;
+    font-weight: 600;
+}
+
+.ea-md.ea-md.ea-md h1 { font-size: 1.3em; }
+.ea-md.ea-md.ea-md h2 { font-size: 1.2em; }
+.ea-md.ea-md.ea-md h3 { font-size: 1.1em; }
+.ea-md.ea-md.ea-md h4,
+.ea-md.ea-md.ea-md h5,
+.ea-md.ea-md.ea-md h6 { font-size: 1em; }
+
+/* 表格：窄屏可横向滚动，不撑破消息列 */
+.ea-md.ea-md.ea-md table {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.ea-md.ea-md.ea-md th,
+.ea-md.ea-md.ea-md td {
+    border: 1px solid #e8e8e8;
+    text-align: left;
+    vertical-align: top;
+}
+
+.ea-md.ea-md.ea-md thead th {
+    background: #fafafa;
+    font-weight: 600;
+}
+
+.ea-md.ea-md.ea-md pre {
+    background: #f6f8fa;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.6;
+}
+
+.ea-md.ea-md.ea-md pre code {
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+}
+
+.ea-md.ea-md.ea-md :not(pre) > code {
+    background: #f1f3f6;
+    border: 1px solid #e6e9ee;
+    border-radius: 4px;
+    color: #39414d;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.ea-md.ea-md.ea-md blockquote {
+    margin: 8px 0;
+    padding: 2px 0 2px 12px;
+    border-left: 3px solid #e0e4ea;
+    color: #6b7280;
+}
+
+.ea-md.ea-md.ea-md img {
+    max-width: 100%;
+    border-radius: 8px;
+}
+
+/* 过程区内的 Markdown 字号随容器弱化 */
+.ea-chat-reasoning.ea-md.ea-md.ea-md {
+    font-size: 13px;
+}

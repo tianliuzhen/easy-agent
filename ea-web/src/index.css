@@ -4,9 +4,20 @@
     --ea-theme-primary: #1890ff;
 }
 
-/* 全局背景色 */
+/* 全局背景色。
+   margin 必须复位：浏览器默认 body{margin:8px}，上下共 16px，
+   会让 height:100vh 的布局整体溢出 16px，页面出现滚动条、
+   聊天输入框被顶出视口底部。 */
 body {
+    margin: 0;
     background-color: var(--ea-theme-background);
+}
+
+/* 全屏布局页（聊天等）要求根节点撑满视口 */
+html,
+body,
+#root {
+    height: 100%;
 }
 
 /* 覆盖 Sider 折叠按钮背景色 */
