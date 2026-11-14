@@ -11,7 +11,7 @@ import java.util.Map;
 public class JoinNodePlugin implements FlowNodePlugin {
     @Override
     public NodeMetadata metadata() {
-        return NodeMetadataSupport.metadata("JOIN", "控制", "聚合", "等待已激活分支并聚合数据", "MergeCellsOutlined",
+        return NodeMetadataSupport.metadata(FlowNodeTypes.JOIN, "控制", "聚合", "等待已激活分支并聚合数据", "MergeCellsOutlined",
                 List.of(
                         NodeMetadataSupport.port("control", "分支", PortKind.CONTROL, ValueType.ANY, true, true),
                         NodeMetadataSupport.port("items", "数据", PortKind.DATA, ValueType.ANY, false, true)),

@@ -201,6 +201,11 @@ public abstract class BaseAgent {
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
         while (decisionCnt < DECISION_CNT_LIMIT) {
+            // 被编排器取消（客户端断开、整体超时、同批节点失败）时不再发起下一轮大模型调用
+            if (agentContext.isCancelled() || Thread.currentThread().isInterrupted()) {
+                log.info("Agent 执行被取消，agentId={}, 已执行{}轮决策", agentContext.getAgentId(), decisionCnt - 1);
+                throw new AgentException("执行已取消");
+            }
             SseHelper.sendLog(sse, "第{}次大模型决策开始执行...", decisionCnt);
             AgentOutput agentOutput = null;
 

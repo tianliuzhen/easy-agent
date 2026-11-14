@@ -26,7 +26,7 @@ public class FlowRunRecorder {
             EaAgentFlowRunDO run = new EaAgentFlowRunDO().setRunId(context.getRunId())
                     .setFlowId(context.getFlowId()).setRevisionId(context.getRevisionId())
                     .setSessionId(context.getSessionId()).setRunType(context.isDebug() ? "DEBUG" : "CHAT")
-                    .setStatus("RUNNING").setInputJson(json(context.getInput()))
+                    .setStatus(FlowRunStatus.RUNNING.code()).setInputJson(json(context.getInput()))
                     .setInputTokens(0L).setOutputTokens(0L).setStartedAt(new Date());
             flowRunDAO.insertSelective(run);
         } catch (Exception ex) {
@@ -39,7 +39,7 @@ public class FlowRunRecorder {
         try {
             EaAgentFlowNodeRunDO run = new EaAgentFlowNodeRunDO().setRunId(context.getRunId())
                     .setNodeId(node.getId()).setNodeType(node.getType()).setAgentId(agentId)
-                    .setStatus("RUNNING").setAttempt(1).setInputJson(json(input))
+                    .setStatus(FlowRunStatus.RUNNING.code()).setAttempt(1).setInputJson(json(input))
                     .setInputTokens(0L).setOutputTokens(0L).setStartedAt(new Date());
             nodeRunDAO.insertSelective(run);
             return run.getId();
@@ -49,12 +49,12 @@ public class FlowRunRecorder {
         }
     }
 
-    public void finishNode(Long id, String status, Object output, long inputTokens,
+    public void finishNode(Long id, FlowRunStatus status, Object output, long inputTokens,
                            long outputTokens, String error) {
         if (id == null) return;
         if (nodeRunDAO == null) return;
         try {
-            nodeRunDAO.updateByPrimaryKeySelective(new EaAgentFlowNodeRunDO().setId(id).setStatus(status)
+            nodeRunDAO.updateByPrimaryKeySelective(new EaAgentFlowNodeRunDO().setId(id).setStatus(status.code())
                     .setOutputJson(json(output)).setErrorMessage(error).setInputTokens(inputTokens)
                     .setOutputTokens(outputTokens).setFinishedAt(new Date()));
         } catch (Exception ex) {
@@ -62,13 +62,13 @@ public class FlowRunRecorder {
         }
     }
 
-    public void finishFlow(FlowRunContext context, String status, Object output, long inputTokens,
+    public void finishFlow(FlowRunContext context, FlowRunStatus status, Object output, long inputTokens,
                            long outputTokens, String error) {
         if (flowRunDAO == null) return;
         try {
             EaAgentFlowRunDO existing = flowRunDAO.selectOne(new EaAgentFlowRunDO().setRunId(context.getRunId()));
             if (existing == null) return;
-            flowRunDAO.updateByPrimaryKeySelective(new EaAgentFlowRunDO().setId(existing.getId()).setStatus(status)
+            flowRunDAO.updateByPrimaryKeySelective(new EaAgentFlowRunDO().setId(existing.getId()).setStatus(status.code())
                     .setOutputJson(json(output)).setErrorMessage(error).setInputTokens(inputTokens)
                     .setOutputTokens(outputTokens).setFinishedAt(new Date()));
         } catch (Exception ex) {

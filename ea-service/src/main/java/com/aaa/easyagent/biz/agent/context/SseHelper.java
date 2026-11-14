@@ -6,7 +6,9 @@ import org.slf4j.helpers.MessageFormatter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Collections;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -26,14 +28,21 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 public class SseHelper {
 
-    // 为每个 SseEmitter 维护一个锁，用于同步发送
-    private static final ConcurrentHashMap<SseEmitter, ReentrantLock> emitterLocks = new ConcurrentHashMap<>();
+    /**
+     * 为每个 SseEmitter 维护一个锁，用于同步发送。
+     * <p>
+     * 使用弱键 Map：emitter 本身不被这张表强引用，连接结束后条目随 emitter 一起被 GC 回收。
+     * 原先用 ConcurrentHashMap 只在 IllegalStateException 分支 remove，正常结束的连接会永久
+     * 留在表里，每次会话（多 Agent 编排每次运行）泄漏一个条目。
+     */
+    private static final Map<SseEmitter, ReentrantLock> emitterLocks =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     /**
      * 获取或创建 SseEmitter 对应的锁
      */
     private static ReentrantLock getLock(SseEmitter sseEmitter) {
-        return emitterLocks.computeIfAbsent(sseEmitter, k -> new ReentrantLock());
+        return emitterLocks.computeIfAbsent(sseEmitter, emitter -> new ReentrantLock());
     }
 
     /**

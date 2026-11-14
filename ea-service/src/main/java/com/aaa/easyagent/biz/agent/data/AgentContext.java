@@ -7,6 +7,7 @@ import lombok.Data;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import com.aaa.easyagent.biz.agent.context.FunctionCallback;
 
 /**
@@ -105,4 +106,17 @@ public class AgentContext {
 
     /** Flow 节点标识，仅用于运行观测。 */
     private String flowNodeId;
+
+    /**
+     * 取消信号。
+     * <p>
+     * 多 Agent 编排在客户端断开、整体超时或同批节点失败时置位，Agent 决策循环每轮开始前检查，
+     * 不再发起下一次大模型调用。单 Agent 直跑时为默认值，恒为 false，行为不变。
+     */
+    private BooleanSupplier cancelledSupplier = () -> false;
+
+    /** 本次执行是否已被外部取消 */
+    public boolean isCancelled() {
+        return cancelledSupplier != null && cancelledSupplier.getAsBoolean();
+    }
 }

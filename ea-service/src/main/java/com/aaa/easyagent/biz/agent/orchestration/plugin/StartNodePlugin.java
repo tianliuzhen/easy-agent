@@ -12,7 +12,7 @@ import java.util.Map;
 public class StartNodePlugin implements FlowNodePlugin {
     @Override
     public NodeMetadata metadata() {
-        return NodeMetadataSupport.metadata("START", "基础", "开始", "声明 Flow 输入", "PlayCircleOutlined",
+        return NodeMetadataSupport.metadata(FlowNodeTypes.START, "基础", "开始", "声明 Flow 输入", "PlayCircleOutlined",
                 List.of(), List.of(
                         NodeMetadataSupport.port("control", "开始", PortKind.CONTROL, ValueType.ANY, false, true),
                         NodeMetadataSupport.port("input", "用户输入", PortKind.DATA, ValueType.ANY, false, true),

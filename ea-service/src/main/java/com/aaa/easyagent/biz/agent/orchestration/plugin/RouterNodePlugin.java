@@ -2,6 +2,7 @@ package com.aaa.easyagent.biz.agent.orchestration.plugin;
 
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.orchestration.*;
+import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.llm.LLmModelSelector;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import com.aaa.easyagent.core.domain.flow.*;
@@ -36,7 +37,7 @@ public class RouterNodePlugin implements FlowNodePlugin {
                         "label", Map.of("type", "string", "title", "分支名称"),
                         "description", Map.of("type", "string", "title", "匹配说明")),
                 "required", List.of("key", "label"));
-        return NodeMetadataSupport.metadata("ROUTER", "控制", "路由", "使用 Agent 选择一个出口", "BranchesOutlined",
+        return NodeMetadataSupport.metadata(FlowNodeTypes.ROUTER, "控制", "路由", "使用 Agent 选择一个出口", "BranchesOutlined",
                 List.of(NodeMetadataSupport.port("control", "执行", PortKind.CONTROL, ValueType.ANY, true, false),
                         NodeMetadataSupport.port("input", "问题", PortKind.DATA, ValueType.ANY, true, false)),
                 List.of(NodeMetadataSupport.port("route", "分支 Key", PortKind.DATA, ValueType.STRING, false, true)),
@@ -88,7 +89,7 @@ public class RouterNodePlugin implements FlowNodePlugin {
     public NodeExecutionResult execute(NodeExecutionContext context) {
         long agentId = Long.parseLong(String.valueOf(context.getNode().getConfig().get("agentId")));
         EaAgentResult agent = agentManagerService.getAgent(agentId);
-        if (agent == null) throw new IllegalArgumentException("路由 Agent 不存在：" + agentId);
+        if (agent == null) throw new AgentException("路由 Agent 不存在：" + agentId);
         AgentContext agentContext = new AgentContext();
         agentContext.setAgentId(agent.getId());
         agentContext.setAgentName(agent.getAgentName());
@@ -108,7 +109,13 @@ public class RouterNodePlugin implements FlowNodePlugin {
         messages.add(new UserMessage(String.valueOf(context.getInputs().get("input"))));
         String choice = ChatResponseUtil.getResStr(model.call(new Prompt(messages))).trim();
         String fallback = String.valueOf(context.getNode().getConfig().getOrDefault("fallback", keys.isEmpty() ? "" : keys.get(0)));
-        String route = keys.stream().filter(choice::contains).findFirst().orElse(fallback);
+        String matched = keys.stream().filter(choice::contains).findFirst().orElse(null);
+        // 命中不了就走 fallback，但必须留痕：否则「模型答歪了」和「本来就该走这个分支」在日志里无法区分
+        if (matched == null) {
+            context.getEvents().publish(FlowEventType.NODE_LOG, context.getNode(), agent.getId(),
+                    "路由未命中任何分支，模型输出=" + choice + "，按 fallback 分支执行：" + fallback);
+        }
+        String route = matched == null ? fallback : matched;
         return new NodeExecutionResult().setRouteKey(route).setOutputs(Map.of("route", route));
     }
 

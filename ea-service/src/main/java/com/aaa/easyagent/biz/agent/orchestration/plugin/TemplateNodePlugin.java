@@ -15,7 +15,7 @@ public class TemplateNodePlugin implements FlowNodePlugin {
 
     @Override
     public NodeMetadata metadata() {
-        return NodeMetadataSupport.metadata("TEMPLATE", "数据", "模板转换", "把多个输入渲染为文本", "FileTextOutlined",
+        return NodeMetadataSupport.metadata(FlowNodeTypes.TEMPLATE, "数据", "模板转换", "把多个输入渲染为文本", "FileTextOutlined",
                 List.of(
                         NodeMetadataSupport.port("control", "执行", PortKind.CONTROL, ValueType.ANY, true, false),
                         NodeMetadataSupport.port("data", "模板变量", PortKind.DATA, ValueType.ANY, false, true)),

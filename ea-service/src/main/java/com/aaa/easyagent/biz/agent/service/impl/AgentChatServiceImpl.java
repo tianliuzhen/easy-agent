@@ -11,7 +11,10 @@ import com.aaa.easyagent.biz.agent.orchestration.CompiledFlowPlan;
 import com.aaa.easyagent.biz.agent.orchestration.FlowEngine;
 import com.aaa.easyagent.biz.agent.orchestration.FlowExecutionResult;
 import com.aaa.easyagent.biz.agent.orchestration.FlowRunContext;
+import com.aaa.easyagent.biz.agent.orchestration.FlowRunStatus;
 import com.aaa.easyagent.biz.agent.orchestration.FlowCompiler;
+import com.aaa.easyagent.common.config.exception.AgentException;
+import com.aaa.easyagent.core.domain.flow.FlowDefinition;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
 import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
 import com.aaa.easyagent.core.domain.DO.EaChatConversationDO;
@@ -34,6 +37,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -196,28 +202,48 @@ public class AgentChatServiceImpl implements AgentChatService {
         }
         Long pinnedRevisionId = existing != null && request.getFlowId().equals(existing.getFlowId())
                 ? existing.getFlowRevisionId() : null;
-        com.aaa.easyagent.core.domain.flow.FlowDefinition definition = pinnedRevisionId == null
+        FlowDefinition definition = pinnedRevisionId == null
                 ? flowStudioService.published(request.getFlowId())
                 : flowStudioService.revision(request.getFlowId(), pinnedRevisionId);
         CompiledFlowPlan plan = flowCompiler.compile(definition);
-        Long firstAgentId = definition.getNodes().stream().filter(node -> node.getConfig().get("agentId") != null)
-                .map(node -> node.getConfig().get("agentId")).filter(java.util.Objects::nonNull)
-                .map(value -> Long.valueOf(String.valueOf(value))).findFirst().orElse(1L);
-        AgentContext convCtx = new AgentContext();
-        convCtx.setAgentId(firstAgentId);
-        convCtx.setFlowId(request.getFlowId());
-        convCtx.setFlowRevisionId(definition.getRevisionId());
-        convCtx.setSessionId(sessionId);
-        ChatRecordSaver.startNewConversation(convCtx, question);
-        FlowRunContext context = FlowRunContext.builder().runId(java.util.UUID.randomUUID().toString())
+        AgentContext conversationContext = new AgentContext();
+        Long firstAgentId = firstConfiguredAgentId(definition);
+        if (firstAgentId == null) {
+            // 整张图都没有 Agent 节点（例如纯模板图），会话不归属任何 Agent；
+            // 旧实现兜底成 agentId=1，会把会话错记到某个真实 Agent 上。
+            log.warn("Flow 未包含配置了 agentId 的节点，会话不归属 Agent，flowId={}", request.getFlowId());
+        } else {
+            conversationContext.setAgentId(firstAgentId);
+        }
+        conversationContext.setFlowId(request.getFlowId());
+        conversationContext.setFlowRevisionId(definition.getRevisionId());
+        conversationContext.setSessionId(sessionId);
+        ChatRecordSaver.startNewConversation(conversationContext, question);
+        FlowRunContext context = FlowRunContext.builder().runId(UUID.randomUUID().toString())
                 .flowId(request.getFlowId()).revisionId(definition.getRevisionId()).sessionId(sessionId)
                 .imageBase64(imageBase64).syncMode(syncMode).sseEmitter(sseEmitter)
-                .input(java.util.Map.of("input", question, "question", question)).build();
+                .input(Map.of("input", question, "question", question)).build();
+        // 客户端断开后不再继续调度剩余节点，避免用户已经离开还在消耗模型额度
+        if (sseEmitter != null) {
+            sseEmitter.onCompletion(() -> context.cancel("会话连接已关闭"));
+            sseEmitter.onTimeout(() -> context.cancel("会话连接超时"));
+            sseEmitter.onError(error -> context.cancel("会话连接异常：" + error.getMessage()));
+        }
         FlowExecutionResult result = flowEngine.execute(plan, context);
         if (sseEmitter != null) sseEmitter.complete();
-        if (!"SUCCEEDED".equals(result.getStatus())) {
+        // 执行未成功不再静默返回 null。
+        // 失败一定要让调用方知道；取消通常是客户端自己断开，SSE 侧已经没人接收，只记日志不再抛异常，
+        // 但同步调用（无 SSE，取消只可能来自整体超时）仍需要抛出，否则调用方拿到 null 无从判断。
+        if (!FlowRunStatus.SUCCEEDED.code().equals(result.getStatus())) {
             ChatRecordSaver.clearThreadLocal();
-            return null;
+            log.warn("Flow 执行未成功，flowId={}, runId={}, status={}",
+                    request.getFlowId(), result.getRunId(), result.getStatus());
+            boolean cancelled = FlowRunStatus.CANCELLED.code().equals(result.getStatus());
+            if (cancelled && !syncMode) {
+                return null;
+            }
+            throw new AgentException("多 Agent 编排执行" + (cancelled ? "已取消" : "失败")
+                    + "，flowId=" + request.getFlowId() + "，runId=" + result.getRunId());
         }
         String answer = result.getResult() == null ? "" : String.valueOf(result.getResult());
         ChatRecordSaver.addFinalAnswer(answer);
@@ -228,5 +254,18 @@ public class AgentChatServiceImpl implements AgentChatService {
                 result.getInputTokens(), result.getOutputTokens(),
                 BigDecimal.valueOf(System.currentTimeMillis() - startedAt));
         return answer;
+    }
+
+    /**
+     * 取图里第一个配置了 agentId 的节点，用于会话记录归属。
+     * 一张图可以完全由 TEMPLATE 等非 Agent 节点组成，此时没有可归属的 agentId。
+     */
+    private Long firstConfiguredAgentId(FlowDefinition definition) {
+        return definition.getNodes().stream()
+                .map(node -> node.getConfig().get("agentId"))
+                .filter(Objects::nonNull)
+                .map(value -> Long.valueOf(String.valueOf(value)))
+                .findFirst()
+                .orElse(null);
     }
 }

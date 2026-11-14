@@ -1,5 +1,6 @@
 package com.aaa.easyagent.biz.agent.orchestration;
 
+import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.util.JacksonUtil;
 import com.aaa.easyagent.core.domain.flow.*;
 import lombok.RequiredArgsConstructor;
@@ -46,8 +47,8 @@ public class FlowCompiler {
             plugin.validate(node, result);
         }
 
-        long starts = nodes.stream().filter(n -> "START".equals(n.getType())).count();
-        long ends = nodes.stream().filter(n -> "END".equals(n.getType())).count();
+        long starts = nodes.stream().filter(node -> FlowNodeTypes.START.equals(node.getType())).count();
+        long ends = nodes.stream().filter(node -> FlowNodeTypes.END.equals(node.getType())).count();
         if (starts != 1) {
             result.addError("FLOW", null, "START_COUNT", "Flow 必须且只能包含一个 START 节点");
         }
@@ -87,7 +88,8 @@ public class FlowCompiler {
                         + sourcePort.getValueType() + " → " + targetPort.getValueType());
             }
             if (edge.getKind() == EdgeKind.WORKER
-                    && (!("SUPERVISOR".equals(sourceNode.getType())) || !("AGENT".equals(targetNode.getType())))) {
+                    && (!FlowNodeTypes.SUPERVISOR.equals(sourceNode.getType())
+                        || !FlowNodeTypes.AGENT.equals(targetNode.getType()))) {
                 result.addError("EDGE", edge.getId(), "WORKER_TOPOLOGY",
                         "Worker 边只能从 SUPERVISOR 连接到 AGENT");
             }
@@ -175,19 +177,25 @@ public class FlowCompiler {
                 break;
             }
         }
-        nodes.stream().filter(n -> "START".equals(n.getType())).findFirst().ifPresent(start -> {
+        // Worker Agent 由 SUPERVISOR 通过 Worker 边动态调用，本身不接控制边，不参与可达性检查。
+        // 旧判断用「有没有 control 输入端口」识别 Worker，而 AGENT 的 metadata 恒定声明了 control
+        // 端口，等价于不过滤，导致每个 Worker 都被误报一条 UNREACHABLE。
+        Set<String> workerNodeIds = edges.stream()
+                .filter(edge -> edge.getKind() == EdgeKind.WORKER && edge.getTarget() != null)
+                .map(edge -> edge.getTarget().getNodeId()).collect(Collectors.toSet());
+        nodes.stream().filter(node -> FlowNodeTypes.START.equals(node.getType())).findFirst().ifPresent(start -> {
             Set<String> reachable = new HashSet<>();
             visit(start.getId(), graph, reachable);
-            nodes.stream().filter(n -> !"AGENT".equals(n.getType()) || hasControlPort(n))
-                    .filter(n -> !reachable.contains(n.getId()))
-                    .forEach(n -> result.addWarning("NODE", n.getId(), "UNREACHABLE", "节点无法从 START 到达"));
+            nodes.stream().filter(node -> !workerNodeIds.contains(node.getId()))
+                    .filter(node -> !reachable.contains(node.getId()))
+                    .forEach(node -> result.addWarning("NODE", node.getId(), "UNREACHABLE", "节点无法从 START 到达"));
         });
     }
 
     private void validateWorkerNodes(List<FlowNodeDefinition> nodes, List<FlowEdgeDefinition> edges,
                                      FlowValidationResult result) {
         for (FlowNodeDefinition node : nodes) {
-            if (!"AGENT".equals(node.getType())) continue;
+            if (!FlowNodeTypes.AGENT.equals(node.getType())) continue;
             boolean worker = edges.stream().anyMatch(edge -> edge.getKind() == EdgeKind.WORKER
                     && edge.getTarget() != null && node.getId().equals(edge.getTarget().getNodeId()));
             boolean control = edges.stream().anyMatch(edge -> edge.getKind() == EdgeKind.CONTROL
@@ -197,10 +205,6 @@ public class FlowCompiler {
                         "同一个 Agent 不能同时作为 Worker 和普通控制流节点");
             }
         }
-    }
-
-    private boolean hasControlPort(FlowNodeDefinition node) {
-        return node.getInputPorts().stream().anyMatch(p -> p.getKind() == PortKind.CONTROL);
     }
 
     private boolean hasCycle(String node, Map<String, List<String>> graph, Set<String> visiting, Set<String> visited) {
@@ -241,8 +245,8 @@ public class FlowCompiler {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(JacksonUtil.beanToStr(definition).getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
+        } catch (NoSuchAlgorithmException noSuchAlgorithmException) {
+            throw new AgentException("计算 Flow 定义校验和失败", noSuchAlgorithmException);
         }
     }
 }

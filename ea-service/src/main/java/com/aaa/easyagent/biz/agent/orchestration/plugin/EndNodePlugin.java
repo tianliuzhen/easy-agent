@@ -11,7 +11,7 @@ import java.util.Map;
 public class EndNodePlugin implements FlowNodePlugin {
     @Override
     public NodeMetadata metadata() {
-        return NodeMetadataSupport.metadata("END", "基础", "结束", "声明 Flow 最终输出", "StopOutlined",
+        return NodeMetadataSupport.metadata(FlowNodeTypes.END, "基础", "结束", "声明 Flow 最终输出", "StopOutlined",
                 List.of(
                         NodeMetadataSupport.port("control", "执行", PortKind.CONTROL, ValueType.ANY, true, true),
                         NodeMetadataSupport.port("result", "最终结果", PortKind.DATA, ValueType.ANY, true, false)),
