@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.util.StringUtils;
 
 /**
@@ -19,6 +20,11 @@ import org.springframework.util.StringUtils;
 @ConditionalOnProperty(name = "easy-agent.vectorstore.provider", havingValue = "milvus")
 public class MilvusVectorStoreConfig {
 
+    /**
+     * 首次使用向量功能时才连接 Milvus，避免外部服务不可用阻断应用启动。
+     * 调用方通过 ObjectProvider 按需获取；初始化失败仍向调用方抛出，后续获取可重新尝试。
+     */
+    @Lazy
     @Bean(destroyMethod = "close")
     public MilvusServiceClient milvusServiceClient(MilvusVectorProperties properties) {
         ConnectParam.Builder builder = ConnectParam.newBuilder()
