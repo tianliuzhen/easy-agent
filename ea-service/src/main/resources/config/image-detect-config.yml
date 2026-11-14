@@ -1,0 +1,26 @@
+# 服装主体分割：本地 ONNX CPU 推理，只返回候选区域，不依赖 Milvus 或远程模型。
+easy-agent:
+  image-detect:
+    # 默认关闭，不加载模型、不占用推理内存；设置为 true 后重启启用。
+    enabled: false
+    # 模型随 JAR 打包，也支持 file:./models/seg_clothes.onnx 外部文件。
+    model-location: classpath:model/seg_clothes.onnx
+    # 保持模型训练时的 512 像素输入，降低分辨率会漏掉鞋、包等小目标。
+    input-size: 512
+    threads: 2
+    # 关闭 ONNX 内存池，减少低频推理时的常驻堆外内存。
+    arena-allocator: false
+    # 单个候选区域至少占整图 0.4%，避免过滤掉鞋、包等小目标。
+    min-area-ratio: 0.004
+    # 按外接框面积降序，最多返回 8 个候选区域。
+    max-regions: 8
+    include-body-parts: false
+    # 单张图片上限，单位字节：5 MiB。
+    max-image-bytes: 5242880
+
+# 与检测服务的图片上限对齐，Multipart 请求额外预留表单开销。
+spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
