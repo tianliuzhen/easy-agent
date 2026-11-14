@@ -21,17 +21,11 @@
       "WebSearch",
       "Agent",
       "NotebookEdit",
-      "Skill"
+      "Skill",
+      "mcp__cmux-cua__start_session",
+      "mcp__cmux-cua__zoom"
     ],
-    "deny": [
-      "Bash(rm:*)",
-      "Bash(rmdir:*)",
-      "Bash(git clean:*)",
-      "Bash(git rm:*)",
-      "Bash(trash:*)",
-      "Bash(find * -delete*)",
-      "Bash(find * -exec rm*)"
-    ],
+    "deny": [],
     "defaultMode": "acceptEdits"
   }
 }
