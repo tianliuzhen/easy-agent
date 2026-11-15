@@ -3,6 +3,7 @@ package com.aaa.easyagent.common.config.security;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -112,6 +113,12 @@ public class SecurityConfig {
 
                 // 配置权限规则
                 .authorizeHttpRequests(auth -> auth
+                        // SSE 等异步请求在完成时会被 Tomcat 再次派发（ASYNC）回过滤器链，
+                        // 那时原始请求的 SecurityContext 已清理，授权检查会判定未认证并拒绝该次派发；
+                        // 但响应早已提交 200 与流数据，无法再返回 401，连接被直接掐断、
+                        // chunked 终止块未写出，浏览器报 ERR_INCOMPLETE_CHUNKED_ENCODING。
+                        // 放行 ASYNC/ERROR 派发：真正的鉴权在首次 REQUEST 派发时已经完成。
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         // 公开接口（无需认证）
                         .requestMatchers(
                                 "/auth/**",           // 认证相关接口

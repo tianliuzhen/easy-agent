@@ -87,6 +87,17 @@ const nodeRunStatus = (eventType?: string): NodeRunStatus | undefined => {
   return undefined;
 };
 
+/**
+ * 哨兵错误：已收到终态后用它中止 fetchEventSource 的重连，外层据此不提示错误。
+ * fetchEventSource 只有在 onerror 里抛出才会停止重试，所以必须抛一个可识别的错误。
+ */
+class DebugRunClosed extends Error {
+  constructor() {
+    super('debug run closed after terminal event');
+    this.name = 'DebugRunClosed';
+  }
+}
+
 const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
   const {message} = App.useApp();
   const navigate = useNavigate();
@@ -239,6 +250,11 @@ const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
 
   const debug = async () => {
     setDebugging(true);
+    // 服务端是否已经给出终态（flow_succeeded / flow_failed）。
+    // 终态之后连接必然关闭，此时的传输层错误不是用户需要知道的失败：
+    // 实测服务端收尾时没有写 chunked 终止块，浏览器报 ERR_INCOMPLETE_CHUNKED_ENCODING，
+    // 但那一刻所有事件（含终态）都已经收到，弹「网络错误」是误报。
+    let terminalReceived = false;
     try {
       await save(); setEvents([]); setNodes(current => current.map(node => ({...node, data: {...node.data, runStatus: undefined}})));
       const token = localStorage.getItem('AUTH_TOKEN');
@@ -247,6 +263,7 @@ const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
         body: JSON.stringify({definition: toDefinition(), input: {input: debugInput, question: debugInput}, sessionId: `debug-${Date.now()}`}), openWhenHidden: true,
         onmessage: event => {
           const data = JSON.parse(event.data) as {eventType?: string; nodeId?: string; nodeName?: string; content?: string};
+          if (data.eventType === 'flow_succeeded' || data.eventType === 'flow_failed') terminalReceived = true;
           const nextEvent: FlowDebugEvent = {eventType: data.eventType || 'event', nodeId: data.nodeId, nodeName: data.nodeName, content: data.content || ''};
           setEvents(current => {
             const last = current[current.length - 1];
@@ -258,10 +275,20 @@ const FlowStudioCanvas = ({fullscreen = false}: {fullscreen?: boolean}) => {
           });
           const runStatus = nodeRunStatus(data.eventType);
           if (data.nodeId && runStatus) setNodes(current => current.map(node => node.id === data.nodeId ? {...node, data: {...node.data, runStatus}} : node));
-        }, onerror: error => { throw error; },
+        },
+        // 服务端正常关闭连接：直接结束，不触发重连
+        onclose: () => undefined,
+        onerror: error => {
+          // 已拿到终态：连接关闭属于正常收尾，咽掉错误并停止重连（抛出才会停止重试）
+          if (terminalReceived) throw new DebugRunClosed();
+          // 未拿到终态：是真失败，抛出交给外层提示
+          throw error;
+        },
       });
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '试运行失败');
+      if (!(error instanceof DebugRunClosed)) {
+        message.error(error instanceof Error ? error.message : '试运行失败');
+      }
     } finally {
       setDebugging(false);
     }

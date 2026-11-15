@@ -6,10 +6,11 @@ export {
     ChatMessageItem,
     MarkdownContent,
     TracePanel,
-    ToolCallList,
+    ToolCallGroup,
     buildMessageTrace,
     parseToolTrace,
     formatJson,
+    summarizeToolInput,
 } from './message';
 
 export type {
@@ -17,6 +18,7 @@ export type {
     ChatMessageItemProps,
     MessageTrace,
     ToolTrace,
+    TraceStep,
 } from './message';
 
 // 聊天面板与输入区

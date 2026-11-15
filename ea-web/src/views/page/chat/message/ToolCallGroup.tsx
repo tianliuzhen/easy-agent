@@ -1,39 +1,61 @@
 import React, {useState} from 'react';
-import {Drawer, Typography} from 'antd';
-import {CodeOutlined, RightOutlined} from '@ant-design/icons';
-import {formatJson, type ToolTrace} from './traceModel';
+import {Drawer, Tooltip, Typography} from 'antd';
+import {CodeOutlined} from '@ant-design/icons';
+import {formatJson, summarizeToolInput, type ToolTrace} from './traceModel';
 import './chatMessage.css';
 
 const {Text} = Typography;
 
-interface ToolCallListProps {
+interface ToolCallGroupProps {
+    /** 一组连续的工具调用，横向排列 */
     tools: ToolTrace[];
 }
 
-/** 工具调用列表：每次调用一行，点击打开详情抽屉 */
-const ToolCallList: React.FC<ToolCallListProps> = ({tools}) => {
+/**
+ * 一组连续工具调用的紧凑展示。
+ * <p>
+ * 每次调用只占一个图标：模型一轮常并行发多个 tool_call，
+ * 一个调用一整行会把推理文字挤散，读者看到的是一片刷屏。
+ * 悬停显示工具名与入参（纯图标无法区分同名调用），点击打开详情抽屉。
+ */
+const ToolCallGroup: React.FC<ToolCallGroupProps> = ({tools}) => {
     const [activeTool, setActiveTool] = useState<ToolTrace | null>(null);
 
-    if (tools.length === 0) return null;
+    if (tools.length === 0) {
+        return null;
+    }
 
     return (
         <>
-            {tools.map((tool) => (
-                <button
-                    key={tool.key}
-                    type="button"
-                    className="ea-chat-tool"
-                    onClick={() => setActiveTool(tool)}
-                >
-                    <CodeOutlined className="ea-chat-tool-icon"/>
-                    <span className="ea-chat-tool-name">{tool.name || '工具调用'}</span>
-                    <span className="ea-chat-tool-hint">
-                        详情 <RightOutlined style={{fontSize: 9}}/>
-                    </span>
-                </button>
-            ))}
+            <div className="ea-chat-tool-group">
+                {tools.map((tool) => (
+                    <Tooltip key={tool.key} title={tooltipTitle(tool)} placement="top">
+                        <button
+                            type="button"
+                            className="ea-chat-tool-chip"
+                            aria-label={`查看工具调用详情：${tool.name || '工具调用'}`}
+                            onClick={() => setActiveTool(tool)}
+                        >
+                            <CodeOutlined/>
+                        </button>
+                    </Tooltip>
+                ))}
+            </div>
             <ToolDetailDrawer tool={activeTool} onClose={() => setActiveTool(null)}/>
         </>
+    );
+};
+
+/** 悬停提示：工具名 + 入参摘要，用于区分同名的多次调用 */
+const tooltipTitle = (tool: ToolTrace): React.ReactNode => {
+    const summary = summarizeToolInput(tool.inputParams);
+    return (
+        <div style={{fontSize: 12, lineHeight: 1.6}}>
+            <div style={{fontWeight: 600}}>{tool.name || '工具调用'}</div>
+            {summary && (
+                <div style={{opacity: 0.85, fontFamily: 'ui-monospace, Menlo, monospace'}}>{summary}</div>
+            )}
+        </div>
     );
 };
 
@@ -83,4 +105,4 @@ const CodeBlock: React.FC<{title: string; content: string}> = ({title, content})
     </div>
 );
 
-export default ToolCallList;
+export default ToolCallGroup;

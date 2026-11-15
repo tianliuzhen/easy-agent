@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {CaretRightOutlined, LoadingOutlined} from '@ant-design/icons';
 import MarkdownContent from './MarkdownContent';
-import ToolCallList from './ToolCallList';
+import ToolCallGroup from './ToolCallGroup';
 import type {MessageTrace} from './traceModel';
 import {useThinkingVerb} from './thinkingVerbs';
 import './chatMessage.css';
@@ -13,7 +13,10 @@ interface TracePanelProps {
 }
 
 /**
- * 执行过程面板：推理、工具调用、运行日志。
+ * 执行过程面板：按真实时序展示推理与工具调用，日志放在末尾。
+ * <p>
+ * 步骤按时序渲染而不是「先列全部推理、再列全部工具」：模型的真实行为是
+ * 思考 → 调工具 → 看结果 → 继续思考，拍平后读者无法判断哪次思考促成了哪次调用。
  * <p>
  * 展开策略：生成中自动展开，便于观察进度；生成结束自动收起，让回答成为视觉主体。
  * 用户手动操作后以用户选择为准，不再被自动收起覆盖。
@@ -37,7 +40,7 @@ const TracePanel: React.FC<TracePanelProps> = ({trace, streaming}) => {
         const panel = panelRef.current;
         if (!panel) return;
         panel.scrollTop = panel.scrollHeight;
-    }, [open, streaming, trace.reasoning, trace.tools.length, trace.logs.length]);
+    }, [open, streaming, trace.steps.length, trace.reasoningLength, trace.logs.length]);
 
     const handleToggle = () => {
         toggledByUser.current = true;
@@ -54,21 +57,24 @@ const TracePanel: React.FC<TracePanelProps> = ({trace, streaming}) => {
                 <span key={thinkingVerb ?? 'done'} className={streaming ? 'ea-chat-trace-verb' : undefined}>
                     {streaming ? `${thinkingVerb}…` : '已深度思考'}
                 </span>
-                {/* 概要只在生成结束后展示：推理字数每个 chunk 都在变，
+                {/* 概要只在生成结束后展示：生成中这些数字每个 chunk 都在变，
                     持续改写会让这行右对齐文字不停抖动 */}
                 {!streaming && <span className="ea-chat-trace-meta">{describeTrace(trace)}</span>}
             </button>
 
             {open && (
                 <div className="ea-chat-trace-panel" ref={panelRef}>
-                    {trace.reasoning && (
-                        <MarkdownContent
-                            content={trace.reasoning}
-                            streaming={streaming}
-                            className="ea-chat-reasoning"
-                        />
-                    )}
-                    <ToolCallList tools={trace.tools}/>
+                    {trace.steps.map((step) => (
+                        step.kind === 'reasoning'
+                            ? <MarkdownContent
+                                key={step.key}
+                                content={step.content}
+                                streaming={streaming}
+                                className="ea-chat-reasoning"
+                            />
+                            : <ToolCallGroup key={step.key} tools={step.tools}/>
+                    ))}
+
                     {trace.logs.length > 0 && (
                         <div className="ea-chat-logs">
                             {trace.logs.map((log, index) => (
@@ -85,8 +91,8 @@ const TracePanel: React.FC<TracePanelProps> = ({trace, streaming}) => {
 /** 面板右侧的概要：有几次工具调用、推理多长 */
 const describeTrace = (trace: MessageTrace): string => {
     const parts: string[] = [];
-    if (trace.tools.length > 0) parts.push(`${trace.tools.length} 次工具调用`);
-    if (trace.reasoning) parts.push(`${trace.reasoning.length} 字推理`);
+    if (trace.toolCount > 0) parts.push(`${trace.toolCount} 次工具调用`);
+    if (trace.reasoningLength > 0) parts.push(`${trace.reasoningLength} 字推理`);
     return parts.join(' · ');
 };
 

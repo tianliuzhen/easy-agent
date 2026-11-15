@@ -264,47 +264,42 @@
 }
 
 /* --------------------------------------------------------------------------
-   工具调用行
+   工具调用：连续的多次调用横向排成一排，每次只占一个图标
    -------------------------------------------------------------------------- */
-.ea-chat-tool {
+.ea-chat-tool-group {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 7px 10px;
-    border: 1px solid #ebedf0;
+    gap: 6px;
+    /* 与上下推理文字之间留出呼吸，但不像整行卡片那样割裂段落 */
+    margin: 2px 0;
+}
+
+.ea-chat-tool-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #dde4ef;
     border-radius: 8px;
     background: #fff;
+    color: #4f6596;
+    font-size: 14px;
     cursor: pointer;
-    font-size: 12.5px;
-    color: #1f2328;
-    text-align: left;
-    font-family: inherit;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
-.ea-chat-tool:hover {
-    border-color: #c7d4e8;
-    background: #f7f9fc;
+.ea-chat-tool-chip:hover {
+    border-color: #a9b9d6;
+    background: #f4f7fd;
+    transform: translateY(-1px);
 }
 
-.ea-chat-tool-icon {
-    color: #5c74a8;
-    font-size: 13px;
-    flex-shrink: 0;
-}
-
-.ea-chat-tool-name {
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ea-chat-tool-hint {
-    margin-left: auto;
-    font-size: 11.5px;
-    color: #9aa1ab;
-    flex-shrink: 0;
+.ea-chat-tool-chip:focus-visible {
+    outline: 2px solid #7389b8;
+    outline-offset: 1px;
 }
 
 .ea-chat-tool-code {
