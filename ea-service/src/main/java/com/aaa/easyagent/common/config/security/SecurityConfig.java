@@ -100,6 +100,7 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        var a = "";
         http
                 // 禁用 CSRF（使用 Cookie 存储 JWT）
                 .csrf(csrf -> csrf.disable())
@@ -113,11 +114,26 @@ public class SecurityConfig {
 
                 // 配置权限规则
                 .authorizeHttpRequests(auth -> auth
-                        // SSE 等异步请求在完成时会被 Tomcat 再次派发（ASYNC）回过滤器链，
-                        // 那时原始请求的 SecurityContext 已清理，授权检查会判定未认证并拒绝该次派发；
-                        // 但响应早已提交 200 与流数据，无法再返回 401，连接被直接掐断、
-                        // chunked 终止块未写出，浏览器报 ERR_INCOMPLETE_CHUNKED_ENCODING。
-                        // 放行 ASYNC/ERROR 派发：真正的鉴权在首次 REQUEST 派发时已经完成。
+                        /*
+                         * SSE 等异步请求在完成时会被 Tomcat 再次派发（ASYNC）回过滤器链，
+                         * 那时原始请求的 SecurityContext 已清理，授权检查会判定未认证并拒绝该次派发；
+                         * 但响应早已提交 200 与流数据，无法再返回 401，连接被直接掐断、
+                         * chunked 终止块未写出，浏览器报 ERR_INCOMPLETE_CHUNKED_ENCODING。
+                         *
+                         * 放行 ASYNC/ERROR 派发：这两种是容器内部的二次派发，同一请求的身份在首次
+                         * REQUEST 派发时已校验完成。浏览器发起的请求恒为 REQUEST 类型，匹配不到
+                         * 该规则，认证未被削弱。
+                         *
+                         * 本项目受此影响的流式（SSE）接口：
+                         *   GET  /eaAgent/ai/streamChatWith   单 Agent 聊天流
+                         *   POST /eaAgent/ai/chat             单 Agent 聊天流（流式/同步双模）
+                         *   POST /eaAgent/flow/{flowId}/debug-run   多 Agent 编排调试试运行
+                         * 以上均需登录，由本规则保证收尾派发不被授权检查拒绝。
+                         * （/example/** 下的演示流式接口本身免认证，不受影响）
+                         *
+                         * 注意：把 SSE 路径放进下方免认证名单同样能规避本问题，但那是副作用而非
+                         * 解法——免认证意味着接口对任何人开放。
+                         */
                         .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         // 公开接口（无需认证）
                         .requestMatchers(
@@ -131,9 +147,6 @@ public class SecurityConfig {
                                 "/swagger-ui/**",     // Swagger UI
                                 "/swagger-ui.html",    // Swagger页面
                                 "/example/**",         // 演示接口
-                                "/eaAgent/ai/streamChatWith",   // ai流接口
-                                "/eaAgent/ai/chat",   // ai流接口
-                                "/example/**",    // ai流接口
                                 "/imageSearch/file/**",   // 图片文件读取（<img> 不带 JWT）
                                 "/imageSearch/import/**"   // 批量导入接口
                         ).permitAll()
