@@ -1,6 +1,9 @@
 package com.aaa.easyagent.biz.agent.context;
 
 import com.aaa.easyagent.biz.agent.data.AgentContext;
+import com.aaa.easyagent.biz.agent.service.ChatTurnRecorder;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceRecorder;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceSource;
 import com.aaa.easyagent.biz.agent.data.ToolDefinition;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
@@ -22,9 +25,20 @@ import java.util.stream.Collectors;
 public class AgentContextFactory {
     private final ToolMangerService toolMangerService;
     private final McpToolIntegrationService mcpToolIntegrationService;
+    private final ChatTurnRecorder chatTurnRecorder;
 
+    /**
+     * 构建运行上下文。
+     * <p>
+     * 轨迹收集器与对话持久化入口都挂在上下文上随链路传递：BaseAgent 不是 Spring Bean，
+     * 无法注入，原先靠 static 持有 service，既不可测也在 reactor 线程上失效。
+     *
+     * @param traceRecorder 本轮轨迹收集器。编排场景传入节点视图，使各节点轨迹汇总到同一轮对话；
+     *                      传 null 则新建一个独立的收集器
+     */
     public AgentContext build(EaAgentResult agent, SseEmitter sse, String sessionId,
-                              String imageBase64, boolean syncMode) {
+                              String imageBase64, boolean syncMode,
+                              ChatTraceRecorder traceRecorder) {
         AgentContext context = new AgentContext();
         context.setAgentId(agent.getId());
         context.setAgentName(agent.getAgentName());
@@ -45,6 +59,15 @@ public class AgentContextFactory {
         context.setToolRunMode(ToolRunMode.getByMode(agent.getToolRunMode()));
         context.setSseEmitter(sse);
         context.setSessionId(sessionId);
+        context.setChatTurnRecorder(chatTurnRecorder);
+        context.setTraceRecorder(traceRecorder != null ? traceRecorder
+                : new ChatTraceRecorder(ChatTraceSource.ofAgent(agent.getId(), agent.getAgentName())));
         return context;
+    }
+
+    /** 不需要自定义轨迹收集器时的重载，内部按本 Agent 新建一个 */
+    public AgentContext build(EaAgentResult agent, SseEmitter sse, String sessionId,
+                              String imageBase64, boolean syncMode) {
+        return build(agent, sse, sessionId, imageBase64, syncMode, null);
     }
 }

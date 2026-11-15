@@ -97,7 +97,8 @@ public class ToolAgentExecutor extends BaseAgent {
         // 以及通过构造函数注入到 Advisor 中的 sse、callbackMap、toolSameCallCountMap
         List<Advisor> advisors = Lists.newArrayList(
                 // new SseAdvisor(sse),
-                new ToolExecutionAdvisor(callbackMap, toolSameCallCountMap, sse));
+                new ToolExecutionAdvisor(callbackMap, toolSameCallCountMap, sse,
+                        agentContext.getTraceRecorder()));
 
         // 默认开启会话记忆：只要存在 sessionId，就加载/保存多轮历史
         if (agentContext.getSessionId() != null) {
@@ -193,11 +194,16 @@ public class ToolAgentExecutor extends BaseAgent {
             String reasoning = ChatResponseUtil.getReasoningContent(chatRes);
             if (StringUtils.hasLength(reasoning)) {
                 SseHelper.sendThink(sse, reasoning);
+                // 同时落轨迹。本回调运行在 reactor 线程上，收集器是实例而非 ThreadLocal，
+                // 所以请求线程保存时能读到；原先这里只推 SSE 不落库，
+                // 刷新后思考过程全部丢失
+                agentContext.getTraceRecorder().recordThinking(reasoning);
             }
 
             String data = ChatResponseUtil.getResStr(chatRes);
             if (StringUtils.hasLength(data)) {
                 SseHelper.sendData(sse, data);
+                agentContext.getTraceRecorder().recordData(data);
             }
 
         }, e -> {

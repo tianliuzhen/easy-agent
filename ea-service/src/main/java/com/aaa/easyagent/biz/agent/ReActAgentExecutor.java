@@ -7,8 +7,6 @@ import com.aaa.easyagent.biz.agent.data.AgentFinish;
 import com.aaa.easyagent.biz.agent.data.AgentOutput;
 import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
 import com.aaa.easyagent.biz.agent.parser.OutputParserException;
-import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
-import com.aaa.easyagent.biz.agent.wrapper.SceneWrapper;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
 import com.aaa.easyagent.common.util.ChatResponseUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -151,7 +149,7 @@ public class ReActAgentExecutor extends BaseReActAgent {
 
             chatModel.stream(prompt)
                     .bufferTimeout(20, Duration.ofMillis(100))  // 批量处理
-                    .subscribe(SceneWrapper.wrapper(chatRes -> {
+                    .subscribe(chatRes -> {
                                 // 思考
                                 String lineThinks = ChatResponseUtil.getReasoningContent(chatRes);
                                 reasoningContent.append(lineThinks);
@@ -165,7 +163,7 @@ public class ReActAgentExecutor extends BaseReActAgent {
                                 // 使用状态机过滤XML标签后发送给用户
                                 String filteredData = dataFilter.process(lineResStr);
                                 SseHelper.sendData(sse, filteredData);
-                            }),
+                            },
                             error -> {
                                 // 执行异常
                                 log.error("ReActAgentExecutor.think.error:" + error.getMessage(), error);
@@ -181,9 +179,9 @@ public class ReActAgentExecutor extends BaseReActAgent {
                 // 串行等待
                 runOver.await();
 
-                // 保存到数据库前过滤XML标签
-                ChatRecordSaver.addThinking(filterXmlTags(reasoningContent.toString()));
-                ChatRecordSaver.addData(filterXmlTags(resStr.toString()));
+                // 落轨迹前过滤 ReAct 的 XML 标签
+                agentContext.getTraceRecorder().recordThinking(filterXmlTags(reasoningContent.toString()));
+                agentContext.getTraceRecorder().recordData(filterXmlTags(resStr.toString()));
             } catch (InterruptedException e) {
                 log.error("ReActAgentExecutor.runOver.await.error:" + e.getMessage(), e);
             }
@@ -197,9 +195,9 @@ public class ReActAgentExecutor extends BaseReActAgent {
             String things = ChatResponseUtil.getReasoningContent(chatResponse);
             reasoningContent.append(things);
 
-            // 保存到数据库前过滤XML标签
-            ChatRecordSaver.addThinking(filterXmlTags(reasoningContent.toString()));
-            ChatRecordSaver.addData(filterXmlTags(data));
+            // 落轨迹前过滤 ReAct 的 XML 标签
+            agentContext.getTraceRecorder().recordThinking(filterXmlTags(reasoningContent.toString()));
+            agentContext.getTraceRecorder().recordData(filterXmlTags(data));
         }
 
 
@@ -337,10 +335,14 @@ public class ReActAgentExecutor extends BaseReActAgent {
         }
 
         SseHelper.sendTool(sse, String.format("正在执行工具：%s \n工具入参：%s", functionUseAction.getAction(), functionUseAction.getActionInput()));
+        long startedAt = System.currentTimeMillis();
         String callToolResult = functionToolCallback.call(functionUseAction.getActionInput());
+        long durationMs = System.currentTimeMillis() - startedAt;
         SseHelper.sendTool(sse, String.format("\n执行结果：%s", callToolResult));
 
-        ChatRecordSaver.addToolCall(functionUseAction, callToolResult);
+        // 结构化落轨迹：工具名、入参、结果、耗时分字段存储
+        agentContext.getTraceRecorder().recordToolCall(functionUseAction.getAction(),
+                functionUseAction.getActionInput(), callToolResult, durationMs);
         // ReAct 模式：使用 UserMessage 返回 Observation 结果，而不是 ToolResponseMessage
         UserMessage userMessage = new UserMessage("Observation: " + callToolResult);
         messages.add(userMessage);

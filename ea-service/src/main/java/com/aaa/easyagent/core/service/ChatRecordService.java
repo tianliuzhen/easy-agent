@@ -158,21 +158,23 @@ public interface ChatRecordService {
                                                   String sessionId, String userId, String firstQuestion);
 
     /**
-     * 保存完整的聊天交互（用户提问 + AI回答）
+     * 回填一轮对话的结果：答案、模型、token 与耗时写到提问所在的那条消息上，
+     * 同时把 token 累加到会话维度、首轮补全会话标题。
+     * <p>
+     * 执行轨迹不在这里，由 ea_chat_message_trace 单独存储。
      *
      * @param conversationId   会话 ID
+     * @param messageId        本轮消息 ID（由 startNewConversation 返回）
      * @param question         用户问题
-     * @param aiAnswer         AI 回答
-     * @param messageContext   上下文消息
-     * @param modelUsed        使用的模型
-     * @param inputTokensUsed  消耗的输入 token 数
-     * @param outputTokensUsed 消耗的输出 token 数
-     * @param responseTime     响应时间（毫秒）
-     * @return 保存的消息 ID 列表
+     * @param answer           最终答案
+     * @param modelUsed        使用的模型版本
+     * @param inputTokensUsed  本轮输入 token
+     * @param outputTokensUsed 本轮输出 token
+     * @param responseTime     响应耗时，单位秒
      */
-    public List<Long> saveChatMessage(Long conversationId, Long messageId, String question, String aiAnswer,
-                                      String messageContext, String modelUsed,
-                                      long inputTokensUsed, long outputTokensUsed, BigDecimal responseTime);
+    void completeChatMessage(Long conversationId, Long messageId, String question, String answer,
+                             String modelUsed, long inputTokensUsed, long outputTokensUsed,
+                             BigDecimal responseTime);
 
     /**
      * 获取会话的完整聊天记录

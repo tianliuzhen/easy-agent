@@ -2,6 +2,7 @@ package com.aaa.easyagent.biz.agent.orchestration;
 
 import lombok.Builder;
 import lombok.Getter;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceRecorder;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
@@ -20,6 +21,12 @@ public class FlowRunContext {
     private final boolean syncMode;
     private final boolean debug;
     private final SseEmitter sseEmitter;
+    /**
+     * 整条编排共用的轨迹收集器。
+     * Agent 与 Supervisor 节点取 scopedTo 视图写入，于是各节点的思考与工具调用
+     * 既汇总到同一轮对话，又各自带着节点与 Agent 标识。
+     */
+    private final ChatTraceRecorder traceRecorder;
     @Builder.Default
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
     /** 取消原因，用于审计与前端提示；首个置位的原因胜出 */

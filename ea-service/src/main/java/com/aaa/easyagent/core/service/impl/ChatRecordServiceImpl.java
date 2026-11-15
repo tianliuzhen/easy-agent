@@ -1,5 +1,6 @@
 package com.aaa.easyagent.core.service.impl;
 
+import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.util.BeanConvertUtil;
 import com.aaa.easyagent.common.util.FunFiledHelper;
 import com.aaa.easyagent.core.domain.DO.EaChatConversationDO;
@@ -11,16 +12,24 @@ import com.aaa.easyagent.core.domain.result.ChatMessageResult;
 import com.aaa.easyagent.core.domain.result.StartNewConversationResp;
 import com.aaa.easyagent.core.mapper.EaChatConversationDAO;
 import com.aaa.easyagent.core.mapper.EaChatMessageDAO;
+import com.aaa.easyagent.core.domain.DO.EaChatMessageTraceDO;
+import com.aaa.easyagent.core.domain.result.ChatTraceResult;
+import com.aaa.easyagent.core.mapper.EaChatMessageTraceDAO;
 import com.aaa.easyagent.core.service.ChatRecordService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import tk.mybatis.mapper.entity.Example;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * 聊天记录管理服务实现类
@@ -36,6 +45,9 @@ public class ChatRecordServiceImpl implements ChatRecordService {
 
     @Resource
     private EaChatMessageDAO eaChatMessageDAO;
+
+    @Resource
+    private EaChatMessageTraceDAO eaChatMessageTraceDAO;
 
     // ==================== 会话管理 ====================
 
@@ -291,53 +303,94 @@ public class ChatRecordServiceImpl implements ChatRecordService {
         conversationReq.setId(Long.valueOf(sessionId));
         Long conversationId = createConversation(conversationReq);
 
-        if (conversationId != null && firstQuestion != null && !firstQuestion.isEmpty()) {
-            // 保存第一条消息
-            ChatMessageReq messageReq = ChatMessageReq.createUserQuestion(
-                    conversationId, firstQuestion, 1
-            );
-            Long messageId = saveMessage(messageReq);
-            return new StartNewConversationResp(conversationId, messageId);
+        if (conversationId == null || firstQuestion == null || firstQuestion.isEmpty()) {
+            throw new AgentException("开启会话失败，会话ID或提问为空：sessionId=" + sessionId);
         }
-
-        throw new RuntimeException("开启会话创建失败");
+        // 先落用户提问：答案与轨迹在本轮结束时回填到这条消息上，
+        // 即使模型随后失败，提问也不会丢。序号按会话内已有消息数递增
+        int nextSequence = countMessagesByConversationId(conversationId) + 1;
+        Long messageId = saveMessage(ChatMessageReq.createUserQuestion(
+                conversationId, firstQuestion, nextSequence));
+        return new StartNewConversationResp(conversationId, messageId);
     }
 
 
     @Override
-    public List<Long> saveChatMessage(Long conversationId, Long msgId, String question, String aiAnswer,
-                                      String messageContext, String modelUsed,
-                                      long inputTokensUsed, long outputTokensUsed, BigDecimal responseTime) {
-        // 获取当前消息序号
-        int currentCount = countMessagesByConversationId(conversationId);
-        int nextSequence = currentCount + 1;
+    @Transactional
+    public void completeChatMessage(Long conversationId, Long messageId, String question, String answer,
+                                    String modelUsed, long inputTokensUsed, long outputTokensUsed,
+                                    BigDecimal responseTime) {
+        // 1. 回填答案与本轮用量到提问所在的那条消息
+        EaChatMessageDO message = new EaChatMessageDO()
+                .setId(messageId)
+                .setAnswer(answer)
+                .setModelUsed(modelUsed)
+                .setInputTokensUsed(inputTokensUsed)
+                .setOutputTokensUsed(outputTokensUsed)
+                .setResponseTime(responseTime);
+        eaChatMessageDAO.updateByPrimaryKeySelective(message);
 
-        // 创建一条完整的消息记录（包含问题和回答）
-        ChatMessageReq messageReq = ChatMessageReq.createFullAiAnswer(
-                conversationId, msgId,
-                question,
-                aiAnswer,
-                messageContext,
-                nextSequence,
-                modelUsed,
-                inputTokensUsed,
-                outputTokensUsed,
-                responseTime
-        );
+        // 2. 会话维度累加 token。用 SQL 自增而不是「查出来加一下再写回」，
+        //    否则同一会话并发两轮对话时会丢更新
+        eaChatConversationDAO.accumulateTokens(conversationId, inputTokensUsed, outputTokensUsed);
 
-        // 保存消息
-        List<Long> messageIds = new ArrayList<>();
-        Long messageId = saveMessage(messageReq);
-        if (messageId != null) {
-            messageIds.add(messageId);
-        }
-
-        return messageIds;
+        // 3. 会话标题为空时用首个提问补全
+        fillConversationTitleIfBlank(conversationId, question);
     }
 
+    /** 标题为空才写入，避免每轮都把标题改成最新提问 */
+    private void fillConversationTitleIfBlank(Long conversationId, String question) {
+        if (question == null || question.isBlank()) {
+            return;
+        }
+        EaChatConversationDO conversation = eaChatConversationDAO.selectByPrimaryKey(conversationId);
+        if (conversation == null || StringUtils.hasText(conversation.getTitle())) {
+            return;
+        }
+        String trimmed = question.trim();
+        String title = trimmed.length() > 50 ? trimmed.substring(0, 47) + "..." : trimmed;
+        eaChatConversationDAO.updateByPrimaryKeySelective(
+                new EaChatConversationDO().setId(conversationId).setTitle(title).setUpdatedAt(new Date()));
+    }
+
+    /**
+     * 获取会话完整记录，并把执行轨迹一次性挂到各条消息上。
+     * <p>
+     * 1. 查出会话的全部消息
+     * 2. 用一次 IN 查询取回所有消息的轨迹，避免按消息逐条查库
+     * 3. 按 messageId 分组挂载，轨迹内部已由 SQL 按 seq 升序
+     */
     @Override
     public List<ChatMessageResult> getFullChatHistory(Long conversationId) {
-        return listMessagesByConversationId(conversationId);
+        List<ChatMessageResult> messages = listMessagesByConversationId(conversationId);
+        if (messages.isEmpty()) {
+            return messages;
+        }
+        List<Long> messageIds = messages.stream().map(EaChatMessageDO::getId).filter(Objects::nonNull).toList();
+        if (messageIds.isEmpty()) {
+            return messages;
+        }
+        Map<Long, List<ChatTraceResult>> tracesByMessage = eaChatMessageTraceDAO.selectByMessageIds(messageIds)
+                .stream()
+                .collect(Collectors.groupingBy(EaChatMessageTraceDO::getMessageId,
+                        LinkedHashMap::new,
+                        Collectors.mapping(this::toTraceResult, Collectors.toList())));
+        messages.forEach(message ->
+                message.setTraces(tracesByMessage.getOrDefault(message.getId(), List.of())));
+        return messages;
+    }
+
+    private ChatTraceResult toTraceResult(EaChatMessageTraceDO trace) {
+        return new ChatTraceResult()
+                .setSeq(trace.getSeq())
+                .setTraceType(trace.getTraceType())
+                .setContent(trace.getContent())
+                .setToolName(trace.getToolName())
+                .setToolInput(trace.getToolInput())
+                .setToolOutput(trace.getToolOutput())
+                .setAgentName(trace.getAgentName())
+                .setFlowNodeId(trace.getFlowNodeId())
+                .setDurationMs(trace.getDurationMs());
     }
 
     @Override

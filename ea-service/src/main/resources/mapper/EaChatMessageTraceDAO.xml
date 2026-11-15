@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.easyagent.core.mapper.EaChatMessageTraceDAO">
+
+    <resultMap id="BaseResultMap" type="com.aaa.easyagent.core.domain.DO.EaChatMessageTraceDO">
+        <id column="id" jdbcType="BIGINT" property="id"/>
+        <result column="conversation_id" jdbcType="BIGINT" property="conversationId"/>
+        <result column="message_id" jdbcType="BIGINT" property="messageId"/>
+        <result column="seq" jdbcType="INTEGER" property="seq"/>
+        <result column="trace_type" jdbcType="VARCHAR" property="traceType"/>
+        <result column="content" jdbcType="LONGVARCHAR" property="content"/>
+        <result column="tool_name" jdbcType="VARCHAR" property="toolName"/>
+        <result column="tool_input" jdbcType="LONGVARCHAR" property="toolInput"/>
+        <result column="tool_output" jdbcType="LONGVARCHAR" property="toolOutput"/>
+        <result column="agent_id" jdbcType="BIGINT" property="agentId"/>
+        <result column="agent_name" jdbcType="VARCHAR" property="agentName"/>
+        <result column="flow_node_id" jdbcType="VARCHAR" property="flowNodeId"/>
+        <result column="duration_ms" jdbcType="BIGINT" property="durationMs"/>
+        <result column="created_at" jdbcType="TIMESTAMP" property="createdAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, conversation_id, message_id, seq, trace_type, content,
+        tool_name, tool_input, tool_output, agent_id, agent_name,
+        flow_node_id, duration_ms, created_at
+    </sql>
+
+    <!-- 批量写入：一轮对话的全部轨迹一次落库 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO ea_chat_message_trace
+        (conversation_id, message_id, seq, trace_type, content,
+         tool_name, tool_input, tool_output, agent_id, agent_name,
+         flow_node_id, duration_ms, created_at)
+        VALUES
+        <foreach collection="traces" item="trace" separator=",">
+            (#{trace.conversationId,jdbcType=BIGINT},
+             #{trace.messageId,jdbcType=BIGINT},
+             #{trace.seq,jdbcType=INTEGER},
+             #{trace.traceType,jdbcType=VARCHAR},
+             #{trace.content,jdbcType=LONGVARCHAR},
+             #{trace.toolName,jdbcType=VARCHAR},
+             #{trace.toolInput,jdbcType=LONGVARCHAR},
+             #{trace.toolOutput,jdbcType=LONGVARCHAR},
+             #{trace.agentId,jdbcType=BIGINT},
+             #{trace.agentName,jdbcType=VARCHAR},
+             #{trace.flowNodeId,jdbcType=VARCHAR},
+             #{trace.durationMs,jdbcType=BIGINT},
+             #{trace.createdAt,jdbcType=TIMESTAMP})
+        </foreach>
+    </insert>
+
+    <!-- 历史回放：一次取回整个会话涉及的全部轨迹，顺序由 message_id、seq 决定 -->
+    <select id="selectByMessageIds" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ea_chat_message_trace
+        WHERE message_id IN
+        <foreach collection="messageIds" item="messageId" open="(" separator="," close=")">
+            #{messageId,jdbcType=BIGINT}
+        </foreach>
+        ORDER BY message_id ASC, seq ASC
+    </select>
+
+    <delete id="deleteByConversationId">
+        DELETE FROM ea_chat_message_trace
+        WHERE conversation_id = #{conversationId,jdbcType=BIGINT}
+    </delete>
+
+</mapper>

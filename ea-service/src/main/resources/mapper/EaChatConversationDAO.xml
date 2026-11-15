@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.easyagent.core.mapper.EaChatConversationDAO">
+
+    <!--
+      会话 token 累加。
+      用 SQL 自增而不是「查出来加一下再写回」：后者在同一会话并发两轮对话时会丢更新。
+      COALESCE 处理历史记录里 token 字段为 NULL 的情况。
+    -->
+    <update id="accumulateTokens">
+        UPDATE ea_chat_conversation
+        SET accumulated_input_tokens  = COALESCE(accumulated_input_tokens, 0) + #{inputTokens,jdbcType=BIGINT},
+            accumulated_output_tokens = COALESCE(accumulated_output_tokens, 0) + #{outputTokens,jdbcType=BIGINT},
+            updated_at                = NOW()
+        WHERE id = #{conversationId,jdbcType=BIGINT}
+    </update>
+
+</mapper>

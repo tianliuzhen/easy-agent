@@ -7,6 +7,8 @@ import com.aaa.easyagent.biz.agent.context.AgentContextFactory;
 import com.aaa.easyagent.biz.agent.context.FunctionCallback;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.orchestration.FlowNodeSseEmitter;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceRecorder;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceSource;
 import com.aaa.easyagent.biz.agent.orchestration.*;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.util.JacksonUtil;
@@ -80,10 +82,16 @@ public class SupervisorNodePlugin implements FlowNodePlugin {
             throw new AgentException("主管节点未连接任何 Worker Agent：" + context.getNode().getId());
         }
 
+        // 取编排级收集器的节点视图，主管自身的思考与 Worker 派发都记在本节点名下
+        ChatTraceSource source = ChatTraceSource.ofFlowNode(
+                supervisor.getId(), supervisor.getAgentName(), context.getNode().getId());
+        ChatTraceRecorder runRecorder = context.getRunContext().getTraceRecorder();
+        ChatTraceRecorder nodeRecorder = runRecorder == null
+                ? new ChatTraceRecorder(source) : runRecorder.scopedTo(source);
         AgentContext agentContext = contextFactory.build(supervisor,
                 new FlowNodeSseEmitter(context.getEvents(), context.getNode(), supervisor.getId()),
                 context.getRunContext().nodeSessionId(context.getNode().getId()), null,
-                context.getRunContext().isSyncMode());
+                context.getRunContext().isSyncMode(), nodeRecorder);
         agentContext.setRuntimeCallbacks(callbacks);
         agentContext.setFlowNodeId(context.getNode().getId());
         agentContext.setCancelledSupplier(context.getRunContext()::isCancelled);

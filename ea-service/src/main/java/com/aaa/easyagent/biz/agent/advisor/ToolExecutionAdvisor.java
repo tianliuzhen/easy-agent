@@ -2,8 +2,7 @@ package com.aaa.easyagent.biz.agent.advisor;
 
 import com.aaa.easyagent.biz.agent.context.FunctionCallback;
 import com.aaa.easyagent.biz.agent.context.SseHelper;
-import com.aaa.easyagent.biz.agent.data.FunctionUseAction;
-import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceRecorder;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
 import com.aaa.easyagent.common.util.LoopDetector;
 import com.alibaba.fastjson.JSONObject;
@@ -71,29 +70,34 @@ public class ToolExecutionAdvisor implements CallAdvisor, StreamAdvisor {
     private final Map<String, FunctionCallback> callbackMap;
     private final Map<String, Integer> toolSameCallCountMap;
     private final SseEmitter sseEmitter;
+    /** 本轮对话的轨迹收集器，工具调用结构化记录到这里 */
+    private final ChatTraceRecorder traceRecorder;
 
     public ToolExecutionAdvisor() {
-        this(0, null, null, null);
+        this(0, null, null, null, null);
     }
 
     public ToolExecutionAdvisor(int order) {
-        this(order, null, null, null);
+        this(order, null, null, null, null);
     }
 
     public ToolExecutionAdvisor(Map<String, FunctionCallback> callbackMap,
                                 Map<String, Integer> toolSameCallCountMap,
-                                SseEmitter sseEmitter) {
-        this(0, callbackMap, toolSameCallCountMap, sseEmitter);
+                                SseEmitter sseEmitter,
+                                ChatTraceRecorder traceRecorder) {
+        this(0, callbackMap, toolSameCallCountMap, sseEmitter, traceRecorder);
     }
 
     public ToolExecutionAdvisor(int order,
                                 Map<String, FunctionCallback> callbackMap,
                                 Map<String, Integer> toolSameCallCountMap,
-                                SseEmitter sseEmitter) {
+                                SseEmitter sseEmitter,
+                                ChatTraceRecorder traceRecorder) {
         this.order = order;
         this.callbackMap = callbackMap;
         this.toolSameCallCountMap = toolSameCallCountMap;
         this.sseEmitter = sseEmitter;
+        this.traceRecorder = traceRecorder;
     }
 
     @Override
@@ -195,16 +199,20 @@ public class ToolExecutionAdvisor implements CallAdvisor, StreamAdvisor {
                 SseHelper.sendTool(sse, String.format("工具入参：%s", toolCall.arguments()));
             }
 
+            long startedAt = System.currentTimeMillis();
             String callToolResult = callback.call(toolCall.arguments());
+            long durationMs = System.currentTimeMillis() - startedAt;
 
             if (sse != null) {
                 SseHelper.sendTool(sse, String.format("执行结果：%s", callToolResult));
             }
 
-            // 保存到数据库
-            ChatRecordSaver.addToolCall(
-                    new FunctionUseAction(toolCall.name(), toolCall.arguments()),
-                    callToolResult);
+            // 结构化落轨迹：工具名、入参、结果、耗时分字段存储，
+            // 前端不必再用正则从一整段文本里解析工具名
+            if (traceRecorder != null) {
+                traceRecorder.recordToolCall(toolCall.name(), toolCall.arguments(),
+                        callToolResult, durationMs);
+            }
 
             // 记录卡住检测
             if (toolSameCallCountMap != null) {

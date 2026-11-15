@@ -42,6 +42,6 @@ export {ConversationSidebar} from './ConversationSidebar';
 // 历史记录转换
 export {
     historyToChatMessages,
-    parseThinkingEntries,
-    extractAnswerText,
+    tracesToEntries,
+    resolveAnswerText,
 } from './chatContextUtils';

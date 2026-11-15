@@ -7,6 +7,8 @@ import com.aaa.easyagent.biz.agent.context.AgentContextFactory;
 import com.aaa.easyagent.biz.agent.data.AgentContext;
 import com.aaa.easyagent.biz.agent.orchestration.FlowNodeSseEmitter;
 import com.aaa.easyagent.biz.agent.orchestration.FlowTemplateRenderer;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceRecorder;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceSource;
 import com.aaa.easyagent.biz.agent.orchestration.*;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
@@ -128,14 +130,27 @@ public class AgentNodePlugin implements FlowNodePlugin {
         return templateRenderer.render(null, Map.of("input", input));
     }
 
+    /**
+     * 取本节点的轨迹视图。
+     * 编排级收集器为空（例如调试试运行不落库）时新建一个独立收集器，避免空指针。
+     */
+    private ChatTraceRecorder scopedRecorder(NodeExecutionContext context, EaAgentResult agent) {
+        ChatTraceSource source = ChatTraceSource.ofFlowNode(
+                agent.getId(), agent.getAgentName(), context.getNode().getId());
+        ChatTraceRecorder runRecorder = context.getRunContext().getTraceRecorder();
+        return runRecorder == null ? new ChatTraceRecorder(source) : runRecorder.scopedTo(source);
+    }
+
     private AgentContext buildAgentContext(NodeExecutionContext context, EaAgentResult agent) {
         Object nodeImage = context.getInputs().get("image");
         String imageBase64 = nodeImage == null
                 ? context.getRunContext().getImageBase64() : String.valueOf(nodeImage);
+        // 取编排级收集器的节点视图：轨迹汇总到整轮对话，同时带上本节点标识
+        ChatTraceRecorder nodeRecorder = scopedRecorder(context, agent);
         AgentContext agentContext = contextFactory.build(agent,
                 new FlowNodeSseEmitter(context.getEvents(), context.getNode(), agent.getId()),
                 context.getRunContext().nodeSessionId(context.getNode().getId()),
-                imageBase64, context.getRunContext().isSyncMode());
+                imageBase64, context.getRunContext().isSyncMode(), nodeRecorder);
         agentContext.setFlowNodeId(context.getNode().getId());
         agentContext.setCancelledSupplier(context.getRunContext()::isCancelled);
         return agentContext;

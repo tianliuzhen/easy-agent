@@ -9,6 +9,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import com.aaa.easyagent.biz.agent.context.FunctionCallback;
+import com.aaa.easyagent.biz.agent.service.ChatTurnRecorder;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceRecorder;
+import com.aaa.easyagent.biz.agent.trace.ChatTurn;
 
 /**
  * @author liuzhen.tian
@@ -106,6 +109,21 @@ public class AgentContext {
 
     /** Flow 节点标识，仅用于运行观测。 */
     private String flowNodeId;
+
+    /**
+     * 本轮对话的执行轨迹收集器。
+     * <p>
+     * 思考、工具调用、回答片段都写进这里，对话结束时整批落库。
+     * 用实例而非 static ThreadLocal：Tool 模式的内容产生在 reactor 线程，
+     * ThreadLocal 按线程隔离会导致请求线程读不到，轨迹全部丢失。
+     */
+    private ChatTraceRecorder traceRecorder = new ChatTraceRecorder();
+
+    /** 本轮对话的持久化句柄，由 ChatTurnRecorder.begin 创建 */
+    private ChatTurn chatTurn;
+
+    /** 对话持久化入口，由 AgentContextFactory 注入；BaseAgent 不是 Spring Bean，只能这样携带 */
+    private ChatTurnRecorder chatTurnRecorder;
 
     /**
      * 取消信号。

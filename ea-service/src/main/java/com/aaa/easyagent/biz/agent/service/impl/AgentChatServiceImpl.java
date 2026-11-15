@@ -16,7 +16,9 @@ import com.aaa.easyagent.biz.agent.orchestration.FlowCompiler;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.core.domain.flow.FlowDefinition;
 import com.aaa.easyagent.biz.agent.service.AgentChatService;
-import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
+import com.aaa.easyagent.biz.agent.service.ChatTurnRecorder;
+import com.aaa.easyagent.biz.agent.trace.ChatTraceRecorder;
+import com.aaa.easyagent.biz.agent.trace.ChatTurn;
 import com.aaa.easyagent.core.domain.DO.EaChatConversationDO;
 import com.aaa.easyagent.core.domain.enums.ModelTypeEnum;
 import com.aaa.easyagent.core.domain.enums.ToolRunMode;
@@ -59,6 +61,7 @@ public class AgentChatServiceImpl implements AgentChatService {
     private final FlowCompiler flowCompiler;
     private final FlowEngine flowEngine;
     private final AgentContextFactory agentContextFactory;
+    private final ChatTurnRecorder chatTurnRecorder;
 
     /**
      * 非流式 SSE 发射器：缓冲所有 send 调用，在 complete 时一次性发送
@@ -159,32 +162,33 @@ public class AgentChatServiceImpl implements AgentChatService {
         SseEmitter effectiveEmitter = syncMode ? null : (streamEnabled ? sseEmitter : new NonStreamingSseEmitter(sseEmitter));
 
 
-        // agent 基础信息
+        // agent 基础信息。轨迹收集器与对话句柄都挂在上下文上，
+        // 由执行器在结束时回填答案与轨迹
         AgentContext agentContext = agentContextFactory.build(agent, effectiveEmitter, sessionId, imageBase64, syncMode);
         ToolRunMode runMode = agentContext.getToolRunMode();
 
-        // 开始新的聊天会话并保存到数据库
-        ChatRecordSaver.startNewConversation(agentContext, question);
+        // 开启一轮对话：先把用户提问落库
+        agentContext.setChatTurn(chatTurnRecorder.begin(agentContext, question));
 
         // 获取历史累计 Token 数
         EaChatConversationDO conversation = chatRecordService.getBySessionId(sessionId);
         long initInputTokens = conversation != null && conversation.getAccumulatedInputTokens() != null ? conversation.getAccumulatedInputTokens() : 0L;
         long initOutputTokens = conversation != null && conversation.getAccumulatedOutputTokens() != null ? conversation.getAccumulatedOutputTokens() : 0L;
 
-        String result = null;
+        String result;
         // 执行Agent
         if (runMode == ToolRunMode.ReAct) {
             // 传统的ReAct模式
             result = new ReActAgentExecutor(agentContext).exec(question);
-        }else {
+        } else {
             // 大模型的tool模式
             ToolAgentExecutor executor = new ToolAgentExecutor(agentContext, initInputTokens, initOutputTokens);
             result = executor.exec(question);
         }
 
-        // 保存聊天记录（注意：这里需要从Agent执行过程中获取思考过程和工具调用信息）
-        // 实际的保存逻辑在ChatRecordSaverService中通过ThreadLocal收集
-        log.info("Agent执行完成，结果长度: {}", result != null ? result.length() : 0);
+        log.info("Agent执行完成，agentId={}, 结果长度={}, 轨迹数={}",
+                agent.getId(), result == null ? 0 : result.length(),
+                agentContext.getTraceRecorder().snapshot().size());
         return result;
     }
 
@@ -218,10 +222,15 @@ public class AgentChatServiceImpl implements AgentChatService {
         conversationContext.setFlowId(request.getFlowId());
         conversationContext.setFlowRevisionId(definition.getRevisionId());
         conversationContext.setSessionId(sessionId);
-        ChatRecordSaver.startNewConversation(conversationContext, question);
+        ChatTurn chatTurn = chatTurnRecorder.begin(conversationContext, question);
+
+        // 整条编排共用一个轨迹收集器，各节点取自己的来源视图，
+        // 于是所有节点的思考与工具调用都汇总到这一轮对话里
+        ChatTraceRecorder traceRecorder = new ChatTraceRecorder();
         FlowRunContext context = FlowRunContext.builder().runId(UUID.randomUUID().toString())
                 .flowId(request.getFlowId()).revisionId(definition.getRevisionId()).sessionId(sessionId)
                 .imageBase64(imageBase64).syncMode(syncMode).sseEmitter(sseEmitter)
+                .traceRecorder(traceRecorder)
                 .input(Map.of("input", question, "question", question)).build();
         // 客户端断开后不再继续调度剩余节点，避免用户已经离开还在消耗模型额度
         if (sseEmitter != null) {
@@ -234,25 +243,30 @@ public class AgentChatServiceImpl implements AgentChatService {
         // 执行未成功不再静默返回 null。
         // 失败一定要让调用方知道；取消通常是客户端自己断开，SSE 侧已经没人接收，只记日志不再抛异常，
         // 但同步调用（无 SSE，取消只可能来自整体超时）仍需要抛出，否则调用方拿到 null 无从判断。
+        String modelUsed = "flow:" + request.getFlowId() + "@" + definition.getRevisionId();
+        BigDecimal elapsedSeconds = BigDecimal.valueOf(System.currentTimeMillis() - startedAt)
+                .divide(BigDecimal.valueOf(1000), 2, java.math.RoundingMode.HALF_UP);
+
         if (!FlowRunStatus.SUCCEEDED.code().equals(result.getStatus())) {
-            ChatRecordSaver.clearThreadLocal();
             log.warn("Flow 执行未成功，flowId={}, runId={}, status={}",
                     request.getFlowId(), result.getRunId(), result.getStatus());
             boolean cancelled = FlowRunStatus.CANCELLED.code().equals(result.getStatus());
+            // 失败与取消同样落库：已产生的思考与工具调用是排查依据，不能丢
+            traceRecorder.recordError("编排执行" + (cancelled ? "已取消" : "失败")
+                    + "：runId=" + result.getRunId() + "，status=" + result.getStatus());
+            chatTurnRecorder.complete(chatTurn, traceRecorder, modelUsed,
+                    result.getInputTokens(), result.getOutputTokens(), elapsedSeconds);
             if (cancelled && !syncMode) {
                 return null;
             }
             throw new AgentException("多 Agent 编排执行" + (cancelled ? "已取消" : "失败")
                     + "，flowId=" + request.getFlowId() + "，runId=" + result.getRunId());
         }
+
         String answer = result.getResult() == null ? "" : String.valueOf(result.getResult());
-        ChatRecordSaver.addFinalAnswer(answer);
-        AgentFinish finish = new AgentFinish();
-        finish.setResult(answer);
-        ChatRecordSaver.saveAgentFinish(finish,
-                "flow:" + request.getFlowId() + "@" + definition.getRevisionId(),
-                result.getInputTokens(), result.getOutputTokens(),
-                BigDecimal.valueOf(System.currentTimeMillis() - startedAt));
+        traceRecorder.recordFinalAnswer(answer);
+        chatTurnRecorder.complete(chatTurn, traceRecorder, modelUsed,
+                result.getInputTokens(), result.getOutputTokens(), elapsedSeconds);
         return answer;
     }
 

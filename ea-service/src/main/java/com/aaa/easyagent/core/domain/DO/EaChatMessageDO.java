@@ -38,11 +38,6 @@ public class EaChatMessageDO {
     @Column(name = "model_used")
     private String modelUsed;
 
-    /**
-     * 消耗的token数
-     */
-    @Column(name = "tokens_used")
-    private Integer tokensUsed;
 
     /**
      * 响应时间（毫秒）
@@ -86,21 +81,6 @@ public class EaChatMessageDO {
     @Column(name = "answer")
     private String answer;
 
-    /**
-     * 思考过程日志（单独存储）
-     */
-    @Column(name = "thinking_log")
-    private String thinkingLog;
 
-    /**
-     * 工具调用信息（JSON格式）
-     */
-    @Column(name = "tool_calls")
-    private String toolCalls;
 
-    /**
-     * 聊天上下文
-     */
-    @Column(name = "message_context")
-    private String messageContext;
 }

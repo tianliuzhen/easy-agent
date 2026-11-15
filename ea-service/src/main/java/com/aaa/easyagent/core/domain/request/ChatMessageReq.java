@@ -29,12 +29,6 @@ public class ChatMessageReq extends EaChatMessageDO {
         if (this.getSequence() == null) {
             this.setSequence(1);
         }
-        if (this.getThinkingLog() == null) {
-            this.setThinkingLog("");
-        }
-        if (this.getToolCalls() == null) {
-            this.setToolCalls("");
-        }
         if (this.getModelUsed() == null) {
             this.setModelUsed("");
         }
@@ -66,41 +60,6 @@ public class ChatMessageReq extends EaChatMessageDO {
         req.setQuestion(question);
         req.setAnswer("");
         req.setSequence(sequence);
-        req.setDefaults();
-        return req;
-    }
-
-
-
-
-    /**
-     * 创建 AI 回答消息（完整信息：思考 + 工具 + 回答）
-     *
-     * @param conversationId   会话 ID
-     * @param question         用户问题
-     * @param answer           AI 回答
-     * @param messageContext   聊天消息上下文
-     * @param sequence         消息序号
-     * @param modelUsed        使用的模型
-     * @param inputTokensUsed  消耗的输入 token 数
-     * @param outputTokensUsed 消耗的输出 token 数
-     * @param responseTime     响应时间
-     * @return AI 回答消息请求对象
-     */
-    public static ChatMessageReq createFullAiAnswer(Long conversationId, Long messageId, String question, String answer,
-                                                    String messageContext, Integer sequence,
-                                                    String modelUsed, long inputTokensUsed, long outputTokensUsed, BigDecimal responseTime) {
-        ChatMessageReq req = new ChatMessageReq();
-        req.setId(messageId);
-        req.setConversationId(conversationId);
-        req.setQuestion(question);
-        req.setAnswer(answer);
-        req.setMessageContext(messageContext);
-        req.setSequence(sequence);
-        req.setModelUsed(modelUsed);
-        req.setInputTokensUsed(inputTokensUsed);
-        req.setOutputTokensUsed(outputTokensUsed);
-        req.setResponseTime(responseTime);
         req.setDefaults();
         return req;
     }

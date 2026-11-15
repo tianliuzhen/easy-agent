@@ -3,7 +3,6 @@ package com.aaa.easyagent.biz.agent;
 import com.aaa.easyagent.biz.agent.context.FunctionCallback;
 import com.aaa.easyagent.biz.agent.context.SseHelper;
 import com.aaa.easyagent.biz.agent.data.*;
-import com.aaa.easyagent.biz.agent.service.ChatRecordSaver;
 import com.aaa.easyagent.biz.function.FunctionToolManager;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.config.exception.AgentToolException;
@@ -70,8 +69,8 @@ public abstract class BaseAgent {
      * 是否在执行结束时保存聊天记录。
      * 单 Agent 直跑时为 true；被 FlowExecutor 调度的子 Agent 为 false，
      * 由编排器在全部节点完成后统一保存一条会话记录（复用首节点 agent_id）。
-     * 原因：{@code ChatRecordSaver.saveAgentFinish} 内部会 clearThreadLocal 清掉 conversationId，
-     * 多个子 Agent 各自保存会相互冲突。
+     * 原因：一轮对话只对应一条消息记录，多个子 Agent 各自保存会互相覆盖答案；
+     * 各节点的轨迹通过共享同一个 ChatTraceRecorder 汇总，由编排器一次写入。
      */
     protected boolean saveRecord = true;
 
@@ -219,16 +218,18 @@ public abstract class BaseAgent {
                     String llmResponse = agentFinish.getResult();
                     SseHelper.sendLog(sse, "第{}次大模型决策结果...：", decisionCnt, llmResponse);
 
-                    // SseHelper.sendFinalAnswer(sse, agentFinish.getResult());
-                    // 持久化最终答案到 messageContext，供历史回放渲染 AI 气泡（Tool 模式不会调用 addData）
-                    ChatRecordSaver.addFinalAnswer(agentFinish.getResult());
+                    // 记录最终答案：历史回放时优先用它作为气泡正文，
+                    // 与实时展示口径一致
+                    agentContext.getTraceRecorder().recordFinalAnswer(agentFinish.getResult());
                     stopWatch.stop();
 
-                    // 保存 Agent 执行结果，并传入本轮累计的输入/输出 Token 数
-                    // 被编排器调度的子 Agent（saveRecord=false）不在此保存，由编排器统一收口
+                    // 回填答案与本轮用量。被编排器调度的子 Agent（saveRecord=false）
+                    // 不在此保存，由编排器在全部节点完成后统一收口
                     if (saveRecord) {
-                        ChatRecordSaver.saveAgentFinish(
-                                agentFinish, agentContext.getAgentModelConfig().getModelVersion(),
+                        agentContext.getChatTurnRecorder().complete(
+                                agentContext.getChatTurn(),
+                                agentContext.getTraceRecorder(),
+                                agentContext.getAgentModelConfig().getModelVersion(),
                                 this.accumulateInputTokenCount,
                                 this.accumulateOutputTokenCount,
                                 BigDecimal.valueOf(stopWatch.getTotalTimeSeconds()));
@@ -242,6 +243,18 @@ public abstract class BaseAgent {
             } catch (Exception e) {
                 log.error("大模型执行异常:", e);
                 SseHelper.sendError(sse, "第{}次大模型决策异常：{}", decisionCnt, e.getMessage());
+                // 错误也记进轨迹，刷新后能看到失败原因而不是一片空白
+                agentContext.getTraceRecorder().recordError(
+                        "第" + decisionCnt + "次决策异常：" + e.getMessage());
+                if (saveRecord) {
+                    agentContext.getChatTurnRecorder().complete(
+                            agentContext.getChatTurn(),
+                            agentContext.getTraceRecorder(),
+                            agentContext.getAgentModelConfig().getModelVersion(),
+                            this.accumulateInputTokenCount,
+                            this.accumulateOutputTokenCount,
+                            BigDecimal.valueOf(stopWatch.getTotalTimeSeconds()));
+                }
                 if (ownSse && sse != null) {
                     sse.complete();
                 }

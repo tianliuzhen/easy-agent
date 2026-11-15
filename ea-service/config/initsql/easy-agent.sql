@@ -75,22 +75,44 @@ CREATE TABLE `ea_chat_message` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `conversation_id` bigint NOT NULL COMMENT '会话ID',
   `question` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '问题',
-  `answer` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '回答',
-  `thinking_log` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '思考过程日志（单独存储）',
-  `tool_calls` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '工具调用信息（JSON格式）',
+  `answer` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '回答（最终答案）',
   `model_used` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '使用的模型',
-  `tokens_used` int DEFAULT NULL COMMENT '消耗的token数',
   `response_time` decimal(10,2) DEFAULT NULL COMMENT '响应时间（毫秒）',
   `output_tokens_used` bigint DEFAULT NULL COMMENT '输出Token',
   `Input_tokens_used` bigint DEFAULT NULL COMMENT '输入Token',
   `sequence` int NOT NULL DEFAULT '1' COMMENT '消息序号（用于排序，从1开始）',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `message_context` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '聊天上下文',
   PRIMARY KEY (`id`) USING BTREE,
   KEY `idx_conversation_id_sequence` (`conversation_id`,`sequence`) USING BTREE,
   KEY `idx_conversation_id_created_at` (`conversation_id`,`created_at`) USING BTREE,
   KEY `idx_created_at` (`created_at`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=143 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC COMMENT='聊天消息表';
+
+-- ----------------------------
+-- Table structure for ea_chat_message_trace
+-- 执行轨迹：思考、工具调用、流式片段按条存储，
+-- 取代原先塞在 ea_chat_message.message_context 的 JSON 大字段
+-- ----------------------------
+DROP TABLE IF EXISTS `ea_chat_message_trace`;
+CREATE TABLE `ea_chat_message_trace` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `conversation_id` bigint NOT NULL COMMENT '会话ID',
+  `message_id` bigint NOT NULL COMMENT '所属消息ID（ea_chat_message.id）',
+  `seq` int NOT NULL COMMENT '同一条消息内的产生顺序，从1开始',
+  `trace_type` varchar(32) NOT NULL COMMENT '轨迹类型：THINKING 思考/DATA 回答片段/TOOL 工具调用/FINAL_ANSWER 最终答案/ERROR 错误',
+  `content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '文本内容：思考过程、回答片段、错误信息',
+  `tool_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '工具名，仅 TOOL 类型',
+  `tool_input` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '工具入参原文，仅 TOOL 类型',
+  `tool_output` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '工具执行结果，仅 TOOL 类型',
+  `agent_id` bigint DEFAULT NULL COMMENT '产生该条轨迹的 Agent ID，多 Agent 编排用于区分来源',
+  `agent_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '产生该条轨迹的 Agent 名称',
+  `flow_node_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Flow 节点ID，非编排场景为 NULL',
+  `duration_ms` bigint DEFAULT NULL COMMENT '该步骤耗时，单位毫秒，仅 TOOL 类型',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_message_seq` (`message_id`,`seq`) USING BTREE,
+  KEY `idx_conversation` (`conversation_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC COMMENT='聊天消息执行轨迹表';
 
 -- ----------------------------
 -- Table structure for ea_function

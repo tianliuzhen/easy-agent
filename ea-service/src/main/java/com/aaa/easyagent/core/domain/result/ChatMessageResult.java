@@ -26,14 +26,11 @@ public class ChatMessageResult extends EaChatMessageDO {
     // 扩展字段：格式化后的时间
     private String formattedTime;
 
-    // 扩展字段：是否显示思考过程
-    private Boolean showThinkingLog = false;
+    /** 扩展字段：本条消息的执行轨迹，按 seq 升序；思考、工具调用、回答片段 */
+    private java.util.List<ChatTraceResult> traces = new java.util.ArrayList<>();
 
-    // 扩展字段：思考过程摘要（前100字符）
-    private String thinkingLogSummary;
 
-    // 扩展字段：工具调用数量
-    private Integer toolCallCount;
+
 
     /**
      * 获取发送者类型
@@ -57,8 +54,8 @@ public class ChatMessageResult extends EaChatMessageDO {
         else if (question != null && !question.isEmpty()) {
            return "user";
         }
-        // 如果有思考过程或工具调用，说明是系统消息
-        else if (hasThinkingLog() || hasToolCalls()) {
+        // 既无提问也无回答：只有执行轨迹的系统记录
+        else if (!traces.isEmpty()) {
            return "system";
         }
 
@@ -158,140 +155,11 @@ public class ChatMessageResult extends EaChatMessageDO {
         return "";
     }
 
-    /**
-     * 获取思考过程摘要
-     *
-     * @return 思考过程摘要
-     */
-    public String getThinkingLogSummary() {
-        if (thinkingLogSummary != null) {
-            return thinkingLogSummary;
-        }
 
-        String log = this.getThinkingLog();
-        if (log != null && !log.isEmpty()) {
-            if (log.length() > 100) {
-                return log.substring(0, 97) + "...";
-            }
-            return log;
-        }
-        return "";
-    }
 
-    /**
-     * 获取工具调用数量
-     *
-     * @return 工具调用数量
-     */
-    public Integer getToolCallCount() {
-        if (toolCallCount != null) {
-            return toolCallCount;
-        }
 
-        String toolCalls = this.getToolCalls();
-        if (toolCalls != null && !toolCalls.isEmpty() && !toolCalls.equals("[]")) {
-            // 简单的JSON数组计数
-            try {
-                // 计算JSON数组中对象的数量
-                int count = 0;
-                int depth = 0;
-                boolean inObject = false;
 
-                for (char c : toolCalls.toCharArray()) {
-                    if (c == '{' && depth == 0) {
-                        inObject = true;
-                        depth++;
-                    } else if (c == '}' && depth == 1) {
-                        inObject = false;
-                        depth--;
-                        count++;
-                    } else if (c == '{') {
-                        depth++;
-                    } else if (c == '}') {
-                        depth--;
-                    }
-                }
-                return count;
-            } catch (Exception e) {
-                // 解析失败，返回0
-                return 0;
-            }
-        }
-        return 0;
-    }
 
-    /**
-     * 获取消息内容预览（优先返回回答，其次返回问题）
-     *
-     * @param maxLength 最大长度
-     * @return 消息内容预览
-     */
-    public String getContentPreview(int maxLength) {
-        // 优先返回回答
-        String answer = this.getAnswer();
-        if (answer != null && !answer.isEmpty()) {
-            if (answer.length() <= maxLength) {
-               return answer;
-            }
-           return answer.substring(0, maxLength - 3) + "...";
-        }
-
-        // 其次返回问题
-        String question = this.getQuestion();
-        if (question != null && !question.isEmpty()) {
-            if (question.length() <= maxLength) {
-               return question;
-            }
-           return question.substring(0, maxLength - 3) + "...";
-        }
-
-       return "";
-    }
-
-    /**
-     * 获取消息类型显示文本
-     *
-     * @return 消息类型显示文本
-     */
-    public String getMessageTypeText() {
-        String question = this.getQuestion();
-        String answer = this.getAnswer();
-
-        // 如果有问题且有回答，说明是 AI 响应
-        if (question != null && !question.isEmpty() && answer != null && !answer.isEmpty()) {
-           return "AI 响应";
-        }
-        // 如果只有问题没有回答，说明是用户消息
-        else if (question != null && !question.isEmpty()) {
-           return "用户提问";
-        }
-        // 如果有思考过程或工具调用，说明是系统消息
-        else if (hasThinkingLog() || hasToolCalls()) {
-           return "系统记录";
-        }
-
-       return "未知";
-    }
-
-    /**
-     * 是否有思考过程
-     *
-     * @return 是否有思考过程
-     */
-    public boolean hasThinkingLog() {
-        String log = this.getThinkingLog();
-        return log != null && !log.isEmpty();
-    }
-
-    /**
-     * 是否有工具调用
-     *
-     * @return 是否有工具调用
-     */
-    public boolean hasToolCalls() {
-        String toolCalls = this.getToolCalls();
-        return toolCalls != null && !toolCalls.isEmpty() && !toolCalls.equals("[]");
-    }
 
     /**
      * 获取性能指标文本
@@ -301,8 +169,11 @@ public class ChatMessageResult extends EaChatMessageDO {
     public String getPerformanceMetrics() {
         StringBuilder sb = new StringBuilder();
 
-        if (this.getTokensUsed() != null && this.getTokensUsed() > 0) {
-            sb.append("Tokens: ").append(this.getTokensUsed());
+        long inputTokens = this.getInputTokensUsed() == null ? 0L : this.getInputTokensUsed();
+        long outputTokens = this.getOutputTokensUsed() == null ? 0L : this.getOutputTokensUsed();
+        if (inputTokens + outputTokens > 0) {
+            sb.append("Tokens: ").append(inputTokens + outputTokens)
+                    .append("（入 ").append(inputTokens).append(" / 出 ").append(outputTokens).append("）");
         }
 
         if (this.getResponseTime() != null) {
