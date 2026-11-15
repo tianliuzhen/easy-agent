@@ -43,7 +43,11 @@
 .flow-node-ports {display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 10px; color: #595959;}
 .flow-port-label {height: 22px; line-height: 22px; position: relative;}.flow-port-label.output {text-align: right;}
 .react-flow__handle {width: 10px; height: 10px; border: 2px solid #fff;}.react-flow__handle-left {left: -18px;}.react-flow__handle-right {right: -18px;}
-.inspector-port {display: grid; grid-template-columns: 8px 1fr auto; gap: 7px; align-items: center; margin: 7px 0; font-size: 12px;}.inspector-port span {width: 8px; height: 8px; border-radius: 50%;}.inspector-port code {color: #8c8c8c;}
+.inspector-port {display: grid; grid-template-columns: 8px 1fr auto auto; gap: 7px; align-items: center; margin: 7px 0; font-size: 12px;}
+/* 第一个 span 是端口类型色点；方向标识另用 .inspector-port-dir，不要被圆点样式套住 */
+.inspector-port > span:first-child {width: 8px; height: 8px; border-radius: 50%;}
+.inspector-port code {color: #8c8c8c;}
+.inspector-port-dir {font-size: 11px; color: #9aa1ab; white-space: nowrap;}
 .router-branches {display: grid; gap: 8px;}.router-branch {display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 7px; background: #fafafa;}.router-branch .ant-input:nth-child(3) {grid-column: 1 / -1;}.router-branch .ant-btn {position: absolute; margin-left: 226px; margin-top: -9px;}
 .flow-issues {margin-top: 8px;}.flow-issues > div {font-size: 12px; padding: 6px; margin-bottom: 5px; border-radius: 5px; cursor: pointer;}.issue-error {color: #cf1322; background: #fff1f0;}.issue-warning {color: #ad6800; background: #fffbe6;}
 @media (max-width: 1050px) {.flow-studio {grid-template-columns: 160px minmax(380px, 1fr);}.flow-inspector {grid-column: 1 / -1; max-height: 300px; border-left: 0; border-top: 1px solid #e5e7eb;}}

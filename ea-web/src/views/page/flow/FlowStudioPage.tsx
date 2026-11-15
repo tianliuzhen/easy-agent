@@ -364,8 +364,22 @@ const NodeInspector = ({node, agents, onChange}: {node: StudioNode; agents: Agen
           : schema.type === 'integer' ? <InputNumber style={{width: '100%'}} value={node.data.config[key] as number | undefined} onChange={value => updateConfig(key, value)}/>
             : <Input.TextArea value={String(node.data.config[key] ?? '')} onChange={event => updateConfig(key, event.target.value)} autoSize={{minRows: 2, maxRows: 7}}/>}
     </Form.Item>)}
-    <Divider titlePlacement="start" plain>端口</Divider>{[...node.data.metadata.inputPorts, ...node.data.metadata.outputPorts].map(port => <div className="inspector-port" key={`${port.kind}-${port.key}`}><span style={{background: portColor[port.kind]}}/>{port.name}<code>{port.valueType}</code></div>)}
+    <Divider titlePlacement="start" plain>端口</Divider>
+    {/* key 必须带方向：多数节点的输入与输出都有名为 control 的端口，
+        只用 kind + key 会产生重复（AGENT/FORK/JOIN/SUPERVISOR/TEMPLATE 的
+        CONTROL-control、END 的 DATA-result），React 会反复告警 */}
+    {portRows(node.data.metadata).map(row => <div className="inspector-port" key={row.rowKey}>
+      <span style={{background: portColor[row.port.kind]}}/>{row.port.name}
+      <code>{row.port.valueType}</code>
+      <span className="inspector-port-dir">{row.direction === 'in' ? '入' : '出'}</span>
+    </div>)}
   </Form>;
 };
+
+/** 把输入与输出端口合成一个列表，每行带唯一 key 与方向标识 */
+const portRows = (metadata: NodeMetadata): {rowKey: string; direction: 'in' | 'out'; port: PortDefinition}[] => [
+  ...metadata.inputPorts.map(port => ({rowKey: `in-${port.kind}-${port.key}`, direction: 'in' as const, port})),
+  ...metadata.outputPorts.map(port => ({rowKey: `out-${port.kind}-${port.key}`, direction: 'out' as const, port})),
+];
 
 export default function FlowStudioPage({fullscreen = false}: {fullscreen?: boolean}) { return <ReactFlowProvider><FlowStudioCanvas fullscreen={fullscreen}/></ReactFlowProvider>; }
