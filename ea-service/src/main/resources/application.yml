@@ -8,19 +8,21 @@ spring:
       # ES 向量库同样由 ElasticsearchVectorStoreAutoConfiguration(本项目自定义, 按 provider 开关) 唯一提供，排除官方自动配置避免 milvus 模式下仍连接 ES
       - org.springframework.ai.vectorstore.elasticsearch.autoconfigure.ElasticsearchVectorStoreAutoConfiguration
 
-# 向量数据库提供方开关：es 或 milvus（后端统一由 VectorStoreRegister 按此值选择）
+# 向量数据库提供方开关：es 或 milvus，知识库和图片搜索统一按此切换。
 # embedding 提供方开关：ollama（本地 qwen2.5:3b）或 openai（百炼 text-embedding-v4，走 OpenAI 兼容接口）
 easy-agent:
   vectorstore:
     provider: milvus
   embedding:
     provider: openai
-  # 图片搜索（以图搜图）：百炼 qwen3-vl-embedding 原生多模态接口 + 独立 Milvus 集合
+  # 图片搜索（以图搜图）：百炼多模态向量化 + 独立 ES 索引或 Milvus 集合。
   image-search:
     api-key: ${DASHSCOPE_API_KEY:sk-placeholder-set-in-dotenv}
     model: qwen3-vl-embedding
     dimension: 2560
     collection-name: ea_image_search
+    # provider=es 时使用独立图片索引；维度仍取上面的 image-search.dimension。
+    index-name: ea_image_search
     storage: local
     upload-dir: ./uploads/image-search
 ---

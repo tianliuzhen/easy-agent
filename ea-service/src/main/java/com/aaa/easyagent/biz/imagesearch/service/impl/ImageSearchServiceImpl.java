@@ -1,6 +1,6 @@
 package com.aaa.easyagent.biz.imagesearch.service.impl;
 
-import com.aaa.easyagent.biz.imagesearch.ImageMilvusDao;
+import com.aaa.easyagent.biz.imagesearch.ImageVectorDao;
 import com.aaa.easyagent.biz.imagesearch.service.ImageSearchService;
 import com.aaa.easyagent.common.embedding.DashScopeMultimodalClient;
 import com.aaa.easyagent.common.storage.ImageStorage;
@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 图片搜索服务实现：编排 多模态向量化 + Milvus + 存储。
+ * 图片搜索服务实现：编排多模态向量化、按配置选择的向量库和图片存储。
  *
  * @author liuzhen.tian
  */
@@ -29,7 +29,7 @@ public class ImageSearchServiceImpl implements ImageSearchService {
     private static final int PAGE_SIZE = 24;
 
     private final DashScopeMultimodalClient multimodalClient;
-    private final ImageMilvusDao imageMilvusDao;
+    private final ImageVectorDao imageVectorDao;
     private final ImageStorage imageStorage;
 
     @Override
@@ -39,7 +39,7 @@ public class ImageSearchServiceImpl implements ImageSearchService {
         String ext = guessExtFromUrl(imageUrl);
 
         float[] vector = multimodalClient.embedImageByUrl(imageUrl);
-        imageMilvusDao.insert(id, displayName, ext, imageUrl, vector);
+        imageVectorDao.insert(id, displayName, ext, imageUrl, vector);
 
         ImageSearchResult result = new ImageSearchResult();
         result.setId(id);
@@ -73,7 +73,7 @@ public class ImageSearchServiceImpl implements ImageSearchService {
 
             imageStorage.save(id, bytes, ext);
             float[] vector = multimodalClient.embedImage(bytes, file.getContentType());
-            imageMilvusDao.insert(id, displayName, ext, null, vector);
+            imageVectorDao.insert(id, displayName, ext, null, vector);
 
             ImageSearchResult result = new ImageSearchResult();
             result.setId(id);
@@ -95,7 +95,7 @@ public class ImageSearchServiceImpl implements ImageSearchService {
         }
         try {
             float[] vector = multimodalClient.embedImage(file.getBytes(), file.getContentType());
-            List<ImageSearchResult> results = imageMilvusDao.search(vector, topK <= 0 ? 10 : topK);
+            List<ImageSearchResult> results = imageVectorDao.search(vector, topK <= 0 ? 10 : topK);
             results.forEach(r -> r.setImageUrl(
                     StringUtils.hasText(r.getSourceUrl()) ? r.getSourceUrl() : imageStorage.publicUrl(r.getId())));
             return results;
@@ -108,8 +108,8 @@ public class ImageSearchServiceImpl implements ImageSearchService {
     @Override
     public Map<String, Object> list(int offset, int limit) {
         int size = limit > 0 ? Math.min(limit, 200) : PAGE_SIZE;
-        long total = imageMilvusDao.countAll();
-        List<ImageSearchResult> results = imageMilvusDao.listAll(offset, size);
+        long total = imageVectorDao.countAll();
+        List<ImageSearchResult> results = imageVectorDao.listAll(offset, size);
         results.forEach(r -> r.setImageUrl(
                 StringUtils.hasText(r.getSourceUrl()) ? r.getSourceUrl() : imageStorage.publicUrl(r.getId())));
         Map<String, Object> map = new HashMap<>();
@@ -122,7 +122,7 @@ public class ImageSearchServiceImpl implements ImageSearchService {
 
     @Override
     public void delete(String id) {
-        imageMilvusDao.deleteById(id);
+        imageVectorDao.deleteById(id);
         imageStorage.delete(id);
     }
 

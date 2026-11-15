@@ -25,6 +25,7 @@ import io.milvus.response.SearchResultsWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -39,7 +40,8 @@ import java.util.List;
 @Slf4j
 @Repository
 @RequiredArgsConstructor
-public class ImageMilvusDao {
+@ConditionalOnProperty(name = "easy-agent.vectorstore.provider", havingValue = "milvus")
+public class ImageMilvusDao implements ImageVectorDao {
 
     private static final String F_ID = "id";
     private static final String F_NAME = "name";

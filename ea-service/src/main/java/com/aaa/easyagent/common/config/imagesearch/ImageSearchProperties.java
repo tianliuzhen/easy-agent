@@ -25,6 +25,8 @@ public class ImageSearchProperties {
 
     /** Milvus 集合名（独立于文本 RAG） */
     private String collectionName = "ea_image_search";
+    /** ES 图片索引名，独立于文本知识库索引，不使用其向量维度配置。 */
+    private String indexName = "ea_image_search";
     private String metricType = "COSINE";
     private String indexType = "IVF_FLAT";
 
