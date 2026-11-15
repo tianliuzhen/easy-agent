@@ -1,6 +1,6 @@
 package com.aaa.easyagent.core.service.impl;
 
-import com.aaa.easyagent.biz.agent.orchestration.FlowCompiler;
+import com.aaa.easyagent.biz.flow.compile.FlowCompiler;
 import com.aaa.easyagent.common.config.exception.AgentException;
 import com.aaa.easyagent.common.context.UserContextHolder;
 import com.aaa.easyagent.common.util.JacksonUtil;

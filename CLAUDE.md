@@ -82,14 +82,24 @@ source ea-service/config/initsql/model_platform_table.sql;
 - `SlidingWindowAdvisor` — 控制上下文窗口
 - `SseAdvisor` — 将执行过程通过 SSE 推送
 
-### 多 Agent 编排 (`biz/agent/flow/`)
+### 多 Agent 编排 (`biz/flow/`)
 
-- `FlowExecutor`（策略接口）+ `FlowExecutorManager`（注入 `List<FlowExecutor>`，按 `FlowStrategyEnum` 分发）
-- `impl/RouterFlowExecutor`、`impl/WorkflowFlowExecutor`
-- `FlowStrategyEnum`：**SUPERVISOR、ROUTER、WORKFLOW**（映射 `ea_agent_flow.strategy`）
-- `FlowContext`、`FlowManagerService(Impl)`、`AgentContextFactory`
-- 控制器 `web/biz/agent/FlowController`（`@RequestMapping("eaAgent/flow")`：`list`、`detail/{id}`、`save`）
-- 前端对应 `views/api/FlowApi.ts`
+基于有向无环图的编排引擎，与 `biz/agent/` **同级**：Flow 复用 Agent 的全部能力（模型调用、工具加载、记忆、执行轨迹），依赖方向为 `flow → agent`，单向。
+
+子包职责（各包有 `package-info.java`）：
+
+- `compile/` — `FlowCompiler` 把 `FlowDefinition` 校验并编译成只读的 `CompiledFlowPlan`；`PortTypeSystem` 判端口类型兼容
+- `engine/` — `FlowEngine` / `DefaultFlowEngine` 按控制边三态（PENDING/ACTIVE/SKIPPED）传播做动态调度；`FlowExecutorConfig` 全局共享节点线程池；`FlowOrchestrationProperties`（前缀 `easy-agent.flow`）
+- `node/` — 节点扩展点：`FlowNodePlugin`、`FlowNodePluginRegistry`（按 `type@version` 注册）、`FlowNodeTypes`、`NodeExecutionContext/Result`
+- `plugin/` — 8 种内置节点：START、END、AGENT、SUPERVISOR、ROUTER、FORK、JOIN、TEMPLATE
+- `event/` — `FlowEventType` 事件协议、`FlowEventPublisher` SSE 出口、`FlowNodeSseEmitter` 把单 Agent 事件适配成带 nodeId 的 Flow 事件
+- `runtime/` — `FlowRunContext`（含取消标志）、`FlowState`（`nodeId:portKey` 共享状态）、`FlowRunStatus`、`FlowRunRecorder`（审计写 `ea_agent_flow_run` / `ea_agent_flow_node_run`）
+
+三种边：`CONTROL`（执行顺序）、`DATA`（数据传递）、`WORKER`（SUPERVISOR → AGENT 的归属声明）。定义态数据结构在 `core/domain/flow/`。
+
+- 控制器 `web/biz/agent/FlowStudioController`（`@RequestMapping("eaAgent/flow")`：`list`、`node-types`、`{flowId}/draft`、`{flowId}/validate`、`{flowId}/publish`、`{flowId}/debug-run`）
+- 前端对应 `views/page/flow/FlowStudioPage.tsx` + `views/api/FlowApi.ts`
+- 完整设计说明见 `docs/flow-orchestration-design.md`
 
 ### 后端分层
 
